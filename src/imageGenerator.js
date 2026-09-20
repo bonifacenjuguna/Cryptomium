@@ -11,11 +11,14 @@ const HEIGHT = 401;
 const CARD_MARGIN = 14; // minimal inset gap so the brand color reads as a card, not a full-bleed fill
 
 // Vivid, higher-intensity than any brand color in the palette (including
-// TRX's red and USDT/USDC's green) so the direction arrow+price never
-// blends into a same-hue background.
+// TRX's red and USDT/USDC's green) so the direction arrow never blends
+// into a same-hue background. Only the arrow uses these; all other text
+// is white.
 const RISE_COLOR = '#00E676';
 const FALL_COLOR = '#FF1744';
+const TEXT_COLOR = '#FFFFFF';
 const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.55)';
+const LOGO_RING_WIDTH = 4; // very minimal white margin around the coin logo
 
 let fontsRegistered = false;
 function ensureFontsRegistered() {
@@ -43,16 +46,6 @@ function formatPrice(price) {
   })}`;
 }
 
-// Relative luminance -> decide whether ticker/logo-adjacent text should be
-// near-white or near-black against this coin's brand color background.
-function isLightColor(hex) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6;
-}
-
 /**
  * Renders the 1536x401 banner for one milestone post.
  *
@@ -67,7 +60,6 @@ export async function generateBannerImage({ ticker, price, direction }) {
 
   const coin = coinByTicker(ticker);
   const brandColor = coin.brandColor;
-  const onBrandColor = isLightColor(brandColor) ? '#0b0b0d' : '#f5f5f5';
   const directionColor = direction === 'up' ? RISE_COLOR : FALL_COLOR;
 
   const canvas = createCanvas(WIDTH, HEIGHT);
@@ -84,6 +76,7 @@ export async function generateBannerImage({ ticker, price, direction }) {
     const logoX = WIDTH / 2 - 330;
     const logoY = HEIGHT / 2 - logoSize / 2;
     ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
+    drawLogoRing(ctx, logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2);
     logoDrawn = true;
   } catch {
     // Logo missing on disk (fetchAssets.js failed for this coin at deploy
@@ -97,14 +90,18 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
-  ctx.font = '48px "Source Serif Regular"';
-  ctx.fillStyle = onBrandColor;
-  ctx.fillText(ticker, textBlockX, HEIGHT / 2 - 30);
+  // Ticker: bold, white, reads like a wordmark.
+  ctx.font = '64px "Source Serif Bold"';
+  drawOutlinedText(ctx, ticker, textBlockX, HEIGHT / 2 - 30, TEXT_COLOR, 6);
 
-  const arrow = direction === 'up' ? '▲' : '▼';
-  const priceText = `${arrow} ${formatPrice(price)}`;
+  // Price line: only the direction arrow is colored (green up / red down);
+  // the price itself is white.
+  const arrow = direction === 'up' ? '\u25B2' : '\u25BC';
   ctx.font = '96px "Source Serif Bold"';
-  drawOutlinedText(ctx, priceText, textBlockX, HEIGHT / 2 + 60, directionColor);
+  const priceY = HEIGHT / 2 + 60;
+  drawOutlinedText(ctx, arrow, textBlockX, priceY, directionColor);
+  const priceX = textBlockX + ctx.measureText(`${arrow} `).width;
+  drawOutlinedText(ctx, formatPrice(price), priceX, priceY, TEXT_COLOR);
 
   // --- Watermark, bottom-right ----------------------------------------
   ctx.font = '32px "Source Serif Regular"';
@@ -157,14 +154,24 @@ function drawBrandCard(ctx, brandColor) {
 // Draws text with a soft dark outline behind it, guaranteeing legibility
 // even when the direction color's hue is close to the brand background
 // (TRX red, USDT/USDC green).
-function drawOutlinedText(ctx, text, x, y, fillColor) {
+function drawOutlinedText(ctx, text, x, y, fillColor, outlineWidth = 8) {
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.lineWidth = 8;
+  ctx.lineWidth = outlineWidth;
   ctx.strokeText(text, x, y);
   ctx.fillStyle = fillColor;
   ctx.fillText(text, x, y);
+}
+
+// Thin white ring hugging the outside edge of the (circular) coin logo.
+// Stroked rather than filled so it never shows through transparent logo pixels.
+function drawLogoRing(ctx, cx, cy, logoRadius) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, logoRadius + LOGO_RING_WIDTH / 2 - 0.5, 0, Math.PI * 2);
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = LOGO_RING_WIDTH;
+  ctx.stroke();
 }
 
 function lighten(hex, amount) {

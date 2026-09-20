@@ -88,9 +88,11 @@ bot (only `/start` is a slash command):
 - Each coin's banner uses that coin's own known brand color as the
   background (e.g. Bitcoin orange, Ethereum blue-purple), inset with a
   small border so it reads as a card rather than an edge-to-edge fill
-- The price/arrow is always rendered in a vivid green (rise) or red
-  (fall) with a soft dark outline behind it, so it stays legible even
-  against same-hue brand colors (TRON's red, USDT/USDC's green)
+- Only the direction arrow is colored — vivid green (rise) or red
+  (fall). The ticker and price are white. All text has a soft dark
+  outline behind it so it stays legible on any brand color (including
+  light ones like BNB yellow and TRON's red)
+- The coin logo has a thin white ring around it
 - Coin logos and the Source Serif 4 font are downloaded once at deploy
   time (`npm run build`) and stored locally — the bot never depends on
   external image or font hosts while actually posting

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2
+
+- Banner restyle: only the direction arrow is colored (green up / red down);
+  the price is now white.
+- Ticker (e.g. BTC) is now bold and white instead of regular and black/white.
+- Thin white ring around the coin logo.
+
 ## 1.0.1
 
 - **Fix:** bot posted "Connected." but never posted coin data. In Telegraf 4.x
