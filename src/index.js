@@ -26,10 +26,28 @@ async function main() {
     await unmute(ticker);
   });
 
-  await bot.launch();
+  // NOTE: In Telegraf 4.x, bot.launch() returns a promise that only settles
+  // when the bot *stops* (it awaits the long-polling loop). Awaiting it
+  // directly meant everything below it — including startScheduler() — never
+  // ran, so the bot could answer /start and post "Connected." but never
+  // posted any coin data. We resolve on the onLaunch callback instead.
+  await new Promise((resolve, reject) => {
+    let launched = false;
+    bot
+      .launch(() => {
+        launched = true;
+        resolve();
+      })
+      .catch(err => {
+        if (!launched) return reject(err);
+        console.error('[index] Polling loop stopped unexpectedly:', err);
+        process.exit(1);
+      });
+  });
   console.log('[index] Bot launched.');
 
   startScheduler(bot);
+  console.log(`[index] Scheduler started (every ${CONFIG.pollIntervalMs}ms).`);
 
   // Private liveness DM to the owner only — the channel stays untouched
   // on ordinary deploys/restarts.

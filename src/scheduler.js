@@ -26,6 +26,7 @@ export function startScheduler(bot) {
 async function runOnce(bot) {
   const channelId = await getState('channel_id');
   const prices = await fetchAllPrices();
+  console.log(`[scheduler] Tick: fetched ${prices.size}/${COINS.length} prices, channel ${channelId ? 'connected' : 'NOT connected'}.`);
 
   for (const coin of COINS) {
     const price = prices.get(coin.ticker);

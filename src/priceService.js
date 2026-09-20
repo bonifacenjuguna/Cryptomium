@@ -30,7 +30,7 @@ async function fetchFromCoinGecko() {
  * which is unnecessary overhead here).
  */
 async function fetchFromBinance() {
-  const symbols = JSON.stringify(COINS.map(c => c.binanceSymbol));
+  const symbols = JSON.stringify(COINS.filter(c => c.binanceSymbol).map(c => c.binanceSymbol));
   const url = `${BINANCE_URL}?symbols=${encodeURIComponent(symbols)}`;
 
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
@@ -40,6 +40,7 @@ async function fetchFromBinance() {
   const bySymbol = new Map(data.map(entry => [entry.symbol, Number(entry.price)]));
   const prices = new Map();
   for (const coin of COINS) {
+    if (!coin.binanceSymbol) continue;
     const price = bySymbol.get(coin.binanceSymbol);
     if (typeof price === 'number' && !Number.isNaN(price)) prices.set(coin.ticker, price);
   }
