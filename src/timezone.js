@@ -47,3 +47,8 @@ export function parseMuteTime(input, timezone = CONFIG.defaultTimezone) {
 export function formatInTimezone(date, timezone = CONFIG.defaultTimezone) {
   return DateTime.fromJSDate(date).setZone(timezone).toFormat('yyyy-LL-dd HH:mm ZZZZ');
 }
+
+/** Short wall-clock time, e.g. "14:32:05", in the given timezone. */
+export function formatClock(date, timezone = CONFIG.defaultTimezone) {
+  return DateTime.fromJSDate(date).setZone(timezone).toFormat('HH:mm:ss');
+}

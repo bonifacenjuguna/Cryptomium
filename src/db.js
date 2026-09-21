@@ -1,5 +1,5 @@
 import pg from 'pg';
-import { CONFIG, COINS } from './config.js';
+import { CONFIG, COINS, DEFAULT_MODE } from './config.js';
 
 const { Pool } = pg;
 
@@ -22,6 +22,13 @@ export async function initDb() {
     );
   `);
 
+  // Columns added after v1.0 — additive and idempotent, so existing installs
+  // upgrade in place and keep behaving exactly as before (dollar steps,
+  // Steady mode) until the owner changes something.
+  await pool.query(`ALTER TABLE coin_settings ADD COLUMN IF NOT EXISTS step_unit TEXT NOT NULL DEFAULT 'usd'`);
+  await pool.query(`ALTER TABLE coin_settings ADD COLUMN IF NOT EXISTS pct_threshold DOUBLE PRECISION`);
+  await pool.query(`ALTER TABLE coin_settings ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT '${DEFAULT_MODE}'`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS bot_state (
       key TEXT PRIMARY KEY,
@@ -31,10 +38,15 @@ export async function initDb() {
 
   for (const coin of COINS) {
     await pool.query(
-      `INSERT INTO coin_settings (ticker, threshold)
-       VALUES ($1, $2)
+      `INSERT INTO coin_settings (ticker, threshold, pct_threshold)
+       VALUES ($1, $2, $3)
        ON CONFLICT (ticker) DO NOTHING`,
-      [coin.ticker, coin.defaultThreshold]
+      [coin.ticker, coin.defaultThreshold, coin.defaultPercent]
+    );
+    // Backfill the percentage base for rows created before it existed.
+    await pool.query(
+      `UPDATE coin_settings SET pct_threshold = $2 WHERE ticker = $1 AND pct_threshold IS NULL`,
+      [coin.ticker, coin.defaultPercent]
     );
   }
 }
@@ -51,6 +63,36 @@ export async function getAllCoinSettings() {
 
 export async function setThreshold(ticker, threshold) {
   await pool.query('UPDATE coin_settings SET threshold = $2 WHERE ticker = $1', [ticker, threshold]);
+}
+
+/** Sets the base step (x) for the coin's currently active unit. */
+export async function setBaseStep(ticker, unit, value) {
+  const column = unit === 'pct' ? 'pct_threshold' : 'threshold';
+  await pool.query(`UPDATE coin_settings SET ${column} = $2 WHERE ticker = $1`, [ticker, value]);
+}
+
+/**
+ * Switches a coin between dollar steps ('usd') and percentage steps ('pct').
+ * The ladder position is cleared so the next price reading silently
+ * re-baselines instead of firing an alert based on the old unit.
+ */
+export async function setStepUnit(ticker, unit) {
+  await pool.query(
+    `UPDATE coin_settings SET step_unit = $2, last_milestone = NULL WHERE ticker = $1`,
+    [ticker, unit]
+  );
+}
+
+export async function setStepUnitForAll(unit) {
+  await pool.query(`UPDATE coin_settings SET step_unit = $1, last_milestone = NULL`, [unit]);
+}
+
+export async function setMode(ticker, modeKey) {
+  await pool.query('UPDATE coin_settings SET mode = $2 WHERE ticker = $1', [ticker, modeKey]);
+}
+
+export async function setModeForAll(modeKey) {
+  await pool.query('UPDATE coin_settings SET mode = $1', [modeKey]);
 }
 
 export async function setLastMilestone(ticker, price) {

@@ -1,5 +1,6 @@
 // Decides whether a new price reading crosses a milestone that should be
-// posted. Two modes:
+// posted. A coin's step can be a dollar amount or a percentage, and is
+// scaled by its alert mode (Hyper / Fast / Steady / Calm):
 //
 //  - Normal coins: a ladder of round-number steps (threshold apart). We
 //    track the last milestone level that was announced and check whether
@@ -8,18 +9,84 @@
 //    post for the furthest level crossed, rather than spamming one post
 //    per intermediate step.
 //
-//  - Stablecoins (USDT/USDC): "threshold" is a depeg band half-width
-//    around $1.00. We alert once when price exits the band, then re-arm
-//    (allow another alert) only after price returns inside the band.
+//  - Percentage steps: we alert every time the price has moved that many
+//    percent away from the price at the last alert (in either direction),
+//    and post the actual current price. Big jumps still collapse to a
+//    single post.
+//
+//  - Stablecoins (USDT/USDC): the step is a depeg band half-width around
+//    $1.00 (a percent step of p% means a band of p/100 dollars). We alert
+//    once when price exits the band, then re-arm (allow another alert) only
+//    after price returns inside the band.
 //
 // Returns null (no post needed) or { direction: 'up' | 'down' | null,
 // price, newLastMilestone } describing what to post and what to persist.
 
+import { modeByKey } from './config.js';
+
+/**
+ * Resolves a coin's effective step from its settings.
+ * effective step = base step for the active unit x the mode's multiplier.
+ * Returns { unit: 'usd' | 'pct', base, multiplier, value, mode }.
+ */
+export function stepOf(coin, settings) {
+  const unit = settings.step_unit === 'pct' ? 'pct' : 'usd';
+  const base = unit === 'pct'
+    ? Number(settings.pct_threshold ?? coin.defaultPercent)
+    : Number(settings.threshold);
+  const mode = modeByKey(settings.mode);
+  const value = Number((base * mode.multiplier).toPrecision(12));
+  return { unit, base, multiplier: mode.multiplier, value, mode };
+}
+
 export function checkMilestone(coin, settings, currentPrice) {
+  const step = stepOf(coin, settings);
+
   if (coin.stable) {
-    return checkStablecoinDepeg(settings, currentPrice, settings.threshold);
+    const band = step.unit === 'pct' ? step.value / 100 : step.value;
+    return checkStablecoinDepeg(settings, currentPrice, band);
   }
-  return checkLadderCrossing(settings, currentPrice, settings.threshold);
+  if (step.unit === 'pct') {
+    return checkPercentCrossing(settings, currentPrice, step.value);
+  }
+  return checkLadderCrossing(settings, currentPrice, step.value);
+}
+
+/**
+ * The price a banner would show for `price` right now — used by the test
+ * banner so a preview looks like a real alert. Dollar-ladder coins show the
+ * nearest round level; percentage and stablecoin alerts show the live price.
+ */
+export function previewLevel(coin, settings, price) {
+  const step = stepOf(coin, settings);
+  if (coin.stable || step.unit === 'pct') return price;
+  return roundToStep(Math.round(price / step.value) * step.value, step.value);
+}
+
+/** Human-readable step, e.g. "$500", "$0.005" or "0.75%". */
+export function formatStep(unit, value) {
+  if (unit === 'pct') return `${Number(value.toFixed(4))}%`;
+  const decimals = value >= 1 ? 2 : Math.min(8, Math.max(2, (value.toString().split('.')[1] || '').length));
+  const trimmed = Number(value.toFixed(decimals));
+  return `$${trimmed.toLocaleString('en-US', { maximumFractionDigits: decimals })}`;
+}
+
+function checkPercentCrossing(settings, currentPrice, percent) {
+  const { last_milestone } = settings;
+
+  // First reading (or after switching to percentage steps): baseline silently.
+  if (last_milestone === null || last_milestone === undefined) {
+    return { direction: null, price: currentPrice, newLastMilestone: currentPrice };
+  }
+
+  const changePct = ((currentPrice - last_milestone) / last_milestone) * 100;
+  if (changePct >= percent) {
+    return { direction: 'up', price: currentPrice, newLastMilestone: currentPrice };
+  }
+  if (changePct <= -percent) {
+    return { direction: 'down', price: currentPrice, newLastMilestone: currentPrice };
+  }
+  return null;
 }
 
 function checkLadderCrossing(settings, currentPrice, threshold) {
@@ -67,7 +134,7 @@ function checkStablecoinDepeg(settings, currentPrice, bandWidth) {
   return null;
 }
 
-function roundToStep(value, step) {
+export function roundToStep(value, step) {
   // Guards against floating point drift (e.g. 0.30000000000000004) by
   // rounding to a sensible number of decimal places derived from the step.
   const decimals = Math.min(10, (step.toString().split('.')[1] || '').length);

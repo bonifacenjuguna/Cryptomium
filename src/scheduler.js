@@ -3,12 +3,7 @@ import { fetchAllPrices } from './priceService.js';
 import { checkMilestone } from './milestoneEngine.js';
 import { getCoinSettings, setLastMilestone, getState } from './db.js';
 import { generateBannerImage } from './imageGenerator.js';
-
-function isCurrentlyMuted(settings) {
-  if (settings.muted_indefinitely) return true;
-  if (settings.muted_until && new Date(settings.muted_until) > new Date()) return true;
-  return false;
-}
+import { isMuted } from './coinView.js';
 
 export function startScheduler(bot) {
   const tick = async () => {
@@ -42,7 +37,7 @@ async function runOnce(bot) {
     await setLastMilestone(coin.ticker, result.newLastMilestone);
 
     if (result.direction === null) continue; // baseline set or re-armed, nothing to post
-    if (isCurrentlyMuted(settings)) continue;
+    if (isMuted(settings)) continue;
     if (!channelId) continue; // no channel connected yet
 
     try {

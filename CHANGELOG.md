@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.1.0
+
+**Fixes**
+- Missing coin logos (DOGE, ADA, LINK, and likely TON/USDT/USDC): the build
+  fetched each logo with its own CoinGecko call and hit the free-tier rate
+  limit after about six. Logos now come from a single batched request, with
+  retries (honoring Retry-After), fallback icon sources, validation, and a
+  retry at every bot start plus every 30 minutes. You get a private message if
+  any are still missing.
+- A missing logo no longer leaves a banner empty: it shows a coin-colored
+  ticker badge until the real logo arrives.
+
+**Banner**
+- Focal point is the price: logo ~15% smaller, price ~20% bigger. The price
+  shrinks automatically only when it would run too wide.
+
+**New features (owner menu)**
+- 💰 Prices: live prices with each coin's step and mode, plus refresh.
+- 🧪 Test banner: preview any coin (rise / fall / custom price), sent only to
+  you.
+- 🔕 Bulk mute: mute or unmute all coins, or tick several, with the same
+  durations as a single coin.
+- Percentage steps per coin (alert each time price moves that % from the last
+  alert), with defaults BTC 0.5%, ETH 0.75%, XRP 1%, BNB 0.75%, SOL 1%.
+  Per-coin and all-coins switches between $ and %.
+- Alert modes scaling each coin's step: 🚀 Hyper (¼x), 💨 Fast (½x),
+  🎯 Steady (x, default), 😌 Calm (2x); per coin or for all coins.
+- Status list now reads like `BTC — 0.5% 🔔`.
+- Tapping a menu button now cancels any half-finished "type your answer" step.
+- Optional `COINGECKO_API_KEY` environment variable.
+
+**Under the hood**
+- Database gains `step_unit`, `pct_threshold` and `mode` columns (added
+  automatically on start; existing coins keep their $ steps and Steady mode).
+- `npm test` (unit tests for steps/modes, input parsing and the logo
+  downloader).
+
 ## 1.0.10
 
 - Final banner layout: logo back to center-left at full size, ticker with a

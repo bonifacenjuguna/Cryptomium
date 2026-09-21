@@ -1,4 +1,4 @@
-import { COINS } from './config.js';
+import { COINS, coingeckoHeaders } from './config.js';
 
 const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price';
 const BINANCE_URL = 'https://api.binance.com/api/v3/ticker/price';
@@ -11,7 +11,7 @@ async function fetchFromCoinGecko() {
   const ids = COINS.map(c => c.coingeckoId).join(',');
   const url = `${COINGECKO_URL}?ids=${ids}&vs_currencies=usd`;
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  const res = await fetch(url, { headers: coingeckoHeaders(), signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`CoinGecko responded ${res.status}`);
   const data = await res.json();
 
@@ -48,15 +48,37 @@ async function fetchFromBinance() {
   return prices;
 }
 
+// Most recent successful reading, shared by the scheduler and the admin
+// screens (Prices, Test banner) so they don't each hit the price APIs.
+let latest = { prices: null, at: 0, source: null };
+
 /**
  * Returns Map<ticker, price>. Tries CoinGecko first; on any failure
  * (network error, rate limit, bad response) falls back to Binance.
  */
 export async function fetchAllPrices() {
+  let prices;
+  let source;
   try {
-    return await fetchFromCoinGecko();
+    prices = await fetchFromCoinGecko();
+    source = 'CoinGecko';
   } catch (err) {
     console.warn(`[priceService] CoinGecko failed (${err.message}), falling back to Binance.`);
-    return await fetchFromBinance();
+    prices = await fetchFromBinance();
+    source = 'Binance';
   }
+  latest = { prices, at: Date.now(), source };
+  return prices;
+}
+
+/**
+ * Admin-side helper: returns { prices, at, source } from the shared cache if
+ * it is fresh enough, otherwise fetches. `force` bypasses the cache (but is
+ * still throttled to one real fetch per 3 seconds to stay polite to the APIs).
+ */
+export async function getLatestPrices({ maxAgeMs = 20_000, force = false } = {}) {
+  const age = Date.now() - latest.at;
+  if (latest.prices && (force ? age < 3_000 : age < maxAgeMs)) return latest;
+  await fetchAllPrices();
+  return latest;
 }

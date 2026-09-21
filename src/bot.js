@@ -3,6 +3,9 @@ import { CONFIG } from './config.js';
 import { registerStartHandlers } from './handlers/start.js';
 import { registerSettingsHandlers } from './handlers/settings.js';
 import { registerMuteHandlers } from './handlers/mute.js';
+import { registerAdminHandlers } from './handlers/admin.js';
+import { MENU_LABELS } from './keyboards.js';
+import { pending } from './pending.js';
 
 export function createBot({ onChannelConnected }) {
   if (!CONFIG.botToken) throw new Error('BOT_TOKEN is not set');
@@ -18,9 +21,18 @@ export function createBot({ onChannelConnected }) {
     return next();
   });
 
+  // Tapping a menu button (or sending a /command) cancels any half-finished
+  // "type your answer" flow, so a button press is never mistaken for an answer.
+  bot.use(async (ctx, next) => {
+    const text = ctx.message?.text;
+    if (text && (MENU_LABELS.includes(text) || text.startsWith('/'))) pending.clear(ctx.from.id);
+    return next();
+  });
+
   registerStartHandlers(bot, { onChannelConnected });
   registerSettingsHandlers(bot);
   registerMuteHandlers(bot);
+  registerAdminHandlers(bot);
 
   // Only /start is registered as a visible menu command, per spec —
   // everything else is button-driven.

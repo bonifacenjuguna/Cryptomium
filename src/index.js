@@ -3,6 +3,7 @@ import { initDb, unmute } from './db.js';
 import { initMuteExpiryListener } from './redisClient.js';
 import { createBot } from './bot.js';
 import { startScheduler } from './scheduler.js';
+import { startLogoHealer } from './logoService.js';
 
 async function main() {
   await initDb();
@@ -56,6 +57,23 @@ async function main() {
   } catch (err) {
     console.warn('[index] Could not send startup DM to owner (has the owner started a chat with the bot yet?):', err.message);
   }
+
+  // Fetch any coin logos the build step missed (rate limits etc.) in the
+  // background. Banners work meanwhile — a missing logo draws a monogram badge.
+  startLogoHealer({
+    onStillMissing: async tickers => {
+      console.warn(`[index] Logos still missing after retry: ${tickers.join(', ')}`);
+      try {
+        await bot.telegram.sendMessage(
+          CONFIG.ownerId,
+          `⚠️ Couldn't download logos for: ${tickers.join(', ')}.\n` +
+          'Banners use a text badge for those until they download (I keep retrying every 30 minutes).'
+        );
+      } catch {
+        /* owner may not have started a chat yet */
+      }
+    },
+  });
 
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));

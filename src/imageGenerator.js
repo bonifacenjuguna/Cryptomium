@@ -2,6 +2,7 @@ import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG, coinByTicker } from './config.js';
+import { logoPath } from './logoService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.join(__dirname, '..', 'assets');
@@ -24,22 +25,24 @@ const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 // Everything is anchored to a fixed left edge (rather than re-centered per
 // post) so nothing jumps around between banners. It sits slightly left of
 // center and well inside the middle of the image, since Telegram crops very
-// wide photos from the sides.
+// wide photos from the sides. The PRICE is the focal point: the logo is
+// deliberately modest and the number is big.
 //
 //   (logo)   BTC              [chip]     <- chip sits up and to the right
 //            $81,385
 //
-const BLOCK_LEFT = Math.round(WIDTH / 2 - 395);
+const BLOCK_LEFT = Math.round(WIDTH / 2 - 430);
+const SAFE_RIGHT = WIDTH - 330; // nothing should extend past this (Telegram's side crop)
 
-const LOGO_SIZE = Math.round(250 * S); // logo diameter (CoinGecko art is 250px; a bit of downscale stays crisp)
-const LOGO_RING = Math.round(12 * S); // white margin around the logo; part of the badge
+const LOGO_SIZE = Math.round(212 * S); // logo diameter (CoinGecko art is 250px, so this downscales crisply)
+const LOGO_RING = Math.round(11 * S); // white margin around the logo; part of the badge
 const BADGE_SIZE = LOGO_SIZE + LOGO_RING * 2;
 const BADGE_TEXT_GAP = Math.round(58 * S); // between the logo badge and the text
 
 const TICKER_SIZE = Math.round(80 * S);
 const TICKER_TRACKING = Math.round(9 * S); // letter-spacing, so the ticker reads like a wordmark
 const TICKER_EMBOLDEN = 2.5 * S; // same-color stroke: pushes Poppins Bold toward Black weight
-const PRICE_SIZE = Math.round(132 * S);
+const PRICE_SIZE = Math.round(158 * S); // shrinks automatically for very long prices
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
 const STACK_GAP = Math.round(40 * S); // between the ticker baseline and the top of the price digits
 
@@ -103,28 +106,39 @@ export async function generateBannerImage({ ticker, price, direction }) {
   drawBackground(ctx, pal, badgeCx, cy);
 
   // --- Logo badge, vertically centered ---------------------------------
-  let logoDrawn = false;
+  // If the logo file isn't on disk (download failed / not fetched yet), a
+  // brand-colored monogram badge is drawn instead, so a banner never looks
+  // like it is missing something.
+  let logo = null;
   try {
-    const logo = await loadImage(path.join(ASSETS_DIR, 'logos', `${ticker}.png`));
-    drawLogoBadge(ctx, logo, badgeCx, cy, pal);
-    logoDrawn = true;
+    logo = await loadImage(logoPath(ticker));
   } catch {
-    // Logo missing on disk (fetchAssets.js failed for this coin at deploy
-    // time) — fall back gracefully to a layout without it rather than
-    // crashing the whole post.
+    logo = null;
   }
+  drawLogoBadge(ctx, logo, badgeCx, cy, pal, ticker);
 
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
   // --- Text block: ticker on top, price below, both left-aligned -----------
-  const textX = logoDrawn ? BLOCK_LEFT + BADGE_SIZE + BADGE_TEXT_GAP : BLOCK_LEFT + 60;
+  const textX = BLOCK_LEFT + BADGE_SIZE + BADGE_TEXT_GAP;
+  const priceText = formatPrice(price);
+
+  // Shrink the price only if it would run past the safe area (e.g. $123,456).
+  const maxPriceWidth = SAFE_RIGHT - CHIP_OVERHANG - textX;
+  let priceSize = PRICE_SIZE;
+  ctx.font = `${priceSize}px ${FONT_BOLD}`;
+  while (ctx.measureText(priceText).width > maxPriceWidth && priceSize > PRICE_SIZE * 0.6) {
+    priceSize -= 2;
+    ctx.font = `${priceSize}px ${FONT_BOLD}`;
+  }
+  const priceWidth = ctx.measureText(priceText).width;
+
   const tickerCap = TICKER_SIZE * CAP_HEIGHT;
-  const priceCap = PRICE_SIZE * CAP_HEIGHT;
+  const priceCap = priceSize * CAP_HEIGHT;
   const stackHeight = tickerCap + STACK_GAP + priceCap;
   const tickerBase = cy - stackHeight / 2 + tickerCap;
   const priceBase = tickerBase + STACK_GAP + priceCap;
-  const priceText = formatPrice(price);
 
   ctx.font = `${TICKER_SIZE}px ${FONT_BOLD}`;
   drawSoftText(ctx, ticker, textX, tickerBase, pal, {
@@ -133,9 +147,6 @@ export async function generateBannerImage({ ticker, price, direction }) {
     embolden: TICKER_EMBOLDEN,
   });
   const tickerWidth = measureTracked(ctx, ticker, TICKER_TRACKING);
-
-  ctx.font = `${PRICE_SIZE}px ${FONT_BOLD}`;
-  const priceWidth = ctx.measureText(priceText).width;
 
   // --- Direction chip: up and to the right of the ticker ------------------
   // Anchored to the price's right edge and overhanging it a little, but never
@@ -153,6 +164,7 @@ export async function generateBannerImage({ ticker, price, direction }) {
   );
 
   // --- Price ---------------------------------------------------------------
+  ctx.font = `${priceSize}px ${FONT_BOLD}`;
   drawSoftText(ctx, priceText, textX, priceBase, pal, {
     fill: pearlGradient(ctx, priceBase - priceCap, priceBase, pal),
   });
@@ -196,6 +208,9 @@ function buildPalette(hex, direction) {
   const midL = Math.min(l, maxLightness(h, s, maxLum));
 
   return {
+    // Brand tones, used for the monogram badge when a logo file is missing.
+    brandTop: hsl(brandH, Math.min(1, s * 1.05 + 0.04), Math.min(0.75, l + 0.08)),
+    brandBottom: hsl(brandH, Math.min(1, s * 1.05 + 0.04), Math.max(0.05, l - 0.1)),
     // Base gradient, top-left -> bottom-right.
     c1: hsl(h - 4, sat, midL * 0.9),
     c2: hsl(h - 1, sat, midL),
@@ -287,13 +302,13 @@ function addGrain(ctx, amount) {
 // Logo badge: pearl-white margin + coin logo
 // ---------------------------------------------------------------------
 
-function drawLogoBadge(ctx, logo, cx, cy, pal) {
+function drawLogoBadge(ctx, logo, cx, cy, pal, ticker) {
   const rLogo = LOGO_SIZE / 2;
   const rBadge = rLogo + LOGO_RING;
 
   // Pearl-white disc (the margin): white at the top-left easing to a
   // faintly tinted white at the bottom-right, with a soft brand-tinted
-  // drop shadow and a whisper of light glow around it.
+  // drop shadow.
   ctx.save();
   ctx.shadowColor = pal.shadow(0.42);
   ctx.shadowBlur = 34;
@@ -307,13 +322,17 @@ function drawLogoBadge(ctx, logo, cx, cy, pal) {
   ctx.fill();
   ctx.restore();
 
-  // The logo, clipped to a circle, with only a faint top-left highlight for
-  // a hint of dome. Nothing darkens the logo, so white marks stay clean.
+  // The logo (or monogram), clipped to a circle, with only a faint top-left
+  // highlight for a hint of dome. Nothing darkens it, so white marks stay clean.
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, rLogo, 0, Math.PI * 2);
   ctx.clip();
-  ctx.drawImage(logo, cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
+  if (logo) {
+    ctx.drawImage(logo, cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
+  } else {
+    drawMonogram(ctx, cx, cy, rLogo, ticker, pal);
+  }
 
   const hx = cx - rLogo * 0.4;
   const hy = cy - rLogo * 0.5;
@@ -323,6 +342,31 @@ function drawLogoBadge(ctx, logo, cx, cy, pal) {
   ctx.fillStyle = highlight;
   ctx.fillRect(cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
   ctx.restore();
+}
+
+// Stand-in for a missing logo: the coin's brand color with its ticker in
+// white, sized to fit the circle.
+function drawMonogram(ctx, cx, cy, r, ticker, pal) {
+  const fill = ctx.createLinearGradient(0, cy - r, 0, cy + r);
+  fill.addColorStop(0, pal.brandTop);
+  fill.addColorStop(1, pal.brandBottom);
+  ctx.fillStyle = fill;
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+  let size = r * 0.95;
+  ctx.font = `${size}px ${FONT_BOLD}`;
+  const maxWidth = r * 1.35;
+  while (ctx.measureText(ticker).width > maxWidth && size > 12) {
+    size -= 2;
+    ctx.font = `${size}px ${FONT_BOLD}`;
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
+  ctx.fillText(ticker, cx, cy + (size * CAP_HEIGHT) / 2);
 }
 
 // ---------------------------------------------------------------------
