@@ -9,15 +9,9 @@ const ASSETS_DIR = path.join(__dirname, '..', 'assets');
 const WIDTH = 1536;
 const HEIGHT = 480;
 
-// Vivid, higher-intensity than any brand color in the palette (including
-// TRX's red and USDT/USDC's green) so the direction arrow never blends
-// into a same-hue background. Only the arrow uses these; all other text
-// is white.
+// Vivid direction colors. Only the arrow uses these; all other text is white.
 const RISE_COLOR = '#00E676';
-const RISE_COLOR_LIGHT = '#6BFFB0';
 const FALL_COLOR = '#FF1744';
-const FALL_COLOR_LIGHT = '#FF6B85';
-const TEXT_COLOR = '#FFFFFF';
 const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 
 // --- Layout ----------------------------------------------------------
@@ -37,8 +31,8 @@ const PRICE_SIZE = 96;
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
 const STACK_GAP = 30; // space between ticker baseline and the top of the price digits
 
-const ARROW_W = 60;
-const ARROW_H = 52;
+const ARROW_W = 66;
+const ARROW_H = 58;
 const ARROW_GAP = 24;
 
 // Poppins (geometric sans-serif, SIL OFL) is bundled in assets/fonts so the
@@ -80,6 +74,7 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ensureFontsRegistered();
 
   const coin = coinByTicker(ticker);
+  const pal = buildPalette(coin.brandColor, direction);
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext('2d');
@@ -89,13 +84,13 @@ export async function generateBannerImage({ ticker, price, direction }) {
   const cy = HEIGHT / 2;
   const badgeCx = BADGE_LEFT + BADGE_SIZE / 2;
 
-  drawBackground(ctx, buildPalette(coin.brandColor));
+  drawBackground(ctx, pal, badgeCx, cy);
 
   // --- Logo badge ----------------------------------------------------
   let logoDrawn = false;
   try {
     const logo = await loadImage(path.join(ASSETS_DIR, 'logos', `${ticker}.png`));
-    drawLogoBadge(ctx, logo, badgeCx, cy);
+    drawLogoBadge(ctx, logo, badgeCx, cy, pal);
     logoDrawn = true;
   } catch {
     // Logo missing on disk (fetchAssets.js failed for this coin at deploy
@@ -116,19 +111,22 @@ export async function generateBannerImage({ ticker, price, direction }) {
   const priceBase = tickerBase + STACK_GAP + priceCap;
 
   ctx.font = `${TICKER_SIZE}px ${FONT_BOLD}`;
-  drawSoftText(ctx, ticker, textX, tickerBase, {
+  drawSoftText(ctx, ticker, textX, tickerBase, pal, {
+    fill: pearlGradient(ctx, tickerBase - tickerCap, tickerBase, pal),
     tracking: TICKER_TRACKING,
     embolden: TICKER_EMBOLDEN,
   });
 
   // Only the arrow is colored (green up / red down); the price is white.
-  // The arrow is a vector triangle (not a font glyph) so it renders
+  // The arrow is a vector shape (not a font glyph) so it renders
   // identically on any server.
   const arrowY = priceBase - priceCap / 2 - ARROW_H / 2;
-  drawArrow(ctx, textX, arrowY, ARROW_W, ARROW_H, direction);
+  drawArrow(ctx, textX, arrowY, ARROW_W, ARROW_H, direction, pal);
 
   ctx.font = `${PRICE_SIZE}px ${FONT_BOLD}`;
-  drawSoftText(ctx, formatPrice(price), textX + ARROW_W + ARROW_GAP, priceBase);
+  drawSoftText(ctx, formatPrice(price), textX + ARROW_W + ARROW_GAP, priceBase, pal, {
+    fill: pearlGradient(ctx, priceBase - priceCap, priceBase, pal),
+  });
 
   // --- Watermark, bottom-right ----------------------------------------
   ctx.font = `32px ${FONT_REGULAR}`;
@@ -140,36 +138,107 @@ export async function generateBannerImage({ ticker, price, direction }) {
 }
 
 // ---------------------------------------------------------------------
-// Background
+// Palette
 // ---------------------------------------------------------------------
 
-// Builds a clean three-stop gradient from the coin's brand color: slightly
-// deeper and hue-shifted at the bottom-left, the brand tone (darkened only as
-// much as white text needs) in the middle, and a lighter, warmer tone at the
-// top-right. Kept deliberately simple - no glows, sweeps or vignettes, which
-// read as smudges - and not the flat brand color, so the logo still pops.
-function buildPalette(hex) {
-  const [h, s, l] = hexToHsl(hex);
-  const sat = Math.min(1, s * 1.03 + 0.02);
-  const midL = Math.min(l, maxLightnessForWhiteText(h, s));
+// Everything is derived from the coin's brand color: a hue-shifted base
+// gradient, luminous glow colors, a tinted shadow color (never pure black,
+// which looks dirty), and a "pearl" tint used for the white text.
+function buildPalette(hex, direction) {
+  const [brandH, s, l] = hexToHsl(hex);
+  // Darkening yellows turns them olive/khaki; nudging toward amber keeps
+  // them reading as rich gold.
+  const h = brandH >= 35 && brandH <= 75 ? brandH - 10 : brandH;
+  const sat = Math.min(1, s * 1.05 + 0.04);
+  const glowSat = Math.min(1, sat * 1.25);
+
+  // Darken only as much as white text needs; going further turns warm brand
+  // colors (orange, yellow) into mud.
+  let maxLum = 0.33;
+  // If the brand color is close in hue to the direction arrow (TRX red vs
+  // the fall arrow, USDT green vs the rise arrow), the arrow would vanish
+  // into the background - so keep that background darker than the arrow.
+  const arrowHue = direction === 'up' ? 152 : 348;
+  const arrowLum = direction === 'up' ? 0.58 : 0.22;
+  if (hueDistance(brandH, arrowHue) < 40) {
+    maxLum = Math.min(maxLum, (arrowLum + 0.05) / 1.8 - 0.05);
+  }
+  const midL = Math.min(l, maxLightness(h, s, maxLum));
+
   return {
-    start: hsl(h - 8, sat, midL * 0.86),
-    mid: hsl(h, sat, midL),
-    end: hsl(h + 8, sat, Math.min(0.66, midL + 0.09)),
+    // Base gradient, top-left -> bottom-right.
+    c1: hsl(h - 18, sat, midL * 0.9),
+    c2: hsl(h - 6, sat, midL),
+    c3: hsl(h + 10, sat, Math.min(0.56, midL + 0.03)),
+    // Luminous light sources (blended with "screen", so they glow).
+    orbA: a => hsl(h - 2, glowSat, Math.min(0.62, midL + 0.22), a),
+    orbB: a => hsl(h + 14, glowSat, Math.min(0.6, midL + 0.2), a),
+    orbC: a => hsl(h - 26, glowSat, Math.min(0.55, midL + 0.12), a),
+    // Brand-tinted shadow instead of black.
+    shadow: a => hsl(h - 6, Math.min(1, sat + 0.1), 0.09, a),
+    // Barely-tinted whites for the text gradient and the logo margin.
+    pearl: hsl(h, Math.min(0.35, sat), 0.95),
+    pearlEdge: hsl(h, Math.min(0.25, sat), 0.92),
   };
 }
 
-function drawBackground(ctx, p) {
-  const base = ctx.createLinearGradient(0, HEIGHT, WIDTH, 0);
-  base.addColorStop(0, p.start);
-  base.addColorStop(0.5, p.mid);
-  base.addColorStop(1, p.end);
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+function hueDistance(a, b) {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
 
-  // A whisper of grain dithers the gradient so it stays smooth (no visible
+// ---------------------------------------------------------------------
+// Background: web-style glowing gradient with a glass reflection
+// ---------------------------------------------------------------------
+
+function drawBackground(ctx, pal, badgeCx, cy) {
+  const w = WIDTH;
+  const h = HEIGHT;
+
+  // Base: smooth diagonal gradient.
+  const base = ctx.createLinearGradient(0, 0, w, h);
+  base.addColorStop(0, pal.c1);
+  base.addColorStop(0.5, pal.c2);
+  base.addColorStop(1, pal.c3);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, w, h);
+
+  // Glowing light sources. "screen" blending adds light rather than laying
+  // a pale patch on top, which is what makes it look like a glow instead of
+  // a smudge. They're kept away from the text area.
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  glowOrb(ctx, badgeCx - 40, cy + 40, 400, pal.orbA(0.5));
+  glowOrb(ctx, w - 120, -20, 460, pal.orbB(0.45));
+  glowOrb(ctx, w * 0.55, h + 80, 380, pal.orbC(0.3));
+  ctx.restore();
+
+  // Glass reflection: a broad, soft diagonal sheen of light - the way light
+  // catches a pane of glass. No hard edges (a crisp line reads as a scratch).
+  const sheen = ctx.createLinearGradient(0, 0, w * 0.55, h);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.22)');
+  sheen.addColorStop(0.55, 'rgba(255,255,255,0.07)');
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(w * 0.66, 0);
+  ctx.lineTo(w * 0.36, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Whisper of grain dithers the gradients so they stay smooth (no visible
   // banding) after Telegram re-compresses the photo.
   addGrain(ctx, 1);
+}
+
+function glowOrb(ctx, x, y, radius, color) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  g.addColorStop(0, color);
+  g.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 }
 
 function addGrain(ctx, amount) {
@@ -185,31 +254,31 @@ function addGrain(ctx, amount) {
 }
 
 // ---------------------------------------------------------------------
-// Logo badge: white margin + coin logo, with a very light 3D treatment
+// Logo badge: pearl-white margin + coin logo
 // ---------------------------------------------------------------------
 
-function drawLogoBadge(ctx, logo, cx, cy) {
+function drawLogoBadge(ctx, logo, cx, cy, pal) {
   const rLogo = LOGO_SIZE / 2;
   const rBadge = rLogo + LOGO_RING;
 
-  // Clean white disc (the margin) with a soft drop shadow beneath it - the
-  // main source of depth.
+  // Pearl-white disc (the margin): white at the top-left easing to a
+  // faintly tinted white at the bottom-right, with a soft brand-tinted
+  // drop shadow and a whisper of light glow around it.
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.30)';
-  ctx.shadowBlur = 30;
-  ctx.shadowOffsetY = 12;
-  const disc = ctx.createLinearGradient(0, cy - rBadge, 0, cy + rBadge);
+  ctx.shadowColor = pal.shadow(0.42);
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetY = 14;
+  const disc = ctx.createLinearGradient(cx - rBadge, cy - rBadge, cx + rBadge, cy + rBadge);
   disc.addColorStop(0, '#FFFFFF');
-  disc.addColorStop(1, '#F1F2F4');
+  disc.addColorStop(1, pal.pearlEdge);
   ctx.fillStyle = disc;
   ctx.beginPath();
   ctx.arc(cx, cy, rBadge, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // The logo, clipped to a circle. Only a faint top-left highlight is added
-  // for a hint of dome; nothing darkens the logo, so white marks (like the
-  // Bitcoin B) stay clean and crisp.
+  // The logo, clipped to a circle, with only a faint top-left highlight for
+  // a hint of dome. Nothing darkens the logo, so white marks stay clean.
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, rLogo, 0, Math.PI * 2);
@@ -219,7 +288,7 @@ function drawLogoBadge(ctx, logo, cx, cy) {
   const hx = cx - rLogo * 0.4;
   const hy = cy - rLogo * 0.5;
   const highlight = ctx.createRadialGradient(hx, hy, 0, hx, hy, rLogo * 0.95);
-  highlight.addColorStop(0, 'rgba(255,255,255,0.20)');
+  highlight.addColorStop(0, 'rgba(255,255,255,0.18)');
   highlight.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = highlight;
   ctx.fillRect(cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
@@ -230,25 +299,34 @@ function drawLogoBadge(ctx, logo, cx, cy) {
 // Text + arrow
 // ---------------------------------------------------------------------
 
-// Draws white text with a soft drop shadow (no outline): a wide, diffuse
-// shadow for lift plus a tight one for crisp edges. Optional letter-spacing
-// (tracking) and same-color emboldening for a wordmark look.
-function drawSoftText(ctx, text, x, y, opts = {}) {
+// Vertical white -> pearl gradient so the text has a subtle, premium sheen
+// instead of a flat #FFF.
+function pearlGradient(ctx, top, bottom, pal) {
+  const g = ctx.createLinearGradient(0, top, 0, bottom);
+  g.addColorStop(0, '#FFFFFF');
+  g.addColorStop(1, pal.pearl);
+  return g;
+}
+
+// Draws text with a soft brand-tinted drop shadow (no outline): a wide,
+// diffuse shadow for lift plus a tight one for crisp edges. Optional
+// letter-spacing (tracking) and same-color emboldening for a wordmark look.
+function drawSoftText(ctx, text, x, y, pal, opts = {}) {
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.26)';
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 6;
+  ctx.shadowColor = pal.shadow(0.34);
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 7;
   paintText(ctx, text, x, y, opts);
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+  ctx.shadowColor = pal.shadow(0.22);
   ctx.shadowBlur = 3;
   ctx.shadowOffsetY = 2;
   paintText(ctx, text, x, y, opts);
   ctx.restore();
 }
 
-function paintText(ctx, text, x, y, { tracking = 0, embolden = 0 } = {}) {
-  ctx.fillStyle = TEXT_COLOR;
-  ctx.strokeStyle = TEXT_COLOR;
+function paintText(ctx, text, x, y, { fill = '#FFFFFF', tracking = 0, embolden = 0 } = {}) {
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = fill;
   ctx.lineWidth = embolden;
   ctx.lineJoin = 'round';
 
@@ -265,48 +343,46 @@ function paintText(ctx, text, x, y, { tracking = 0, embolden = 0 } = {}) {
   }
 }
 
-// Gradient-filled triangle with a thin white edge and soft shadow. The white
-// edge keeps it legible even on a same-hue brand color (TRX red, USDT green).
-function drawArrow(ctx, x, y, w, h, direction) {
+// Solid vivid triangle with softly rounded corners - no border. A tight
+// tinted shadow separates it from the background, and a soft colored glow
+// makes it feel lit rather than pasted on.
+function drawArrow(ctx, x, y, w, h, direction, pal) {
   const up = direction === 'up';
   const color = up ? RISE_COLOR : FALL_COLOR;
-  const colorLight = up ? RISE_COLOR_LIGHT : FALL_COLOR_LIGHT;
+  const inset = 5; // corner rounding is done with a round-joined stroke of this half-width
 
   const tri = () => {
     ctx.beginPath();
     if (up) {
-      ctx.moveTo(x, y + h);
-      ctx.lineTo(x + w, y + h);
-      ctx.lineTo(x + w / 2, y);
+      ctx.moveTo(x + inset, y + h - inset);
+      ctx.lineTo(x + w - inset, y + h - inset);
+      ctx.lineTo(x + w / 2, y + inset);
     } else {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + w, y);
-      ctx.lineTo(x + w / 2, y + h);
+      ctx.moveTo(x + inset, y + inset);
+      ctx.lineTo(x + w - inset, y + inset);
+      ctx.lineTo(x + w / 2, y + h - inset);
     }
     ctx.closePath();
   };
+  const paint = () => {
+    tri();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = inset * 2;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.stroke();
+    ctx.fill();
+  };
 
   ctx.save();
-  ctx.lineJoin = 'round';
-
-  // White edge (only the outer half of the stroke shows once filled) + shadow.
-  tri();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.26)';
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 5;
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = 8;
-  ctx.stroke();
-  ctx.restore();
-
-  // Fill: lighter at the tip side, saturated at the base.
-  ctx.save();
-  tri();
-  const fill = ctx.createLinearGradient(0, y, 0, y + h);
-  fill.addColorStop(0, up ? colorLight : color);
-  fill.addColorStop(1, up ? color : colorLight);
-  ctx.fillStyle = fill;
-  ctx.fill();
+  ctx.shadowColor = pal.shadow(0.4);
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 4;
+  paint();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 0;
+  paint();
   ctx.restore();
 }
 
@@ -365,13 +441,11 @@ function luminance([r, g, b]) {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 }
 
-// Largest HSL lightness at which white text still has ~2.8:1+ contrast
-// against this hue/saturation. That's deliberately modest: the text is very
-// large and heavy and carries a soft shadow, and going darker turns warm
-// brand colors (orange, yellow) muddy brown.
-function maxLightnessForWhiteText(h, s) {
-  const MAX_LUMINANCE = 0.33;
+// Largest HSL lightness whose relative luminance stays under maxLum. The
+// default (0.33) keeps white text at ~2.8:1+ contrast, which is plenty for
+// text this large and heavy with a soft shadow.
+function maxLightness(h, s, maxLum) {
   let l = 0.7;
-  while (l > 0.08 && luminance(hslToRgb(h, s, l)) > MAX_LUMINANCE) l -= 0.01;
+  while (l > 0.08 && luminance(hslToRgb(h, s, l)) > maxLum) l -= 0.01;
   return l;
 }

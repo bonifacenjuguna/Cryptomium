@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.6
+
+- Background is now a web-style glowing gradient: hue-shifted base, soft
+  luminous light orbs (screen-blended) and a glass-like diagonal sheen.
+- Direction arrows: removed the white border; now solid, softly rounded and
+  lightly glowing. Background is kept darker for coins whose brand color is
+  close to the arrow color (TRX, USDT) so the arrow stays visible.
+- Whites are more refined: text has a subtle white-to-pearl gradient, the
+  logo margin is pearl white, shadows are brand-tinted instead of black.
+- Yellow brands (BNB, DOGE) shift toward amber instead of going olive/muddy.
+
 ## 1.0.5
 
 - Cleaned up the 1.0.4 look, which rendered muddy: removed the glow, light
