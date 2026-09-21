@@ -86,7 +86,7 @@ export function registerAdminHandlers(bot) {
       await sendTestBanner(ctx, flow.ticker, parsed.direction, parsed.price);
     } else {
       await ctx.reply(
-        `${flow.ticker} at ${formatAdminPrice(parsed.price)} — rise or fall?`,
+        `${flow.ticker} at ${formatAdminPrice(parsed.price, { stable: coinByTicker(flow.ticker).stable })} — rise or fall?`,
         testDirectionKeyboard(flow.ticker, parsed.price)
       );
     }
@@ -108,7 +108,7 @@ async function buildPricesView({ force }) {
   for (const coin of COINS) {
     const price = latest.prices.get(coin.ticker);
     const settings = await getCoinSettings(coin.ticker);
-    const priceCell = price === undefined ? 'n/a' : formatAdminPrice(price);
+    const priceCell = price === undefined ? 'n/a' : formatAdminPrice(price, { stable: coin.stable });
     const mode = modeText(settings, { withMultiplier: false }).split(' ')[0]; // just the emoji
     const bell = isMuted(settings) ? '🔕' : '🔔';
     lines.push(
@@ -150,7 +150,7 @@ async function sendTestBanner(ctx, ticker, direction, customPrice) {
     const arrow = direction === 'up' ? '▲' : '▼';
     await ctx.replyWithPhoto(
       { source: image },
-      { caption: `🧪 Test preview — ${arrow} ${ticker} ${formatAdminPrice(price)}\nNot posted to the channel.` }
+      { caption: `🧪 Test preview — ${arrow} ${ticker} ${formatAdminPrice(price, { stable: coin.stable })}\nNot posted to the channel.` }
     );
   } catch (err) {
     console.error('[admin] Test banner failed:', err);

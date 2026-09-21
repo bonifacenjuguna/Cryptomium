@@ -4,6 +4,9 @@ import { initMuteExpiryListener } from './redisClient.js';
 import { createBot } from './bot.js';
 import { startScheduler } from './scheduler.js';
 import { startLogoHealer } from './logoService.js';
+import { setSourceListener } from './priceService.js';
+import { createSourceAlerter } from './sourceAlerts.js';
+import { loadSavedPreferences } from './handlers/source.js';
 
 async function main() {
   await initDb();
@@ -26,6 +29,22 @@ async function main() {
   await initMuteExpiryListener(async ticker => {
     await unmute(ticker);
   });
+
+  // Owner-chosen price source and logo style, saved from the Settings screens.
+  await loadSavedPreferences();
+
+  // Private heads-up when a price source starts failing, and when it recovers.
+  setSourceListener(
+    createSourceAlerter({
+      send: async text => {
+        try {
+          await bot.telegram.sendMessage(CONFIG.ownerId, text);
+        } catch (err) {
+          console.warn('[index] Could not send price-source alert:', err.message);
+        }
+      },
+    })
+  );
 
   // NOTE: In Telegraf 4.x, bot.launch() returns a promise that only settles
   // when the bot *stops* (it awaits the long-polling loop). Awaiting it

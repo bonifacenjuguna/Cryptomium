@@ -1,7 +1,8 @@
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONFIG, coinByTicker } from './config.js';
+import { CONFIG, LOGO_STYLES, DEFAULT_LOGO_STYLE, coinByTicker } from './config.js';
+import { formatPrice } from './priceFormat.js';
 import { logoPath } from './logoService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,8 +23,9 @@ const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 
 // --- Layout ----------------------------------------------------------
 // The logo is centered vertically on the left; the text sits to its right.
-// Everything is anchored to a fixed left edge (rather than re-centered per
-// post) so nothing jumps around between banners. It sits slightly left of
+// The text block has a FIXED left edge (TEXT_X) so nothing jumps around between
+// banners, and the logo is placed relative to it - so changing the logo size or
+// style never moves the text or the chip. The block sits slightly left of
 // center and well inside the middle of the image, since Telegram crops very
 // wide photos from the sides. The PRICE is the focal point: the logo is
 // deliberately modest and the number is big.
@@ -31,20 +33,26 @@ const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 //   (logo)   BTC              [chip]     <- chip sits up and to the right
 //            $81,385
 //
-const BLOCK_LEFT = Math.round(WIDTH / 2 - 440);
+const TEXT_X = Math.round(WIDTH / 2 - 206);
 const SAFE_RIGHT = WIDTH - 330; // nothing should extend past this (Telegram's side crop)
 
-const LOGO_SIZE = Math.round(190 * S); // logo diameter (CoinGecko art is 250px, so this downscales crisply)
-const LOGO_RING = Math.round(10 * S); // white margin around the logo; part of the badge
-const BADGE_SIZE = LOGO_SIZE + LOGO_RING * 2;
-const BADGE_TEXT_GAP = Math.round(58 * S); // between the logo badge and the text
+// Two logo framings (switchable in the bot: Settings > Logo style):
+//   "ring":  the logo inside a white margin      (badge = logo + ring on each side)
+//   "clean": the bare logo with a subtle border and soft shadow
+const RING_LOGO_SIZE = Math.round(167 * S); // logo diameter inside the white ring
+const RING_WIDTH = Math.round(9 * S); // white margin around it
+const CLEAN_LOGO_SIZE = Math.round(180 * S); // bare logo diameter (no ring)
+const BADGE_TEXT_GAP = Math.round(58 * S); // between the logo and the text
 
 const TICKER_SIZE = Math.round(80 * S);
 const TICKER_TRACKING = Math.round(9 * S); // letter-spacing, so the ticker reads like a wordmark
 const TICKER_EMBOLDEN = 2.5 * S; // same-color stroke: pushes Poppins Bold toward Black weight
 const PRICE_SIZE = Math.round(176 * S); // shrinks automatically for very long prices
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
-const STACK_GAP = Math.round(40 * S); // between the ticker baseline and the top of the price digits
+const STACK_GAP = Math.round(56 * S); // between the ticker baseline and the top of the price digits
+// The direction chip keeps the exact spot it had when the gap was this size, so
+// widening STACK_GAP separates ticker and price WITHOUT moving the chip.
+const CHIP_REFERENCE_GAP = Math.round(40 * S);
 
 const CHIP_W = Math.round(104 * S);
 const CHIP_H = Math.round(66 * S);
@@ -60,6 +68,17 @@ const CHIP_LIFT = Math.round(16 * S); // how far the chip rides above the ticker
 const FONT_BOLD = '"Banner Bold", "Helvetica Neue", Arial, sans-serif';
 const FONT_REGULAR = '"Banner Regular", "Helvetica Neue", Arial, sans-serif';
 
+let logoStyle = DEFAULT_LOGO_STYLE;
+
+export function setLogoStyle(style) {
+  if (!LOGO_STYLES.some(s => s.key === style)) throw new Error(`Unknown logo style: ${style}`);
+  logoStyle = style;
+}
+
+export function getLogoStyle() {
+  return logoStyle;
+}
+
 let fontsRegistered = false;
 function ensureFontsRegistered() {
   if (fontsRegistered) return;
@@ -68,28 +87,16 @@ function ensureFontsRegistered() {
   fontsRegistered = true;
 }
 
-function formatPrice(price) {
-  let decimals;
-  if (price >= 100) decimals = 0;
-  else if (price >= 1) decimals = 2;
-  else decimals = 3;
-  const fixed = price.toFixed(decimals);
-  return `$${Number(fixed).toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })}`;
-}
-
 /**
  * Renders the 1600x418 banner for one milestone post.
  *
  * @param {object} opts
  * @param {string} opts.ticker
  * @param {number} opts.price
- * @param {'up'|'down'} opts.direction
+ * @param {'up'|'down'|null} opts.direction  null = no direction chip (used by "Post prices" when no 24h change is known)
  * @returns {Promise<Buffer>} PNG image buffer
  */
-export async function generateBannerImage({ ticker, price, direction }) {
+export async function generateBannerImage({ ticker, price, direction, style = logoStyle }) {
   ensureFontsRegistered();
 
   const coin = coinByTicker(ticker);
@@ -101,28 +108,32 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ctx.imageSmoothingQuality = 'high';
 
   const cy = HEIGHT / 2;
-  const badgeCx = BLOCK_LEFT + BADGE_SIZE / 2;
+
+  // Logo geometry for the chosen style; the logo always ends BADGE_TEXT_GAP
+  // before the text, whatever its size.
+  const badgeSize = style === 'ring' ? RING_LOGO_SIZE + RING_WIDTH * 2 : CLEAN_LOGO_SIZE;
+  const badgeCx = TEXT_X - BADGE_TEXT_GAP - badgeSize / 2;
 
   drawBackground(ctx, pal, badgeCx, cy);
 
-  // --- Logo badge, vertically centered ---------------------------------
+  // --- Logo, vertically centered ----------------------------------------
   // If the logo file isn't on disk (download failed / not fetched yet), a
-  // brand-colored monogram badge is drawn instead, so a banner never looks
-  // like it is missing something.
+  // brand-colored monogram is drawn instead, so a banner never looks like it
+  // is missing something.
   let logo = null;
   try {
     logo = await loadImage(logoPath(ticker));
   } catch {
     logo = null;
   }
-  drawLogoBadge(ctx, logo, badgeCx, cy, pal, ticker);
+  drawLogoBadge(ctx, logo, badgeCx, cy, pal, ticker, style);
 
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
   // --- Text block: ticker on top, price below, both left-aligned -----------
-  const textX = BLOCK_LEFT + BADGE_SIZE + BADGE_TEXT_GAP;
-  const priceText = formatPrice(price);
+  const textX = TEXT_X;
+  const priceText = formatPrice(price, { stable: Boolean(coin.stable) });
 
   // Shrink the price only if it would run past the safe area (e.g. $123,456).
   const maxPriceWidth = SAFE_RIGHT - CHIP_OVERHANG - textX;
@@ -149,19 +160,26 @@ export async function generateBannerImage({ ticker, price, direction }) {
   const tickerWidth = measureTracked(ctx, ticker, TICKER_TRACKING);
 
   // --- Direction chip: up and to the right of the ticker ------------------
-  // Anchored to the price's right edge and overhanging it a little, but never
-  // allowed to run into the ticker on short prices / long tickers. Drawn
-  // before the price so its shadow never dirties the digits.
+  // Horizontally anchored to the price's right edge (overhanging it a little,
+  // never running into the ticker). Vertically it stays exactly where it has
+  // always been - computed from the reference gap, not the current one - so
+  // spacing tweaks elsewhere never move it. Drawn before the price so its
+  // shadow never dirties the digits.
   const blockRight = Math.max(textX + priceWidth, textX + tickerWidth + CHIP_MIN_GAP + CHIP_W);
-  drawDirectionChip(
-    ctx,
-    blockRight - CHIP_W + CHIP_OVERHANG,
-    tickerBase - tickerCap / 2 - CHIP_H / 2 - CHIP_LIFT,
-    CHIP_W,
-    CHIP_H,
-    direction,
-    pal
-  );
+  if (direction) {
+    const nominalPriceCap = PRICE_SIZE * CAP_HEIGHT;
+    const referenceStack = tickerCap + CHIP_REFERENCE_GAP + nominalPriceCap;
+    const referenceTickerBase = cy - referenceStack / 2 + tickerCap;
+    drawDirectionChip(
+      ctx,
+      blockRight - CHIP_W + CHIP_OVERHANG,
+      referenceTickerBase - tickerCap / 2 - CHIP_H / 2 - CHIP_LIFT,
+      CHIP_W,
+      CHIP_H,
+      direction,
+      pal
+    );
+  }
 
   // --- Price ---------------------------------------------------------------
   ctx.font = `${priceSize}px ${FONT_BOLD}`;
@@ -202,7 +220,7 @@ function buildPalette(hex, direction) {
   const chip = direction === 'up' ? RISE_CHIP : FALL_CHIP;
   const chipHue = hexToHsl(chip[1])[0];
   const chipLum = luminance(hexToRgb(chip[1]));
-  if (hueDistance(brandH, chipHue) < 30) {
+  if (direction && hueDistance(brandH, chipHue) < 30) {
     maxLum = Math.min(maxLum, (chipLum + 0.05) / 1.5 - 0.05);
   }
   const midL = Math.min(l, maxLightness(h, s, maxLum));
@@ -302,25 +320,42 @@ function addGrain(ctx, amount) {
 // Logo badge: pearl-white margin + coin logo
 // ---------------------------------------------------------------------
 
-function drawLogoBadge(ctx, logo, cx, cy, pal, ticker) {
-  const rLogo = LOGO_SIZE / 2;
-  const rBadge = rLogo + LOGO_RING;
+function drawLogoBadge(ctx, logo, cx, cy, pal, ticker, style) {
+  const ring = style === 'ring';
+  const size = ring ? RING_LOGO_SIZE : CLEAN_LOGO_SIZE;
+  const rLogo = size / 2;
 
-  // Pearl-white disc (the margin): white at the top-left easing to a
-  // faintly tinted white at the bottom-right, with a soft brand-tinted
-  // drop shadow.
-  ctx.save();
-  ctx.shadowColor = pal.shadow(0.42);
-  ctx.shadowBlur = 34;
-  ctx.shadowOffsetY = 14;
-  const disc = ctx.createLinearGradient(cx - rBadge, cy - rBadge, cx + rBadge, cy + rBadge);
-  disc.addColorStop(0, '#FFFFFF');
-  disc.addColorStop(1, pal.pearlEdge);
-  ctx.fillStyle = disc;
-  ctx.beginPath();
-  ctx.arc(cx, cy, rBadge, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  if (ring) {
+    // Pearl-white disc (the margin): white at the top-left easing to a
+    // faintly tinted white at the bottom-right, with a soft brand-tinted
+    // drop shadow.
+    const rBadge = rLogo + RING_WIDTH;
+    ctx.save();
+    ctx.shadowColor = pal.shadow(0.42);
+    ctx.shadowBlur = 34;
+    ctx.shadowOffsetY = 14;
+    const disc = ctx.createLinearGradient(cx - rBadge, cy - rBadge, cx + rBadge, cy + rBadge);
+    disc.addColorStop(0, '#FFFFFF');
+    disc.addColorStop(1, pal.pearlEdge);
+    ctx.fillStyle = disc;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rBadge, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    // Clean: just a soft drop shadow, cast by a disc in the coin's own color
+    // (which also backs any transparent pixels in the logo). No white ring, so
+    // logos that already have their own circular design don't look crowded.
+    ctx.save();
+    ctx.shadowColor = pal.shadow(0.45);
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 12;
+    ctx.fillStyle = pal.brandBottom;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rLogo - 0.75, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // The logo (or monogram), clipped to a circle, with only a faint top-left
   // highlight for a hint of dome. Nothing darkens it, so white marks stay clean.
@@ -329,7 +364,7 @@ function drawLogoBadge(ctx, logo, cx, cy, pal, ticker) {
   ctx.arc(cx, cy, rLogo, 0, Math.PI * 2);
   ctx.clip();
   if (logo) {
-    ctx.drawImage(logo, cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
+    ctx.drawImage(logo, cx - rLogo, cy - rLogo, size, size);
   } else {
     drawMonogram(ctx, cx, cy, rLogo, ticker, pal);
   }
@@ -340,8 +375,18 @@ function drawLogoBadge(ctx, logo, cx, cy, pal, ticker) {
   highlight.addColorStop(0, 'rgba(255,255,255,0.18)');
   highlight.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = highlight;
-  ctx.fillRect(cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
+  ctx.fillRect(cx - rLogo, cy - rLogo, size, size);
   ctx.restore();
+
+  if (!ring) {
+    // Subtle, consistent border: a translucent light hairline just inside the
+    // edge, so every coin gets the same crisp outline whatever its artwork.
+    ctx.beginPath();
+    ctx.arc(cx, cy, rLogo - 1.25, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
 }
 
 // Stand-in for a missing logo: the coin's brand color with its ticker in

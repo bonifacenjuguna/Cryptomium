@@ -1,9 +1,10 @@
 // Central, single source of truth for every coin the bot tracks.
 //
 // coingeckoId   -> used for /simple/price and /coins/{id} (logo image) calls
-// binanceSymbol -> used for the fallback price feed (Binance's public ticker API).
-//                  null = no such pair exists (Binance has no USDTUSDT); that coin is
-//                  simply skipped when the fallback feed is used.
+// binanceSymbol -> used when Binance supplies prices (backup, or "Binance first").
+//                  null = Binance is never used for that coin: it has no USDTUSDT pair,
+//                  and its USDCUSDT price is USDC measured in USDT (not dollars), which
+//                  would give false depeg signals. Stablecoins always come from CoinGecko.
 // defaultThreshold -> starting milestone step size in dollars (owner can change per-coin in the bot)
 // defaultPercent   -> starting milestone step size when a coin is switched to percentage
 //                     steps (alert every time price moves this % from the last alert)
@@ -26,7 +27,7 @@ export const COINS = [
   { ticker: 'LINK', name: 'Chainlink', coingeckoId: 'chainlink',         binanceSymbol: 'LINKUSDT', defaultThreshold: 0.25, defaultPercent: 1, stable: false, brandColor: '#2A5ADA' },
   { ticker: 'TON',  name: 'Toncoin',   coingeckoId: 'the-open-network',  binanceSymbol: 'TONUSDT',  defaultThreshold: 0.05, defaultPercent: 1, stable: false, brandColor: '#0098EA' },
   { ticker: 'USDT', name: 'Tether',    coingeckoId: 'tether',            binanceSymbol: null,       defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#26A17B' },
-  { ticker: 'USDC', name: 'USD Coin',  coingeckoId: 'usd-coin',          binanceSymbol: 'USDCUSDT', defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#2775CA' },
+  { ticker: 'USDC', name: 'USD Coin',  coingeckoId: 'usd-coin',          binanceSymbol: null,        defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#2775CA' },
 ];
 
 export const TICKERS = COINS.map(c => c.ticker);
@@ -40,6 +41,26 @@ export const MODES = [
   { key: 'calm',   emoji: '😌', name: 'Calm',   multiplier: 2,    label: '2x' },
 ];
 export const DEFAULT_MODE = 'steady';
+
+// Where prices come from. The owner picks this in Settings > Data source.
+export const SOURCE_MODES = [
+  { key: 'auto',      emoji: '🤖', name: 'Auto',           desc: 'CoinGecko first, Binance as backup' },
+  { key: 'coingecko', emoji: '🦎', name: 'CoinGecko only', desc: 'never uses Binance' },
+  { key: 'binance',   emoji: '🟨', name: 'Binance first',  desc: 'CoinGecko as backup (and for stablecoins)' },
+];
+export const DEFAULT_SOURCE_MODE = 'auto';
+
+// How the coin logo is framed on banners. The owner can flip this in
+// Settings > Logo style and compare with the Test banner button.
+export const LOGO_STYLES = [
+  { key: 'clean', emoji: '✨', name: 'Clean',      desc: 'subtle border and soft shadow' },
+  { key: 'ring',  emoji: '⚪', name: 'White ring', desc: 'a white margin around the logo' },
+];
+export const DEFAULT_LOGO_STYLE = 'clean';
+
+export function sourceModeByKey(key) {
+  return SOURCE_MODES.find(m => m.key === key) || SOURCE_MODES.find(m => m.key === DEFAULT_SOURCE_MODE);
+}
 
 export function modeByKey(key) {
   return MODES.find(m => m.key === key) || MODES.find(m => m.key === DEFAULT_MODE);

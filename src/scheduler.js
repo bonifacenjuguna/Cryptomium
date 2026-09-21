@@ -4,6 +4,7 @@ import { checkMilestone } from './milestoneEngine.js';
 import { getCoinSettings, setLastMilestone, getState } from './db.js';
 import { generateBannerImage } from './imageGenerator.js';
 import { isMuted } from './coinView.js';
+import { buildCaption } from './caption.js';
 
 export function startScheduler(bot) {
   const tick = async () => {
@@ -46,21 +47,11 @@ async function runOnce(bot) {
         price: result.price,
         direction: result.direction,
       });
-      const arrow = result.direction === 'up' ? '▲' : '▼';
-      const caption = `${arrow} ${coin.ticker} ${formatCaptionPrice(result.price)} ${CONFIG.watermark}`;
+      const caption = buildCaption({ ticker: coin.ticker, price: result.price, direction: result.direction });
 
       await bot.telegram.sendPhoto(channelId, { source: image }, { caption });
     } catch (err) {
       console.error(`[scheduler] Failed to post milestone for ${coin.ticker}:`, err);
     }
   }
-}
-
-function formatCaptionPrice(price) {
-  let decimals;
-  if (price >= 100) decimals = 0;
-  else if (price >= 1) decimals = 2;
-  else decimals = 3;
-  const fixed = Number(price.toFixed(decimals));
-  return `$${fixed.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }

@@ -1,6 +1,7 @@
 // Small presentation helpers shared by the admin screens and the scheduler.
 import { modeByKey } from './config.js';
 import { stepOf, formatStep } from './milestoneEngine.js';
+import { formatPrice } from './priceFormat.js';
 
 export function isMuted(settings) {
   if (settings.muted_indefinitely) return true;
@@ -29,13 +30,9 @@ export function describeMuteStatus(settings) {
   return 'active';
 }
 
-/** Admin-side price: more precision than the banner shows. */
-export function formatAdminPrice(price) {
-  let decimals;
-  if (price >= 100) decimals = 2;
-  else if (price >= 1) decimals = 3;
-  else decimals = 4;
-  return `$${price.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+/** Price as shown on the owner's screens: the same standard format as banners and captions. */
+export function formatAdminPrice(price, { stable = false } = {}) {
+  return formatPrice(price, { stable });
 }
 
 /** Status list line, e.g. "BTC — 0.5% 🔔" (mode icon shown when not Steady). */

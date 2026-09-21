@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.2.0
+
+**New: choose where prices come from (Settings > 🌐 Data source)**
+- Auto (CoinGecko, Binance as backup), CoinGecko only, or Binance first
+  (CoinGecko as backup). Saved across restarts.
+- 🔍 Test sources: checks each provider live (✅/❌, speed, coins returned,
+  plain-English errors such as "blocked from this server's region").
+- Private alerts when the main source starts failing, when every source fails,
+  and when it recovers (throttled to one per hour per kind).
+- Binance is now tried on two hosts (the main API is blocked from some server
+  regions), retries with the full price list if one symbol is rejected, and is
+  never used for USDT/USDC (no dollar price / false depeg risk) — those always
+  come from CoinGecko, even in "Binance first".
+- The fallback path is now covered by automated tests (simulated outages).
+
+**New: 📣 Post prices**
+- Post the current price of one coin, or all coins, to the channel, with a
+  confirmation step. The chip shows the 24h direction; the caption adds the
+  24h change. No chip if the 24h change isn't known.
+
+**Banner tweaks**
+- Coin icon ~12% smaller; more space between ticker and price. The direction
+  chip stays exactly where it was.
+- New default logo style ✨ Clean: no white ring, a subtle border and soft
+  shadow. The old ⚪ White ring look is one tap away (Settings > 🖼️ Logo style).
+- One dynamic price format everywhere: `$86,019`, `$4,021.45`, `$0.096`,
+  `$0.00001234`; stablecoins show 3 decimals.
+
+**Other**
+- Main menu is now 3 rows of 2 buttons.
+- The Prices screen shows which source served the reading (and "(backup)").
+- Malformed provider responses are treated as a clean provider failure.
+
 ## 1.1.1
 
 - Banner: logo a bit smaller (~165px) and the price a bit bigger (~153px), so

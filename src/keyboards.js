@@ -1,10 +1,11 @@
 import { Markup } from 'telegraf';
-import { COINS, MODES, coinByTicker } from './config.js';
+import { COINS, MODES, SOURCE_MODES, LOGO_STYLES, coinByTicker } from './config.js';
 import { stepText } from './coinView.js';
 
 // --- Main menu (the persistent keyboard under the message box) -------------
 export const MENU = {
   prices: '💰 Prices',
+  post: '📣 Post prices',
   status: '📊 Status',
   settings: '⚙️ Settings',
   mute: '🔕 Mute',
@@ -13,9 +14,9 @@ export const MENU = {
 export const MENU_LABELS = Object.values(MENU);
 
 export const mainReplyKeyboard = Markup.keyboard([
-  [MENU.prices, MENU.status],
-  [MENU.settings, MENU.mute],
-  [MENU.test],
+  [MENU.prices, MENU.post],
+  [MENU.status, MENU.settings],
+  [MENU.mute, MENU.test],
 ]).resize();
 
 // --- Coin pickers ------------------------------------------------------------
@@ -30,6 +31,10 @@ export function settingsListKeyboard() {
   return coinListKeyboard('coin', [
     [Markup.button.callback('🎚️ Modes · all coins', 'allmodes')],
     [Markup.button.callback('％ / $ · all coins', 'allunits')],
+    [
+      Markup.button.callback('🌐 Data source', 'source'),
+      Markup.button.callback('🖼️ Logo style', 'logostyle'),
+    ],
   ]);
 }
 
@@ -127,7 +132,51 @@ export function bulkDurationKeyboard() {
 
 // --- Admin: prices + test banner ---------------------------------------------------
 export function pricesKeyboard() {
-  return Markup.inlineKeyboard([[Markup.button.callback('🔄 Refresh', 'prices:refresh')]]);
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('🔄 Refresh', 'prices:refresh'),
+      Markup.button.callback('📣 Post…', 'postmenu'),
+    ],
+  ]);
+}
+
+// --- Post current prices to the channel ------------------------------------------
+export function postListKeyboard() {
+  return coinListKeyboard('post', [[Markup.button.callback('📣 Post ALL coins', 'post:ALL')]]);
+}
+
+export function postConfirmKeyboard(target) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(target === 'ALL' ? '✅ Post all now' : '✅ Post now', `postgo:${target}`)],
+    [Markup.button.callback('🔙 Back', 'back:post')],
+  ]);
+}
+
+// --- Data source (where prices come from) ------------------------------------------
+export function sourceKeyboard(currentKey) {
+  const rows = SOURCE_MODES.map(m => [
+    Markup.button.callback(`${m.emoji} ${m.name}${m.key === currentKey ? ' ✓' : ''}`, `setsource:${m.key}`),
+  ]);
+  rows.push([Markup.button.callback('🔍 Test sources', 'testsources')]);
+  rows.push([Markup.button.callback('🔙 Back', 'back:settings')]);
+  return Markup.inlineKeyboard(rows);
+}
+
+export function testSourcesKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('🔄 Test again', 'testsources')],
+    [Markup.button.callback('🔙 Back', 'source')],
+  ]);
+}
+
+// --- Logo style ----------------------------------------------------------------------
+export function logoStyleKeyboard(currentKey) {
+  const rows = LOGO_STYLES.map(st => [
+    Markup.button.callback(`${st.emoji} ${st.name}${st.key === currentKey ? ' ✓' : ''}`, `setlogostyle:${st.key}`),
+  ]);
+  rows.push([Markup.button.callback('🧪 Preview with Test banner', 'back:test')]);
+  rows.push([Markup.button.callback('🔙 Back', 'back:settings')]);
+  return Markup.inlineKeyboard(rows);
 }
 
 export function testOptionsKeyboard(ticker) {
