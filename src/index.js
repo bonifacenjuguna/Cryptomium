@@ -51,30 +51,61 @@ async function main() {
 }
 
 /**
- * Launches the bot's long-polling loop. On a Railway rolling deploy, the
- * old container can take a moment to fully release its getUpdates
- * connection after the new one starts — Telegram rejects the new
- * connection with a 409 Conflict during that brief handoff window. This
- * retries with backoff instead of crashing the whole process over what is
- * usually a transient few-second overlap.
+ * Launches the bot's long-polling loop.
+ *
+ * IMPORTANT: in Telegraf 4.x, bot.launch() returns a promise that only
+ * settles once the bot STOPS — it awaits the entire polling loop, not
+ * just the startup handshake. Awaiting it directly (as earlier versions
+ * of this file did) means any code after it — including
+ * startScheduler(bot) — never runs until the bot is shut down. That was
+ * the actual cause of "connects fine, never posts any coin data": the
+ * scheduler was unreachable code.
+ *
+ * The fix is to pass an onLaunch callback to bot.launch() and resolve
+ * this wrapper promise from that callback instead, while still handling
+ * a genuine startup failure (including Telegram 409 conflicts during a
+ * Railway rolling deploy, retried with backoff) versus the polling loop
+ * ending later during normal operation.
  */
 async function launchWithRetry(bot, attempt = 1) {
   const MAX_ATTEMPTS = 6;
   const DELAY_MS = 5000;
 
-  try {
-    // Clear out any stuck webhook/session before polling starts.
-    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
-    await bot.launch();
-  } catch (err) {
-    const isConflict = err?.response?.error_code === 409;
-    if (isConflict && attempt < MAX_ATTEMPTS) {
-      console.warn(`[index] 409 conflict on launch (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${DELAY_MS / 1000}s...`);
-      await new Promise(r => setTimeout(r, DELAY_MS));
-      return launchWithRetry(bot, attempt + 1);
-    }
-    throw err;
-  }
+  await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+
+  return new Promise((resolve, reject) => {
+    let launched = false;
+
+    bot
+      .launch(() => {
+        launched = true;
+        resolve();
+      })
+      .catch(async err => {
+        if (launched) {
+          // The polling loop ended sometime after a successful launch —
+          // this is a genuine runtime failure, not a startup race.
+          console.error('[index] Polling loop stopped unexpectedly:', err);
+          process.exit(1);
+          return;
+        }
+
+        const isConflict = err?.response?.error_code === 409;
+        if (isConflict && attempt < MAX_ATTEMPTS) {
+          console.warn(`[index] 409 conflict on launch (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${DELAY_MS / 1000}s...`);
+          await new Promise(r => setTimeout(r, DELAY_MS));
+          try {
+            await launchWithRetry(bot, attempt + 1);
+            resolve();
+          } catch (retryErr) {
+            reject(retryErr);
+          }
+          return;
+        }
+
+        reject(err);
+      });
+  });
 }
 
 main().catch(err => {

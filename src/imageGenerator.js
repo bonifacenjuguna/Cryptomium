@@ -21,17 +21,35 @@ const TEXT_COLOR = '#ffffff';
 const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.55)';
 
 let fontsRegistered = false;
+let fontsAvailable = false;
 function ensureFontsRegistered() {
   if (fontsRegistered) return;
-  GlobalFonts.registerFromPath(
-    path.join(ASSETS_DIR, 'fonts', 'SpaceGrotesk-Bold.ttf'),
-    'Space Grotesk Bold'
-  );
-  GlobalFonts.registerFromPath(
-    path.join(ASSETS_DIR, 'fonts', 'SpaceGrotesk-Regular.ttf'),
-    'Space Grotesk Regular'
-  );
   fontsRegistered = true;
+  try {
+    GlobalFonts.registerFromPath(
+      path.join(ASSETS_DIR, 'fonts', 'SpaceGrotesk-Bold.ttf'),
+      'Space Grotesk Bold'
+    );
+    GlobalFonts.registerFromPath(
+      path.join(ASSETS_DIR, 'fonts', 'SpaceGrotesk-Regular.ttf'),
+      'Space Grotesk Regular'
+    );
+    fontsAvailable = true;
+  } catch (err) {
+    // If the font files failed to download at deploy time, fall back to
+    // a generic system sans-serif rather than letting every single post
+    // fail silently — same failure class we already hit once with the
+    // launch bug, worth guarding against here too.
+    console.warn('[imageGenerator] Custom fonts unavailable, falling back to default sans-serif:', err.message);
+  }
+}
+
+function boldFont() {
+  return fontsAvailable ? 'Space Grotesk Bold' : 'sans-serif';
+}
+
+function regularFont() {
+  return fontsAvailable ? 'Space Grotesk Regular' : 'sans-serif';
 }
 
 function formatPrice(price) {
@@ -90,21 +108,21 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ctx.textAlign = 'left';
 
   // Ticker rendered bold and white, like a wordmark rather than a muted label.
-  ctx.font = '52px "Space Grotesk Bold"';
+  ctx.font = `52px "${boldFont()}"`;
   drawOutlinedText(ctx, ticker, textBlockX, HEIGHT / 2 - 30, TEXT_COLOR, 4);
 
   // Arrow and price are drawn as two separate fills: the arrow carries
   // the direction color, the price number is always white.
   const arrow = direction === 'up' ? '▲ ' : '▼ ';
   const priceStr = formatPrice(price);
-  ctx.font = '104px "Space Grotesk Bold"';
+  ctx.font = `104px "${boldFont()}"`;
 
   drawOutlinedText(ctx, arrow, textBlockX, HEIGHT / 2 + 68, directionColor, 8);
   const arrowWidth = ctx.measureText(arrow).width;
   drawOutlinedText(ctx, priceStr, textBlockX + arrowWidth, HEIGHT / 2 + 68, TEXT_COLOR, 8);
 
   // --- Watermark, bottom-right ----------------------------------------
-  ctx.font = '32px "Space Grotesk Regular"';
+  ctx.font = `32px "${regularFont()}"`;
   ctx.fillStyle = WATERMARK_COLOR;
   ctx.textAlign = 'right';
   ctx.fillText(CONFIG.watermark, WIDTH - CARD_MARGIN - 26, HEIGHT - CARD_MARGIN - 22);

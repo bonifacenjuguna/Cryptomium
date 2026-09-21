@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.2.0 — the actual root cause
+
+The real reason the bot never posted coin data, since the very first
+version: **`bot.launch()` in Telegraf 4.x returns a promise that only
+resolves when the bot *stops*** — it awaits the entire long-polling loop,
+not just the startup handshake. Every prior version of `src/index.js`
+awaited that promise directly before calling `startScheduler(bot)`,
+which meant the scheduler was unreachable code — it would only run after
+the bot had already been shut down. (v1.1.0's `launchWithRetry` fixed a
+different, real bug — an undefined-function crash — but still had this
+same underlying `await bot.launch()` problem baked in, so it wouldn't
+have posted data either.)
+
+Fixed by using Telegraf's `onLaunch` callback to resolve startup instead
+of awaiting the launch promise, while still retrying on genuine 409
+conflicts during Railway rolling deploys, and still detecting if the
+polling loop later stops unexpectedly during normal operation.
+
+**Also hardened:** if the custom font files ever fail to download at
+deploy time, image generation now falls back to a generic sans-serif
+font instead of throwing — which, given the pattern above, would
+otherwise have silently failed every single post again. Plus a couple of
+smaller defensive additions: `setMyCommands` failures no longer throw
+unhandled, and a per-tick log line makes scheduler activity visible in
+Railway's logs for future debugging.
+
 ## v1.1.0
 
 **Bug fix:** the bot would connect to the channel successfully but never
