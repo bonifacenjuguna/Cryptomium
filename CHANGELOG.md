@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- Banner: logo a bit smaller (~165px) and the price a bit bigger (~153px), so
+  the price is even more the focal point. Layout re-centered for the new
+  proportions; the price still shrinks automatically if it would run too wide.
+
 ## 1.1.0
 
 **Fixes**

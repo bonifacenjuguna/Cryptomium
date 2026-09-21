@@ -142,7 +142,7 @@ the logo downloader (rate limits, retries, fallbacks).
 
 ## Previews
 
-**Current banners (1.1.0)** — the price is the focal point. Bitcoin shows
+**Current banners (1.1.1)** — the price is the focal point. Bitcoin shows
 its real logo; DOGE and ADA show the coin-colored ticker badge used when a
 logo file hasn't downloaded (with the logo present, the real logo is shown
 instead). Everything is derived from each coin's own brand color, so it
@@ -150,7 +150,7 @@ applies to every coin automatically.
 
 ![Current banners](docs/previews/current-banners.png)
 
-**Earlier layout (1.0.10)** — larger logo, smaller price. Top: rise, bottom:
+**Earlier layout (1.0.10)** — much larger logo, smaller price. Top: rise, bottom:
 fall.
 
 ![Layout 1.0.10](docs/previews/final-layout.png)
@@ -170,7 +170,7 @@ logos).
   from that coin's brand color: a base that stays true to the brand hue,
   soft luminous light orbs, and a glass-like diagonal sheen — deliberately
   not the flat brand color, so the logo stands out
-- Layout: a modest coin logo on the left, vertically centered; to its right
+- Layout: a small coin logo on the left, vertically centered; to its right
   the ticker (bold, letter-spaced) with a big price underneath, both
   left-aligned (the price shrinks automatically only if it would be too
   wide, e.g. $123,456). A direction chip sits up and to the right of the ticker,

@@ -1,6 +1,6 @@
 {
   "name": "priceping",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Owner-only Telegram bot posting milestone crypto price alerts as branded image banners.",
   "type": "module",
   "main": "src/index.js",

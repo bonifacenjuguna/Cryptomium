@@ -31,18 +31,18 @@ const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 //   (logo)   BTC              [chip]     <- chip sits up and to the right
 //            $81,385
 //
-const BLOCK_LEFT = Math.round(WIDTH / 2 - 430);
+const BLOCK_LEFT = Math.round(WIDTH / 2 - 440);
 const SAFE_RIGHT = WIDTH - 330; // nothing should extend past this (Telegram's side crop)
 
-const LOGO_SIZE = Math.round(212 * S); // logo diameter (CoinGecko art is 250px, so this downscales crisply)
-const LOGO_RING = Math.round(11 * S); // white margin around the logo; part of the badge
+const LOGO_SIZE = Math.round(190 * S); // logo diameter (CoinGecko art is 250px, so this downscales crisply)
+const LOGO_RING = Math.round(10 * S); // white margin around the logo; part of the badge
 const BADGE_SIZE = LOGO_SIZE + LOGO_RING * 2;
 const BADGE_TEXT_GAP = Math.round(58 * S); // between the logo badge and the text
 
 const TICKER_SIZE = Math.round(80 * S);
 const TICKER_TRACKING = Math.round(9 * S); // letter-spacing, so the ticker reads like a wordmark
 const TICKER_EMBOLDEN = 2.5 * S; // same-color stroke: pushes Poppins Bold toward Black weight
-const PRICE_SIZE = Math.round(158 * S); // shrinks automatically for very long prices
+const PRICE_SIZE = Math.round(176 * S); // shrinks automatically for very long prices
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
 const STACK_GAP = Math.round(40 * S); // between the ticker baseline and the top of the price digits
 
