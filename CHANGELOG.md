@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.8
+
+- Redesigned the text block. Clear hierarchy: a big hero price (84 -> 108px)
+  with the ticker above it, and the direction arrow now sits right beside the
+  ticker instead of floating left of the price. Ticker and price share one
+  left edge.
+- Crisper text shadows (less blur/fuzz).
+
 ## 1.0.7
 
 - Banner size is now 1600x418 (matches the reference card). Layout scales

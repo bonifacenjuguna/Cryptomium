@@ -25,19 +25,22 @@ const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 const LOGO_SIZE = Math.round(250 * S); // logo diameter (CoinGecko art is 250px; a bit of downscale stays crisp)
 const LOGO_RING = Math.round(12 * S); // white margin around the logo; part of the badge
 const BADGE_SIZE = LOGO_SIZE + LOGO_RING * 2;
-const BADGE_LEFT = Math.round(WIDTH / 2 - 370);
-const BADGE_TEXT_GAP = Math.round(56 * S);
+const BADGE_LEFT = Math.round(WIDTH / 2 - 395);
+const BADGE_TEXT_GAP = Math.round(58 * S);
 
-const TICKER_SIZE = Math.round(84 * S);
-const TICKER_TRACKING = Math.round(8 * S); // letter-spacing, so the ticker reads like a wordmark
+// Text block: a clear two-level hierarchy. The price is the hero; the ticker
+// sits above it as a bold, letter-spaced wordmark with the direction arrow
+// right beside it. Both share one left edge.
+const TICKER_SIZE = Math.round(76 * S);
+const TICKER_TRACKING = Math.round(9 * S); // letter-spacing, so the ticker reads like a wordmark
 const TICKER_EMBOLDEN = 2.5 * S; // same-color stroke: pushes Poppins Bold toward Black weight
-const PRICE_SIZE = Math.round(96 * S);
+const PRICE_SIZE = Math.round(124 * S);
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
-const STACK_GAP = Math.round(30 * S); // space between ticker baseline and the top of the price digits
+const STACK_GAP = Math.round(26 * S); // space between the ticker baseline and the top of the price digits
 
-const ARROW_W = Math.round(52 * S);
-const ARROW_H = Math.round(46 * S);
-const ARROW_GAP = Math.round(22 * S);
+const ARROW_W = Math.round(46 * S);
+const ARROW_H = Math.round(40 * S);
+const ARROW_GAP = Math.round(24 * S); // between the ticker and the arrow
 
 // Poppins (geometric sans-serif, SIL OFL) is bundled in assets/fonts so the
 // bot never depends on an external font host. Bold is used for the ticker
@@ -114,21 +117,21 @@ export async function generateBannerImage({ ticker, price, direction }) {
   const tickerBase = cy - stackHeight / 2 + tickerCap;
   const priceBase = tickerBase + STACK_GAP + priceCap;
 
+  // Ticker row: TICKER + arrow, arrow vertically centered on the cap height.
   ctx.font = `${TICKER_SIZE}px ${FONT_BOLD}`;
   drawSoftText(ctx, ticker, textX, tickerBase, pal, {
     fill: pearlGradient(ctx, tickerBase - tickerCap, tickerBase, pal),
     tracking: TICKER_TRACKING,
     embolden: TICKER_EMBOLDEN,
   });
+  const tickerWidth = measureTracked(ctx, ticker, TICKER_TRACKING);
+  const arrowX = textX + tickerWidth + ARROW_GAP;
+  const arrowY = tickerBase - tickerCap / 2 - ARROW_H / 2;
+  drawArrow(ctx, arrowX, arrowY, ARROW_W, ARROW_H, direction, pal);
 
-  // Only the arrow is colored (green up / red down); the price is white.
-  // The arrow is a vector shape (not a font glyph) so it renders
-  // identically on any server.
-  const arrowY = priceBase - priceCap / 2 - ARROW_H / 2;
-  drawArrow(ctx, textX, arrowY, ARROW_W, ARROW_H, direction, pal);
-
+  // Price row: big, clean, left-aligned with the ticker.
   ctx.font = `${PRICE_SIZE}px ${FONT_BOLD}`;
-  drawSoftText(ctx, formatPrice(price), textX + ARROW_W + ARROW_GAP, priceBase, pal, {
+  drawSoftText(ctx, formatPrice(price), textX, priceBase, pal, {
     fill: pearlGradient(ctx, priceBase - priceCap, priceBase, pal),
   });
 
@@ -317,15 +320,26 @@ function pearlGradient(ctx, top, bottom, pal) {
 // letter-spacing (tracking) and same-color emboldening for a wordmark look.
 function drawSoftText(ctx, text, x, y, pal, opts = {}) {
   ctx.save();
-  ctx.shadowColor = pal.shadow(0.34);
-  ctx.shadowBlur = 18;
-  ctx.shadowOffsetY = 7;
-  paintText(ctx, text, x, y, opts);
   ctx.shadowColor = pal.shadow(0.22);
-  ctx.shadowBlur = 3;
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
+  paintText(ctx, text, x, y, opts);
+  ctx.shadowColor = pal.shadow(0.28);
+  ctx.shadowBlur = 2;
   ctx.shadowOffsetY = 2;
   paintText(ctx, text, x, y, opts);
   ctx.restore();
+}
+
+// Width of text drawn by paintText with letter-spacing (no trailing gap).
+function measureTracked(ctx, text, tracking) {
+  let width = 0;
+  const chars = [...text];
+  chars.forEach((ch, i) => {
+    width += ctx.measureText(ch).width;
+    if (i < chars.length - 1) width += tracking;
+  });
+  return width;
 }
 
 function paintText(ctx, text, x, y, { fill = '#FFFFFF', tracking = 0, embolden = 0 } = {}) {
