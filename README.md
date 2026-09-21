@@ -85,16 +85,15 @@ bot (only `/start` is a slash command):
 
 ## Notes on the image banners
 
-- Each coin's banner uses that coin's own known brand color as the
-  background (e.g. Bitcoin orange, Ethereum blue-purple), inset with a
-  small border so it reads as a card rather than an edge-to-edge fill
+- Each coin's banner (1536x480) uses that coin's own known brand color as
+  the full-bleed background (e.g. Bitcoin orange, Ethereum blue-purple)
 - Only the direction arrow is colored — vivid green (rise) or red
   (fall). The ticker and price are white. All text has a soft dark
   outline behind it so it stays legible on any brand color (including
   light ones like BNB yellow and TRON's red)
 - The coin logo has a thin white ring around it
-- Coin logos and the Source Serif 4 font are downloaded once at deploy
-  time (`npm run build`) and stored locally — the bot never depends on
-  external image or font hosts while actually posting
+- Coin logos are downloaded once at deploy time (`npm run build`) and
+  stored locally; the Poppins font is bundled in `assets/fonts` — the bot
+  never depends on external image or font hosts while actually posting
 - If a coin's logo failed to download for any reason, that one banner
   falls back to a text-only layout rather than breaking the whole post

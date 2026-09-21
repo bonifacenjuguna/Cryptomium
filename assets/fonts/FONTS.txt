@@ -1,0 +1,3 @@
+Poppins (Bold, Regular) - Copyright The Poppins Project Authors.
+Licensed under the SIL Open Font License 1.1 (https://openfontlicense.org).
+Bundled so the bot never needs to download fonts.

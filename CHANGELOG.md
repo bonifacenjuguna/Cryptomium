@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.3
+
+- Banner is taller (1536x401 -> 1536x480; width unchanged) and the dark frame
+  around the brand color is gone — the color now fills the whole banner.
+- Font switched from Source Serif 4 to Poppins (geometric sans), bundled in
+  `assets/fonts` instead of downloaded at build time.
+- Direction arrow is now drawn as a vector triangle instead of a font glyph.
+
 ## 1.0.2
 
 - Banner restyle: only the direction arrow is colored (green up / red down);
