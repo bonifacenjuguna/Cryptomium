@@ -12,35 +12,41 @@ const HEIGHT = 418;
 // All layout sizes below were designed at 480px tall; S scales them.
 const S = HEIGHT / 480;
 
-// Vivid direction colors. Only the arrow uses these; all other text is white.
-const RISE_COLOR = '#00E676';
-const FALL_COLOR = '#FF1744';
+// Direction chip colors (top -> bottom gradient). The arrow inside the chip is
+// always white; only the chip's fill changes: green for a rise, red for a fall.
+// Deep enough that a white arrow stays clearly readable on them.
+const RISE_CHIP = ['#1FCB80', '#0BA35F'];
+const FALL_CHIP = ['#FF4D6A', '#E0193F'];
 const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 
 // --- Layout ----------------------------------------------------------
-// Content is anchored to a fixed left position (rather than re-centered per
-// post) so the logo never jumps around between banners. It sits slightly left
-// of center and well inside the middle of the image, since Telegram crops
-// very wide photos from the sides.
+// One content block, anchored to a fixed left edge (rather than re-centered per
+// post) so nothing jumps around between banners. It sits slightly left of
+// center and well inside the middle of the image, since Telegram crops very
+// wide photos from the sides.
+//
+//   [logo]  BTC                          [ chip ]
+//   $81,290
+//
+const BLOCK_LEFT = Math.round(WIDTH / 2 - 330); // fixed left edge, a touch left of center
+
 const LOGO_SIZE = Math.round(250 * S); // logo diameter (CoinGecko art is 250px; a bit of downscale stays crisp)
 const LOGO_RING = Math.round(12 * S); // white margin around the logo; part of the badge
 const BADGE_SIZE = LOGO_SIZE + LOGO_RING * 2;
-const BADGE_LEFT = Math.round(WIDTH / 2 - 395);
-const BADGE_TEXT_GAP = Math.round(58 * S);
+const BADGE_TICKER_GAP = Math.round(40 * S);
 
-// Text block: a clear two-level hierarchy. The price is the hero; the ticker
-// sits above it as a bold, letter-spaced wordmark with the direction arrow
-// right beside it. Both share one left edge.
-const TICKER_SIZE = Math.round(76 * S);
+const TICKER_SIZE = Math.round(84 * S);
 const TICKER_TRACKING = Math.round(9 * S); // letter-spacing, so the ticker reads like a wordmark
 const TICKER_EMBOLDEN = 2.5 * S; // same-color stroke: pushes Poppins Bold toward Black weight
-const PRICE_SIZE = Math.round(124 * S);
+const PRICE_SIZE = Math.round(112 * S);
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
-const STACK_GAP = Math.round(26 * S); // space between the ticker baseline and the top of the price digits
+const ROW_GAP = Math.round(34 * S); // space between the logo row and the top of the price digits
 
-const ARROW_W = Math.round(46 * S);
-const ARROW_H = Math.round(40 * S);
-const ARROW_GAP = Math.round(24 * S); // between the ticker and the arrow
+const CHIP_W = Math.round(118 * S);
+const CHIP_H = Math.round(76 * S);
+const CHIP_GAP = Math.round(40 * S); // minimum space between the ticker and the chip
+const CHIP_ARROW_W = Math.round(38 * S);
+const CHIP_ARROW_H = Math.round(32 * S);
 
 // Poppins (geometric sans-serif, SIL OFL) is bundled in assets/fonts so the
 // bot never depends on an external font host. Bold is used for the ticker
@@ -88,50 +94,58 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  const cy = HEIGHT / 2;
-  const badgeCx = BADGE_LEFT + BADGE_SIZE / 2;
+  // Vertical layout: the logo row (badge + ticker + chip) on top, the price
+  // below, the whole group centered in the banner.
+  const priceCap = PRICE_SIZE * CAP_HEIGHT;
+  const groupHeight = BADGE_SIZE + ROW_GAP + priceCap;
+  const groupTop = (HEIGHT - groupHeight) / 2 - 6; // nudged up: the price's comma/descenders hang below its baseline
+  const rowCy = groupTop + BADGE_SIZE / 2;
+  const priceBase = groupTop + BADGE_SIZE + ROW_GAP + priceCap;
+  const badgeCx = BLOCK_LEFT + BADGE_SIZE / 2;
 
-  drawBackground(ctx, pal, badgeCx, cy);
+  drawBackground(ctx, pal, badgeCx, rowCy);
 
   // --- Logo badge ----------------------------------------------------
   let logoDrawn = false;
   try {
     const logo = await loadImage(path.join(ASSETS_DIR, 'logos', `${ticker}.png`));
-    drawLogoBadge(ctx, logo, badgeCx, cy, pal);
+    drawLogoBadge(ctx, logo, badgeCx, rowCy, pal);
     logoDrawn = true;
   } catch {
     // Logo missing on disk (fetchAssets.js failed for this coin at deploy
-    // time) — fall back gracefully to a text-only layout rather than
+    // time) — fall back gracefully to a layout without it rather than
     // crashing the whole post.
   }
-
-  // --- Ticker (top) + price (below) ------------------------------------
-  const textX = logoDrawn ? BADGE_LEFT + BADGE_SIZE + BADGE_TEXT_GAP : 420;
 
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
-  const tickerCap = TICKER_SIZE * CAP_HEIGHT;
-  const priceCap = PRICE_SIZE * CAP_HEIGHT;
-  const stackHeight = tickerCap + STACK_GAP + priceCap;
-  const tickerBase = cy - stackHeight / 2 + tickerCap;
-  const priceBase = tickerBase + STACK_GAP + priceCap;
-
-  // Ticker row: TICKER + arrow, arrow vertically centered on the cap height.
+  // --- Measure, so the chip can sit flush with the block's right edge -------
+  const priceText = formatPrice(price);
   ctx.font = `${TICKER_SIZE}px ${FONT_BOLD}`;
-  drawSoftText(ctx, ticker, textX, tickerBase, pal, {
-    fill: pearlGradient(ctx, tickerBase - tickerCap, tickerBase, pal),
+  const tickerWidth = measureTracked(ctx, ticker, TICKER_TRACKING);
+  ctx.font = `${PRICE_SIZE}px ${FONT_BOLD}`;
+  const priceWidth = ctx.measureText(priceText).width;
+
+  const tickerCap = TICKER_SIZE * CAP_HEIGHT;
+  const tickerX = logoDrawn ? BLOCK_LEFT + BADGE_SIZE + BADGE_TICKER_GAP : BLOCK_LEFT;
+  const rowMinRight = tickerX + tickerWidth + CHIP_GAP + CHIP_W;
+  const blockRight = Math.max(BLOCK_LEFT + priceWidth, rowMinRight);
+
+  // --- Ticker, beside the logo, vertically centered on it ---------------
+  ctx.font = `${TICKER_SIZE}px ${FONT_BOLD}`;
+  drawSoftText(ctx, ticker, tickerX, rowCy + tickerCap / 2, pal, {
+    fill: pearlGradient(ctx, rowCy - tickerCap / 2, rowCy + tickerCap / 2, pal),
     tracking: TICKER_TRACKING,
     embolden: TICKER_EMBOLDEN,
   });
-  const tickerWidth = measureTracked(ctx, ticker, TICKER_TRACKING);
-  const arrowX = textX + tickerWidth + ARROW_GAP;
-  const arrowY = tickerBase - tickerCap / 2 - ARROW_H / 2;
-  drawArrow(ctx, arrowX, arrowY, ARROW_W, ARROW_H, direction, pal);
 
-  // Price row: big, clean, left-aligned with the ticker.
+  // --- Direction chip, right end of the logo row --------------------------
+  drawDirectionChip(ctx, blockRight - CHIP_W, rowCy - CHIP_H / 2, CHIP_W, CHIP_H, direction, pal);
+
+  // --- Price, big, left-aligned under the logo -------------------------------
   ctx.font = `${PRICE_SIZE}px ${FONT_BOLD}`;
-  drawSoftText(ctx, formatPrice(price), textX, priceBase, pal, {
+  drawSoftText(ctx, priceText, BLOCK_LEFT, priceBase, pal, {
     fill: pearlGradient(ctx, priceBase - priceCap, priceBase, pal),
   });
 
@@ -162,13 +176,14 @@ function buildPalette(hex, direction) {
   // Darken only as much as white text needs; going further turns warm brand
   // colors (orange, yellow) into mud.
   let maxLum = 0.33;
-  // If the brand color is close in hue to the direction arrow (TRX red vs
-  // the fall arrow, USDT green vs the rise arrow), the arrow would vanish
-  // into the background - so keep that background darker than the arrow.
-  const arrowHue = direction === 'up' ? 152 : 348;
-  const arrowLum = direction === 'up' ? 0.58 : 0.22;
-  if (hueDistance(brandH, arrowHue) < 40) {
-    maxLum = Math.min(maxLum, (arrowLum + 0.05) / 1.8 - 0.05);
+  // If the brand color is close in hue to the direction chip (TRX red vs
+  // the fall chip, USDT green vs the rise chip), the chip would vanish
+  // into the background - so keep that background darker than the chip.
+  const chip = direction === 'up' ? RISE_CHIP : FALL_CHIP;
+  const chipHue = hexToHsl(chip[1])[0];
+  const chipLum = luminance(hexToRgb(chip[1]));
+  if (hueDistance(brandH, chipHue) < 40) {
+    maxLum = Math.min(maxLum, (chipLum + 0.05) / 1.5 - 0.05);
   }
   const midL = Math.min(l, maxLightness(h, s, maxLum));
 
@@ -361,32 +376,69 @@ function paintText(ctx, text, x, y, { fill = '#FFFFFF', tracking = 0, embolden =
   }
 }
 
-// Solid vivid triangle with softly rounded corners: no border, no glow. Just
-// a tight tinted shadow to separate it from the background.
-function drawArrow(ctx, x, y, w, h, direction, pal) {
+// Pill-shaped direction chip: green (rise) or red (fall) fill with a soft glass
+// highlight, and a white arrow inside that never changes color.
+function drawDirectionChip(ctx, x, y, w, h, direction, pal) {
   const up = direction === 'up';
-  const color = up ? RISE_COLOR : FALL_COLOR;
-  const r = Math.max(2, Math.round(4 * S)); // corner rounding = half-width of a round-joined stroke
+  const [top, bottom] = up ? RISE_CHIP : FALL_CHIP;
+  const r = h / 2;
 
+  const pill = () => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arc(x + w - r, y + r, r, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(x + r, y + h);
+    ctx.arc(x + r, y + r, r, Math.PI / 2, -Math.PI / 2);
+    ctx.closePath();
+  };
+
+  // Fill + soft shadow.
+  ctx.save();
+  pill();
+  ctx.shadowColor = pal.shadow(0.35);
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  const fill = ctx.createLinearGradient(0, y, 0, y + h);
+  fill.addColorStop(0, top);
+  fill.addColorStop(1, bottom);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.restore();
+
+  // Glass highlight across the top half.
+  ctx.save();
+  pill();
+  ctx.clip();
+  const gloss = ctx.createLinearGradient(0, y, 0, y + h * 0.6);
+  gloss.addColorStop(0, 'rgba(255,255,255,0.28)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gloss;
+  ctx.fillRect(x, y, w, h * 0.6);
+  ctx.restore();
+
+  // White arrow (vector triangle with softly rounded corners), centered.
+  const aw = CHIP_ARROW_W;
+  const ah = CHIP_ARROW_H;
+  const ax = x + (w - aw) / 2;
+  const ay = y + (h - ah) / 2;
+  const cr = Math.max(2, Math.round(3 * S));
   ctx.save();
   ctx.beginPath();
   if (up) {
-    ctx.moveTo(x + r, y + h - r);
-    ctx.lineTo(x + w - r, y + h - r);
-    ctx.lineTo(x + w / 2, y + r);
+    ctx.moveTo(ax + cr, ay + ah - cr);
+    ctx.lineTo(ax + aw - cr, ay + ah - cr);
+    ctx.lineTo(ax + aw / 2, ay + cr);
   } else {
-    ctx.moveTo(x + r, y + r);
-    ctx.lineTo(x + w - r, y + r);
-    ctx.lineTo(x + w / 2, y + h - r);
+    ctx.moveTo(ax + cr, ay + cr);
+    ctx.lineTo(ax + aw - cr, ay + cr);
+    ctx.lineTo(ax + aw / 2, ay + ah - cr);
   }
   ctx.closePath();
-  ctx.shadowColor = pal.shadow(0.3);
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 3;
   ctx.lineJoin = 'round';
-  ctx.lineWidth = r * 2;
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
+  ctx.lineWidth = cr * 2;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.fillStyle = '#FFFFFF';
   ctx.stroke();
   ctx.fill();
   ctx.restore();
@@ -415,6 +467,14 @@ function hexToHsl(hex) {
     if (h < 0) h += 360;
   }
   return [h, s, l];
+}
+
+function hexToRgb(hex) {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
 }
 
 function hslToRgb(h, s, l) {

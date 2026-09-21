@@ -89,12 +89,14 @@ bot (only `/start` is a slash command):
   from that coin's brand color: a hue-shifted base, soft luminous light
   orbs, and a glass-like diagonal sheen — deliberately not the flat brand
   color, so the logo stands out
-- The ticker (bold, letter-spaced, with the arrow beside it) sits above a
-  large price; both are white with a subtle pearl gradient and a soft brand-tinted shadow — no
-  outlines. Only the direction arrow is colored: solid vivid green (rise)
-  or red (fall), small, with no border or glow. For coins whose brand color is close to the
-  arrow's (TRON red, USDT green) the background is kept darker so the
-  arrow never disappears into it
+- Layout: the coin logo top-left with the ticker beside it (bold,
+  letter-spaced), a direction chip at the right end of that row, and a
+  large price underneath. The chip is a small green (rise) or red (fall)
+  pill with a white arrow inside — the arrow is always white. For coins
+  whose brand color is close to the chip's (TRON red, USDT green) the
+  background is kept darker so the chip never disappears into it
+- Text is white with a subtle pearl gradient and a soft brand-tinted
+  shadow — no outlines
 - The coin logo sits in a pearl-white circular margin with a soft drop
   shadow; nothing darkens the logo itself
 - Coin logos are downloaded once at deploy time (`npm run build`) and

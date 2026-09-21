@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.9
+
+- New layout (following the reference): logo top-left with the ticker beside
+  it, a direction chip at the right end of the row, and the price below.
+- The arrow is now always white, inside a small pill that is green for a rise
+  and red for a fall (replaces the colored arrow).
+- Logo badge pushed up to make room for the price; its size, the banner size
+  (1600x418) and the watermark are unchanged.
+
 ## 1.0.8
 
 - Redesigned the text block. Clear hierarchy: a big hero price (84 -> 108px)
