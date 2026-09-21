@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.10
+
+- Final banner layout: logo back to center-left at full size, ticker with a
+  large price underneath (84 -> 132px at the original scale), both
+  left-aligned.
+- Direction chip moved up and to the right of the ticker, overhanging the
+  price's right edge slightly; never overlaps the ticker on short prices.
+- Chip colors are more saturated: a true green and a true red (were minty and
+  pinkish). The chip's gloss is lighter so the colors stay rich.
+- Background no longer leans red: the hue shifts in the gradient and glows
+  were reduced for every coin, so Bitcoin reads as true orange.
+- Fixed: the "keep the background darker so the chip is visible" rule was
+  over-triggering (it turned Bitcoin fall banners brown); it now only applies
+  when the brand color is genuinely close to the chip color (TRX, USDT).
+- README: added a Previews section.
+
 ## 1.0.9
 
 - New layout (following the reference): logo top-left with the ticker beside

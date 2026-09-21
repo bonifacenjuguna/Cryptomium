@@ -83,18 +83,38 @@ bot (only `/start` is a slash command):
 - **📊 Status** — see every coin's current threshold and mute state at a
   glance
 
+## Previews
+
+**Final layout** — top: a price rise, bottom: a price fall (Bitcoin).
+Everything is derived from each coin's own brand color, so it applies to
+every coin automatically.
+
+![Final layout](docs/previews/final-layout.png)
+
+**Other coins** — same engine, six other coins (letter circles stand in for
+the real logos, which are downloaded at deploy time).
+
+![Other coins](docs/previews/other-coins.png)
+
+**Previous layout** — the earlier version with the chip inline right after
+the ticker, kept here for reference.
+
+![Previous layout](docs/previews/previous-layout.png)
+
 ## Notes on the image banners
 
 - Each coin's banner (1600x418) has a web-style glowing gradient built
-  from that coin's brand color: a hue-shifted base, soft luminous light
-  orbs, and a glass-like diagonal sheen — deliberately not the flat brand
-  color, so the logo stands out
-- Layout: the coin logo top-left with the ticker beside it (bold,
-  letter-spaced), a direction chip at the right end of that row, and a
-  large price underneath. The chip is a small green (rise) or red (fall)
-  pill with a white arrow inside — the arrow is always white. For coins
-  whose brand color is close to the chip's (TRON red, USDT green) the
-  background is kept darker so the chip never disappears into it
+  from that coin's brand color: a base that stays true to the brand hue,
+  soft luminous light orbs, and a glass-like diagonal sheen — deliberately
+  not the flat brand color, so the logo stands out
+- Layout: the coin logo on the left, vertically centered; to its right the
+  ticker (bold, letter-spaced) with a large price underneath, both
+  left-aligned. A direction chip sits up and to the right of the ticker,
+  overhanging the price's right edge slightly. The chip is a small vivid
+  green (rise) or red (fall) pill with a white arrow inside — the arrow is
+  always white. For coins whose brand color is close to the chip's (TRON
+  red, USDT green) the background is kept darker so the chip never
+  disappears into it
 - Text is white with a subtle pearl gradient and a soft brand-tinted
   shadow — no outlines
 - The coin logo sits in a pearl-white circular margin with a soft drop
@@ -103,4 +123,4 @@ bot (only `/start` is a slash command):
   stored locally; the Poppins font is bundled in `assets/fonts` — the bot
   never depends on external image or font hosts while actually posting
 - If a coin's logo failed to download for any reason, that one banner
-  falls back to a text-only layout rather than breaking the whole post
+  falls back to a layout without the logo rather than breaking the whole post
