@@ -6,8 +6,11 @@ import { CONFIG, coinByTicker } from './config.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.join(__dirname, '..', 'assets');
 
-const WIDTH = 1536;
-const HEIGHT = 480;
+// Banner size: matches the reference card (1600x418).
+const WIDTH = 1600;
+const HEIGHT = 418;
+// All layout sizes below were designed at 480px tall; S scales them.
+const S = HEIGHT / 480;
 
 // Vivid direction colors. Only the arrow uses these; all other text is white.
 const RISE_COLOR = '#00E676';
@@ -16,24 +19,25 @@ const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.8)';
 
 // --- Layout ----------------------------------------------------------
 // Content is anchored to a fixed left position (rather than re-centered per
-// post) so the logo never jumps around between banners, and sits a little
-// left of center.
-const LOGO_SIZE = 250; // diameter of the coin logo itself (CoinGecko art is 250px, so 1:1 = crisp)
-const LOGO_RING = 12; // white margin around the logo; part of the badge
+// post) so the logo never jumps around between banners. It sits slightly left
+// of center and well inside the middle of the image, since Telegram crops
+// very wide photos from the sides.
+const LOGO_SIZE = Math.round(250 * S); // logo diameter (CoinGecko art is 250px; a bit of downscale stays crisp)
+const LOGO_RING = Math.round(12 * S); // white margin around the logo; part of the badge
 const BADGE_SIZE = LOGO_SIZE + LOGO_RING * 2;
-const BADGE_LEFT = 340;
-const BADGE_TEXT_GAP = 56;
+const BADGE_LEFT = Math.round(WIDTH / 2 - 370);
+const BADGE_TEXT_GAP = Math.round(56 * S);
 
-const TICKER_SIZE = 84;
-const TICKER_TRACKING = 8; // letter-spacing, so the ticker reads like a wordmark
-const TICKER_EMBOLDEN = 2.5; // same-color stroke: pushes Poppins Bold toward Black weight
-const PRICE_SIZE = 96;
+const TICKER_SIZE = Math.round(84 * S);
+const TICKER_TRACKING = Math.round(8 * S); // letter-spacing, so the ticker reads like a wordmark
+const TICKER_EMBOLDEN = 2.5 * S; // same-color stroke: pushes Poppins Bold toward Black weight
+const PRICE_SIZE = Math.round(96 * S);
 const CAP_HEIGHT = 0.7; // Poppins cap/digit height as a fraction of font size
-const STACK_GAP = 30; // space between ticker baseline and the top of the price digits
+const STACK_GAP = Math.round(30 * S); // space between ticker baseline and the top of the price digits
 
-const ARROW_W = 66;
-const ARROW_H = 58;
-const ARROW_GAP = 24;
+const ARROW_W = Math.round(52 * S);
+const ARROW_H = Math.round(46 * S);
+const ARROW_GAP = Math.round(22 * S);
 
 // Poppins (geometric sans-serif, SIL OFL) is bundled in assets/fonts so the
 // bot never depends on an external font host. Bold is used for the ticker
@@ -62,7 +66,7 @@ function formatPrice(price) {
 }
 
 /**
- * Renders the 1536x480 banner for one milestone post.
+ * Renders the 1600x418 banner for one milestone post.
  *
  * @param {object} opts
  * @param {string} opts.ticker
@@ -129,10 +133,10 @@ export async function generateBannerImage({ ticker, price, direction }) {
   });
 
   // --- Watermark, bottom-right ----------------------------------------
-  ctx.font = `32px ${FONT_REGULAR}`;
+  ctx.font = `${Math.round(32 * S)}px ${FONT_REGULAR}`;
   ctx.fillStyle = WATERMARK_COLOR;
   ctx.textAlign = 'right';
-  ctx.fillText(CONFIG.watermark, WIDTH - 26, HEIGHT - 22);
+  ctx.fillText(CONFIG.watermark, WIDTH - 26 * S, HEIGHT - 22 * S);
 
   return canvas.encode('png');
 }
@@ -208,9 +212,9 @@ function drawBackground(ctx, pal, badgeCx, cy) {
   // a smudge. They're kept away from the text area.
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  glowOrb(ctx, badgeCx - 40, cy + 40, 400, pal.orbA(0.5));
-  glowOrb(ctx, w - 120, -20, 460, pal.orbB(0.45));
-  glowOrb(ctx, w * 0.55, h + 80, 380, pal.orbC(0.3));
+  glowOrb(ctx, badgeCx - 40 * S, cy + 40 * S, 400 * S, pal.orbA(0.5));
+  glowOrb(ctx, w - 120 * S, -20 * S, 460 * S, pal.orbB(0.45));
+  glowOrb(ctx, w * 0.55, h + 80 * S, 380 * S, pal.orbC(0.3));
   ctx.restore();
 
   // Glass reflection: a broad, soft diagonal sheen of light - the way light
@@ -343,46 +347,34 @@ function paintText(ctx, text, x, y, { fill = '#FFFFFF', tracking = 0, embolden =
   }
 }
 
-// Solid vivid triangle with softly rounded corners - no border. A tight
-// tinted shadow separates it from the background, and a soft colored glow
-// makes it feel lit rather than pasted on.
+// Solid vivid triangle with softly rounded corners: no border, no glow. Just
+// a tight tinted shadow to separate it from the background.
 function drawArrow(ctx, x, y, w, h, direction, pal) {
   const up = direction === 'up';
   const color = up ? RISE_COLOR : FALL_COLOR;
-  const inset = 5; // corner rounding is done with a round-joined stroke of this half-width
-
-  const tri = () => {
-    ctx.beginPath();
-    if (up) {
-      ctx.moveTo(x + inset, y + h - inset);
-      ctx.lineTo(x + w - inset, y + h - inset);
-      ctx.lineTo(x + w / 2, y + inset);
-    } else {
-      ctx.moveTo(x + inset, y + inset);
-      ctx.lineTo(x + w - inset, y + inset);
-      ctx.lineTo(x + w / 2, y + h - inset);
-    }
-    ctx.closePath();
-  };
-  const paint = () => {
-    tri();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = inset * 2;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.stroke();
-    ctx.fill();
-  };
+  const r = Math.max(2, Math.round(4 * S)); // corner rounding = half-width of a round-joined stroke
 
   ctx.save();
-  ctx.shadowColor = pal.shadow(0.4);
+  ctx.beginPath();
+  if (up) {
+    ctx.moveTo(x + r, y + h - r);
+    ctx.lineTo(x + w - r, y + h - r);
+    ctx.lineTo(x + w / 2, y + r);
+  } else {
+    ctx.moveTo(x + r, y + r);
+    ctx.lineTo(x + w - r, y + r);
+    ctx.lineTo(x + w / 2, y + h - r);
+  }
+  ctx.closePath();
+  ctx.shadowColor = pal.shadow(0.3);
   ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 4;
-  paint();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 0;
-  paint();
+  ctx.shadowOffsetY = 3;
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = r * 2;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.stroke();
+  ctx.fill();
   ctx.restore();
 }
 

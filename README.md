@@ -85,14 +85,14 @@ bot (only `/start` is a slash command):
 
 ## Notes on the image banners
 
-- Each coin's banner (1536x480) has a web-style glowing gradient built
+- Each coin's banner (1600x418) has a web-style glowing gradient built
   from that coin's brand color: a hue-shifted base, soft luminous light
   orbs, and a glass-like diagonal sheen — deliberately not the flat brand
   color, so the logo stands out
 - The ticker (bold, letter-spaced, above the price) and the price are
   white with a subtle pearl gradient and a soft brand-tinted shadow — no
   outlines. Only the direction arrow is colored: solid vivid green (rise)
-  or red (fall), no border. For coins whose brand color is close to the
+  or red (fall), small, with no border or glow. For coins whose brand color is close to the
   arrow's (TRON red, USDT green) the background is kept darker so the
   arrow never disappears into it
 - The coin logo sits in a pearl-white circular margin with a soft drop

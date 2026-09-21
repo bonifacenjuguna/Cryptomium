@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7
+
+- Banner size is now 1600x418 (matches the reference card). Layout scales
+  with height and stays well inside the middle of the image, where Telegram
+  crops wide photos.
+- Direction arrows are smaller (66x58 -> ~45x40) and no longer glow; just a
+  tight soft shadow.
+
 ## 1.0.6
 
 - Background is now a web-style glowing gradient: hue-shifted base, soft
