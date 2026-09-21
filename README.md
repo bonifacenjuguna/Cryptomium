@@ -85,16 +85,15 @@ bot (only `/start` is a slash command):
 
 ## Notes on the image banners
 
-- Each coin's banner (1536x480) is a multi-tone gradient built from that
-  coin's brand color (deeper shade bottom-left, brighter highlight
-  top-right, soft glow behind the logo) — deliberately not the flat brand
-  color, so the logo stands out from the background
+- Each coin's banner (1536x480) is a clean gradient built from that
+  coin's brand color (a deeper shade bottom-left, a lighter one top-right)
+  — deliberately not the flat brand color, so the logo stands out
 - The ticker (bold, letter-spaced, sitting above the price) and the price
   are white with a soft drop shadow — no outlines. Only the direction arrow
   is colored: vivid green (rise) or red (fall), with a thin white edge so
   it stays visible on same-hue backgrounds (TRON's red, USDT's green)
-- The coin logo sits in a white circular margin with a light 3D treatment
-  (soft shadow, gentle highlight and shading)
+- The coin logo sits in a white circular margin with a soft drop shadow
+  and a faint highlight; nothing darkens the logo itself
 - Coin logos are downloaded once at deploy time (`npm run build`) and
   stored locally; the Poppins font is bundled in `assets/fonts` — the bot
   never depends on external image or font hosts while actually posting

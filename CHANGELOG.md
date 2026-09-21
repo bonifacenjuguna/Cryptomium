@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5
+
+- Cleaned up the 1.0.4 look, which rendered muddy: removed the glow, light
+  sweep and vignette that showed up as smudges in the background (now a
+  simple, clean gradient), and removed the shading that dirtied the white
+  marks inside logos (like the Bitcoin B).
+- Softer text/arrow shadows (no dirty halo) and a flat white logo margin with
+  a drop shadow instead of a grey gradient and hairline.
+
 ## 1.0.4
 
 - Banner redesign: multi-tone gradient background derived from the brand

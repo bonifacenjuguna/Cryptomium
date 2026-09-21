@@ -89,7 +89,7 @@ export async function generateBannerImage({ ticker, price, direction }) {
   const cy = HEIGHT / 2;
   const badgeCx = BADGE_LEFT + BADGE_SIZE / 2;
 
-  drawBackground(ctx, buildPalette(coin.brandColor), badgeCx, cy);
+  drawBackground(ctx, buildPalette(coin.brandColor));
 
   // --- Logo badge ----------------------------------------------------
   let logoDrawn = false;
@@ -143,67 +143,33 @@ export async function generateBannerImage({ ticker, price, direction }) {
 // Background
 // ---------------------------------------------------------------------
 
-// Builds a multi-tone gradient from the coin's brand color: a deeper,
-// hue-shifted shade at the bottom-left, a mid tone (darkened just enough for
-// white text to stay readable without any outline), and a bright, warmer
-// highlight in the top-right corner. Deliberately NOT the flat brand color,
-// so the logo (which is that exact color) pops off the background.
+// Builds a clean three-stop gradient from the coin's brand color: slightly
+// deeper and hue-shifted at the bottom-left, the brand tone (darkened only as
+// much as white text needs) in the middle, and a lighter, warmer tone at the
+// top-right. Kept deliberately simple - no glows, sweeps or vignettes, which
+// read as smudges - and not the flat brand color, so the logo still pops.
 function buildPalette(hex) {
   const [h, s, l] = hexToHsl(hex);
-  const sat = Math.min(1, s * 1.05 + 0.03);
+  const sat = Math.min(1, s * 1.03 + 0.02);
   const midL = Math.min(l, maxLightnessForWhiteText(h, s));
   return {
-    // Deep, richer shade (hue nudged one way, darker) - bottom-left.
-    deep: hsl(h - 18, sat, Math.max(0.1, midL * 0.62)),
-    // Main tone: the brand hue, only darkened if white text would struggle.
-    mid: hsl(h - 4, sat, midL),
-    // Lighter tone through the text area.
-    midLight: hsl(h + 2, sat, Math.min(midL + 0.06, maxLightnessForWhiteText(h + 2, s) + 0.04)),
-    // Bright, slightly shifted highlight in the far top-right corner.
-    corner: hsl(h + 10, sat, Math.min(0.68, midL + 0.2)),
-    // Saturated (not pastel) halo behind the logo badge.
-    glow: (a) => hsl(h - 2, Math.min(1, sat + 0.1), Math.min(0.7, midL + 0.16), a),
+    start: hsl(h - 8, sat, midL * 0.86),
+    mid: hsl(h, sat, midL),
+    end: hsl(h + 8, sat, Math.min(0.66, midL + 0.09)),
   };
 }
 
-function drawBackground(ctx, p, glowX, glowY) {
-  const w = WIDTH;
-  const h = HEIGHT;
-
-  // Diagonal multi-stop base gradient (bottom-left -> top-right).
-  const base = ctx.createLinearGradient(0, h, w, 0);
-  base.addColorStop(0, p.deep);
-  base.addColorStop(0.45, p.mid);
-  base.addColorStop(0.8, p.midLight);
-  base.addColorStop(1, p.corner);
+function drawBackground(ctx, p) {
+  const base = ctx.createLinearGradient(0, HEIGHT, WIDTH, 0);
+  base.addColorStop(0, p.start);
+  base.addColorStop(0.5, p.mid);
+  base.addColorStop(1, p.end);
   ctx.fillStyle = base;
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Soft spotlight behind the logo badge.
-  const glow = ctx.createRadialGradient(glowX, glowY, 20, glowX, glowY, 440);
-  glow.addColorStop(0, p.glow(0.5));
-  glow.addColorStop(1, p.glow(0));
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-
-  // Broad diagonal light sweep.
-  const sweep = ctx.createLinearGradient(w * 0.25, 0, w * 0.75, h);
-  sweep.addColorStop(0.35, 'rgba(255,255,255,0)');
-  sweep.addColorStop(0.5, 'rgba(255,255,255,0.07)');
-  sweep.addColorStop(0.65, 'rgba(255,255,255,0)');
-  ctx.fillStyle = sweep;
-  ctx.fillRect(0, 0, w, h);
-
-  // Edge vignette for depth.
-  const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.62);
-  vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.14)');
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, w, h);
-
-  // Whisper of grain dithers the gradient so it stays smooth (no visible
+  // A whisper of grain dithers the gradient so it stays smooth (no visible
   // banding) after Telegram re-compresses the photo.
-  addGrain(ctx, 2);
+  addGrain(ctx, 1);
 }
 
 function addGrain(ctx, amount) {
@@ -226,49 +192,38 @@ function drawLogoBadge(ctx, logo, cx, cy) {
   const rLogo = LOGO_SIZE / 2;
   const rBadge = rLogo + LOGO_RING;
 
-  // White disc (the margin) with a soft drop shadow beneath it.
+  // Clean white disc (the margin) with a soft drop shadow beneath it - the
+  // main source of depth.
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.40)';
-  ctx.shadowBlur = 36;
-  ctx.shadowOffsetY = 14;
-  const disc = ctx.createLinearGradient(cx - rBadge, cy - rBadge, cx + rBadge, cy + rBadge);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.30)';
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = 12;
+  const disc = ctx.createLinearGradient(0, cy - rBadge, 0, cy + rBadge);
   disc.addColorStop(0, '#FFFFFF');
-  disc.addColorStop(1, '#DCDFE5');
+  disc.addColorStop(1, '#F1F2F4');
   ctx.fillStyle = disc;
   ctx.beginPath();
   ctx.arc(cx, cy, rBadge, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // The logo itself, clipped to a circle, with gentle shading so it reads as
-  // slightly domed: highlight top-left, soft shade toward the bottom.
+  // The logo, clipped to a circle. Only a faint top-left highlight is added
+  // for a hint of dome; nothing darkens the logo, so white marks (like the
+  // Bitcoin B) stay clean and crisp.
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, rLogo, 0, Math.PI * 2);
   ctx.clip();
   ctx.drawImage(logo, cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
 
-  const shade = ctx.createLinearGradient(0, cy - rLogo, 0, cy + rLogo);
-  shade.addColorStop(0.45, 'rgba(0,0,0,0)');
-  shade.addColorStop(1, 'rgba(0,0,0,0.20)');
-  ctx.fillStyle = shade;
-  ctx.fillRect(cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
-
-  const hx = cx - rLogo * 0.35;
-  const hy = cy - rLogo * 0.45;
-  const highlight = ctx.createRadialGradient(hx, hy, 0, hx, hy, rLogo);
-  highlight.addColorStop(0, 'rgba(255,255,255,0.30)');
+  const hx = cx - rLogo * 0.4;
+  const hy = cy - rLogo * 0.5;
+  const highlight = ctx.createRadialGradient(hx, hy, 0, hx, hy, rLogo * 0.95);
+  highlight.addColorStop(0, 'rgba(255,255,255,0.20)');
   highlight.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = highlight;
   ctx.fillRect(cx - rLogo, cy - rLogo, LOGO_SIZE, LOGO_SIZE);
   ctx.restore();
-
-  // Hairline where the logo meets the white margin, for a crisp inset edge.
-  ctx.beginPath();
-  ctx.arc(cx, cy, rLogo, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
 }
 
 // ---------------------------------------------------------------------
@@ -280,12 +235,12 @@ function drawLogoBadge(ctx, logo, cx, cy) {
 // (tracking) and same-color emboldening for a wordmark look.
 function drawSoftText(ctx, text, x, y, opts = {}) {
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.38)';
-  ctx.shadowBlur = 22;
-  ctx.shadowOffsetY = 8;
-  paintText(ctx, text, x, y, opts);
   ctx.shadowColor = 'rgba(0, 0, 0, 0.26)';
-  ctx.shadowBlur = 4;
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 6;
+  paintText(ctx, text, x, y, opts);
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+  ctx.shadowBlur = 3;
   ctx.shadowOffsetY = 2;
   paintText(ctx, text, x, y, opts);
   ctx.restore();
@@ -336,9 +291,9 @@ function drawArrow(ctx, x, y, w, h, direction) {
 
   // White edge (only the outer half of the stroke shows once filled) + shadow.
   tri();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.38)';
-  ctx.shadowBlur = 20;
-  ctx.shadowOffsetY = 8;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.26)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 5;
   ctx.strokeStyle = '#FFFFFF';
   ctx.lineWidth = 8;
   ctx.stroke();
