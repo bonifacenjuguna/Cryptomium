@@ -28,7 +28,7 @@ function checkLadderCrossing(settings, currentPrice, threshold) {
   // First ever reading for this coin: establish a baseline silently so we
   // don't fire a post the moment the bot starts up.
   if (last_milestone === null || last_milestone === undefined) {
-    const baseline = roundToStep(Math.round(currentPrice / threshold) * threshold, threshold);
+    const baseline = Math.round(currentPrice / threshold) * threshold;
     return { direction: null, price: baseline, newLastMilestone: baseline };
   }
 

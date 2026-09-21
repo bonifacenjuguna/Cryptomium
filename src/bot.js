@@ -24,9 +24,7 @@ export function createBot({ onChannelConnected }) {
 
   // Only /start is registered as a visible menu command, per spec —
   // everything else is button-driven.
-  bot.telegram
-    .setMyCommands([{ command: 'start', description: 'Connect and open the menu' }])
-    .catch(err => console.warn('[bot] Could not set menu commands:', err.message));
+  bot.telegram.setMyCommands([{ command: 'start', description: 'Connect and open the menu' }]);
 
   return bot;
 }

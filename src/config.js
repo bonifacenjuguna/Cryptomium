@@ -1,9 +1,7 @@
 // Central, single source of truth for every coin the bot tracks.
 //
 // coingeckoId   -> used for /simple/price and /coins/{id} (logo image) calls
-// binanceSymbol -> used for the fallback price feed (Binance's public ticker API).
-//                  null = no such pair exists (Binance has no USDTUSDT); that coin is
-//                  simply skipped when the fallback feed is used.
+// binanceSymbol -> used for the fallback price feed (Binance's public ticker API)
 // defaultThreshold -> starting milestone step size (owner can change per-coin in the bot)
 // stable        -> true for USDT/USDC, which use a depeg-band check instead of
 //                  round-number milestones
@@ -23,7 +21,7 @@ export const COINS = [
   { ticker: 'ADA',  name: 'Cardano',   coingeckoId: 'cardano',           binanceSymbol: 'ADAUSDT',  defaultThreshold: 0.005, stable: false, brandColor: '#0033AD' },
   { ticker: 'LINK', name: 'Chainlink', coingeckoId: 'chainlink',         binanceSymbol: 'LINKUSDT', defaultThreshold: 0.25,  stable: false, brandColor: '#2A5ADA' },
   { ticker: 'TON',  name: 'Toncoin',   coingeckoId: 'the-open-network',  binanceSymbol: 'TONUSDT',  defaultThreshold: 0.05,  stable: false, brandColor: '#0098EA' },
-  { ticker: 'USDT', name: 'Tether',    coingeckoId: 'tether',            binanceSymbol: null,       defaultThreshold: 0.005, stable: true,  brandColor: '#26A17B' },
+  { ticker: 'USDT', name: 'Tether',    coingeckoId: 'tether',            binanceSymbol: 'USDTUSDT', defaultThreshold: 0.005, stable: true,  brandColor: '#26A17B' },
   { ticker: 'USDC', name: 'USD Coin',  coingeckoId: 'usd-coin',          binanceSymbol: 'USDCUSDT', defaultThreshold: 0.005, stable: true,  brandColor: '#2775CA' },
 ];
 

@@ -6,30 +6,31 @@ import { CONFIG, coinByTicker } from './config.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.join(__dirname, '..', 'assets');
 
+// Width stays exactly as specified; height was bumped up a bit so the
+// card's inset border reads as a subtle frame rather than a heavy dark
+// bezel at this width.
 const WIDTH = 1536;
-const HEIGHT = 480;
+const HEIGHT = 460;
+const CARD_MARGIN = 8; // minimal inset gap so the brand color reads as a card, not a full-bleed fill
 
-// Vivid, higher-intensity than any brand color in the palette (including
-// TRX's red and USDT/USDC's green) so the direction arrow never blends
-// into a same-hue background. Only the arrow uses these; all other text
-// is white.
+// Only the arrow character itself carries the direction color. Everything
+// else (ticker, price digits) is always white/bold, on every coin.
 const RISE_COLOR = '#00E676';
 const FALL_COLOR = '#FF1744';
-const TEXT_COLOR = '#FFFFFF';
+const TEXT_COLOR = '#ffffff';
 const WATERMARK_COLOR = 'rgba(255, 255, 255, 0.55)';
-const LOGO_RING_WIDTH = 4; // very minimal white margin around the coin logo
-
-// Poppins (geometric sans-serif, SIL OFL) is bundled in assets/fonts so the
-// bot never depends on an external font host. Bold is used for the ticker
-// and price; Regular for the watermark.
-const FONT_BOLD = '"Banner Bold", "Helvetica Neue", Arial, sans-serif';
-const FONT_REGULAR = '"Banner Regular", "Helvetica Neue", Arial, sans-serif';
 
 let fontsRegistered = false;
 function ensureFontsRegistered() {
   if (fontsRegistered) return;
-  GlobalFonts.registerFromPath(path.join(ASSETS_DIR, 'fonts', 'Poppins-Bold.ttf'), 'Banner Bold');
-  GlobalFonts.registerFromPath(path.join(ASSETS_DIR, 'fonts', 'Poppins-Regular.ttf'), 'Banner Regular');
+  GlobalFonts.registerFromPath(
+    path.join(ASSETS_DIR, 'fonts', 'SpaceGrotesk-Bold.ttf'),
+    'Space Grotesk Bold'
+  );
+  GlobalFonts.registerFromPath(
+    path.join(ASSETS_DIR, 'fonts', 'SpaceGrotesk-Regular.ttf'),
+    'Space Grotesk Regular'
+  );
   fontsRegistered = true;
 }
 
@@ -46,7 +47,7 @@ function formatPrice(price) {
 }
 
 /**
- * Renders the 1536x480 banner for one milestone post.
+ * Renders the banner for one milestone post.
  *
  * @param {object} opts
  * @param {string} opts.ticker
@@ -58,23 +59,23 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ensureFontsRegistered();
 
   const coin = coinByTicker(ticker);
-  const brandColor = coin.brandColor;
   const directionColor = direction === 'up' ? RISE_COLOR : FALL_COLOR;
 
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext('2d');
 
-  drawBrandCard(ctx, brandColor);
+  drawOuterFrame(ctx);
+  drawBrandCard(ctx, coin.brandColor);
 
-  // --- Logo ---------------------------------------------------------
-  const logoSize = 200;
+  // --- Logo, with a thin white margin/ring around it -------------------
+  const logoSize = 220;
+  const logoX = WIDTH / 2 - 340;
+  const logoY = HEIGHT / 2 - logoSize / 2;
   let logoDrawn = false;
   try {
     const logo = await loadImage(path.join(ASSETS_DIR, 'logos', `${ticker}.png`));
-    const logoX = WIDTH / 2 - 330;
-    const logoY = HEIGHT / 2 - logoSize / 2;
+    drawWhiteRing(ctx, logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2);
     ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
-    drawLogoRing(ctx, logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2);
     logoDrawn = true;
   } catch {
     // Logo missing on disk (fetchAssets.js failed for this coin at deploy
@@ -88,36 +89,43 @@ export async function generateBannerImage({ ticker, price, direction }) {
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
 
-  // Ticker: bold, white, reads like a wordmark.
-  ctx.font = `64px ${FONT_BOLD}`;
-  drawOutlinedText(ctx, ticker, textBlockX, HEIGHT / 2 - 30, TEXT_COLOR, 6);
+  // Ticker rendered bold and white, like a wordmark rather than a muted label.
+  ctx.font = '52px "Space Grotesk Bold"';
+  drawOutlinedText(ctx, ticker, textBlockX, HEIGHT / 2 - 30, TEXT_COLOR, 4);
 
-  // Price line: only the direction arrow is colored (green up / red down);
-  // the price itself is white. The arrow is drawn as a vector triangle
-  // (not a font glyph) so it renders identically on any server.
-  const priceY = HEIGHT / 2 + 60;
-  const arrowW = 76;
-  const arrowH = 64;
-  drawArrow(ctx, textBlockX, priceY - arrowH - 2, arrowW, arrowH, direction, directionColor);
-  ctx.font = `96px ${FONT_BOLD}`;
-  drawOutlinedText(ctx, formatPrice(price), textBlockX + arrowW + 24, priceY, TEXT_COLOR);
+  // Arrow and price are drawn as two separate fills: the arrow carries
+  // the direction color, the price number is always white.
+  const arrow = direction === 'up' ? '▲ ' : '▼ ';
+  const priceStr = formatPrice(price);
+  ctx.font = '104px "Space Grotesk Bold"';
+
+  drawOutlinedText(ctx, arrow, textBlockX, HEIGHT / 2 + 68, directionColor, 8);
+  const arrowWidth = ctx.measureText(arrow).width;
+  drawOutlinedText(ctx, priceStr, textBlockX + arrowWidth, HEIGHT / 2 + 68, TEXT_COLOR, 8);
 
   // --- Watermark, bottom-right ----------------------------------------
-  ctx.font = `32px ${FONT_REGULAR}`;
+  ctx.font = '32px "Space Grotesk Regular"';
   ctx.fillStyle = WATERMARK_COLOR;
   ctx.textAlign = 'right';
-  ctx.fillText(CONFIG.watermark, WIDTH - 26, HEIGHT - 22);
+  ctx.fillText(CONFIG.watermark, WIDTH - CARD_MARGIN - 26, HEIGHT - CARD_MARGIN - 22);
 
   return canvas.encode('png');
 }
 
-// The coin's brand-color background, full-bleed (no dark frame), with a
-// subtle gradient + soft sheen so it reads as high-quality rather than flat.
+// Thin neutral frame behind the brand card — this is the minimal "gap"
+// that keeps the brand color from bleeding edge-to-edge.
+function drawOuterFrame(ctx) {
+  ctx.fillStyle = '#0b0b0d';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+}
+
+// The coin's brand-color card, inset by CARD_MARGIN, with a subtle
+// gradient + soft sheen so it reads as high-quality rather than a flat fill.
 function drawBrandCard(ctx, brandColor) {
-  const x = 0;
-  const y = 0;
-  const w = WIDTH;
-  const h = HEIGHT;
+  const x = CARD_MARGIN;
+  const y = CARD_MARGIN;
+  const w = WIDTH - CARD_MARGIN * 2;
+  const h = HEIGHT - CARD_MARGIN * 2;
 
   const base = ctx.createLinearGradient(x, y, x + w, y + h);
   base.addColorStop(0, lighten(brandColor, -0.12));
@@ -143,48 +151,29 @@ function drawBrandCard(ctx, brandColor) {
   ctx.fillRect(x, y, w, h);
 }
 
-// Draws text with a soft dark outline behind it, guaranteeing legibility
-// even when the direction color's hue is close to the brand background
-// (TRX red, USDT/USDC green).
-function drawOutlinedText(ctx, text, x, y, fillColor, outlineWidth = 8) {
+// A very thin white ring around the coin logo — keeps the icon readable
+// even when its own art shares the card's brand color (e.g. BTC's orange
+// glyph on an orange card).
+function drawWhiteRing(ctx, cx, cy, radius) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.fill();
+  ctx.restore();
+}
+
+// Draws text with a soft dark outline behind it, so it stays legible
+// against any brand color — including light ones like BNB's yellow or
+// DOGE's gold.
+function drawOutlinedText(ctx, text, x, y, fillColor, lineWidth) {
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.lineWidth = outlineWidth;
+  ctx.lineWidth = lineWidth;
   ctx.strokeText(text, x, y);
   ctx.fillStyle = fillColor;
   ctx.fillText(text, x, y);
-}
-
-// Filled triangle with the same soft dark outline as the text.
-function drawArrow(ctx, x, y, w, h, direction, color) {
-  ctx.beginPath();
-  if (direction === 'up') {
-    ctx.moveTo(x, y + h);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x + w / 2, y);
-  } else {
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + w, y);
-    ctx.lineTo(x + w / 2, y + h);
-  }
-  ctx.closePath();
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.lineWidth = 8;
-  ctx.stroke();
-  ctx.fillStyle = color;
-  ctx.fill();
-}
-
-// Thin white ring hugging the outside edge of the (circular) coin logo.
-// Stroked rather than filled so it never shows through transparent logo pixels.
-function drawLogoRing(ctx, cx, cy, logoRadius) {
-  ctx.beginPath();
-  ctx.arc(cx, cy, logoRadius + LOGO_RING_WIDTH / 2 - 0.5, 0, Math.PI * 2);
-  ctx.strokeStyle = '#FFFFFF';
-  ctx.lineWidth = LOGO_RING_WIDTH;
-  ctx.stroke();
 }
 
 function lighten(hex, amount) {

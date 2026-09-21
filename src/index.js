@@ -26,28 +26,17 @@ async function main() {
     await unmute(ticker);
   });
 
-  // NOTE: In Telegraf 4.x, bot.launch() returns a promise that only settles
-  // when the bot *stops* (it awaits the long-polling loop). Awaiting it
-  // directly meant everything below it — including startScheduler() — never
-  // ran, so the bot could answer /start and post "Connected." but never
-  // posted any coin data. We resolve on the onLaunch callback instead.
-  await new Promise((resolve, reject) => {
-    let launched = false;
-    bot
-      .launch(() => {
-        launched = true;
-        resolve();
-      })
-      .catch(err => {
-        if (!launched) return reject(err);
-        console.error('[index] Polling loop stopped unexpectedly:', err);
-        process.exit(1);
-      });
-  });
+  // Defensive cleanup before polling starts: if a previous instance's
+  // shutdown didn't fully release its long-poll connection yet (common
+  // during a Railway rolling deploy, where the old container can take a
+  // moment to die after the new one starts), Telegram will reject our
+  // getUpdates call with a 409 Conflict. Explicitly dropping any pending
+  // webhook/session and retrying with backoff handles that handoff window
+  // instead of crashing the whole process.
+  await launchWithRetry(bot);
   console.log('[index] Bot launched.');
 
   startScheduler(bot);
-  console.log(`[index] Scheduler started (every ${CONFIG.pollIntervalMs}ms).`);
 
   // Private liveness DM to the owner only — the channel stays untouched
   // on ordinary deploys/restarts.
@@ -59,6 +48,33 @@ async function main() {
 
   process.once('SIGINT', () => bot.stop('SIGINT'));
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}
+
+/**
+ * Launches the bot's long-polling loop. On a Railway rolling deploy, the
+ * old container can take a moment to fully release its getUpdates
+ * connection after the new one starts — Telegram rejects the new
+ * connection with a 409 Conflict during that brief handoff window. This
+ * retries with backoff instead of crashing the whole process over what is
+ * usually a transient few-second overlap.
+ */
+async function launchWithRetry(bot, attempt = 1) {
+  const MAX_ATTEMPTS = 6;
+  const DELAY_MS = 5000;
+
+  try {
+    // Clear out any stuck webhook/session before polling starts.
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    await bot.launch();
+  } catch (err) {
+    const isConflict = err?.response?.error_code === 409;
+    if (isConflict && attempt < MAX_ATTEMPTS) {
+      console.warn(`[index] 409 conflict on launch (attempt ${attempt}/${MAX_ATTEMPTS}), retrying in ${DELAY_MS / 1000}s...`);
+      await new Promise(r => setTimeout(r, DELAY_MS));
+      return launchWithRetry(bot, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 main().catch(err => {

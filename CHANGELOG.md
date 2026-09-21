@@ -1,30 +1,33 @@
 # Changelog
 
-## 1.0.3
+## v1.1.0
 
-- Banner is taller (1536x401 -> 1536x480; width unchanged) and the dark frame
-  around the brand color is gone — the color now fills the whole banner.
-- Font switched from Source Serif 4 to Poppins (geometric sans), bundled in
-  `assets/fonts` instead of downloaded at build time.
-- Direction arrow is now drawn as a vector triangle instead of a font glyph.
+**Bug fix:** the bot would connect to the channel successfully but never
+post any milestone data afterward. Root cause: an incomplete edit had
+left a call to an undefined `launchWithRetry` function in `src/index.js`,
+which crashed the process on every boot (via `ReferenceError`) before the
+price-polling scheduler ever started — after the one-time "Connected."
+message had already gone out from an earlier, working boot. Fixed by
+properly implementing `launchWithRetry`, which also now handles Telegram
+409 conflicts during Railway rolling deploys with backoff instead of
+crashing outright.
 
-## 1.0.2
+**Also hardened:** if both CoinGecko and Binance fail to return prices,
+the bot now DMs the owner a one-time alert (rate-limited to once per 30
+minutes) instead of only logging to a console the owner may not be
+watching.
 
-- Banner restyle: only the direction arrow is colored (green up / red down);
-  the price is now white.
-- Ticker (e.g. BTC) is now bold and white instead of regular and black/white.
-- Thin white ring around the coin logo.
-
-## 1.0.1
-
-- **Fix:** bot posted "Connected." but never posted coin data. In Telegraf 4.x
-  `await bot.launch()` doesn't resolve while polling, so `startScheduler()` was
-  never reached. Launch now resolves via the `onLaunch` callback.
-- **Fix:** Binance fallback feed always failed (HTTP 400) because `USDTUSDT`
-  isn't a real pair. Coins without a Binance pair are now skipped in the fallback.
-- Log a line on every price tick (prices fetched, channel connected or not).
-- Catch errors from `setMyCommands`; round the initial baseline to avoid float drift.
-
-## 1.0.0
-
-- Initial release.
+**Visual rework of the banner:**
+- Only the arrow character (▲/▼) carries the direction color now; the
+  ticker and price digits are always bold white on every coin, avoiding
+  the readability clash on TRON (red) and USDT/USDC (green) that a fully
+  colored price text had
+- Banner height increased slightly (width/length unchanged at 1536px) so
+  the inset card border reads as a subtle frame rather than a heavy dark
+  bezel
+- Added a thin white ring around each coin's logo for legibility when a
+  logo's own art shares the card's brand color (e.g. Bitcoin's orange
+  glyph on an orange card)
+- Swapped the image font from Source Serif Pro (serif) to Space Grotesk
+  (geometric sans-serif) — caption text is unaffected, since Telegram
+  captions can't carry custom fonts anyway
