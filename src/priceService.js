@@ -11,10 +11,7 @@ async function fetchFromCoinGecko() {
   const ids = COINS.map(c => c.coingeckoId).join(',');
   const url = `${COINGECKO_URL}?ids=${ids}&vs_currencies=usd`;
 
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(10_000),
-    headers: { 'User-Agent': 'priceping-bot/1.0 (+telegram)' },
-  });
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`CoinGecko responded ${res.status}`);
   const data = await res.json();
 
@@ -36,13 +33,7 @@ async function fetchFromBinance() {
   const symbols = JSON.stringify(COINS.filter(c => c.binanceSymbol).map(c => c.binanceSymbol));
   const url = `${BINANCE_URL}?symbols=${encodeURIComponent(symbols)}`;
 
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(10_000),
-    headers: { 'User-Agent': 'priceping-bot/1.0 (+telegram)' },
-  });
-  if (res.status === 451) {
-    throw new Error('Binance responded 451 (geo-blocked from this server\'s region)');
-  }
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Binance responded ${res.status}`);
   const data = await res.json();
 

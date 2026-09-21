@@ -16,32 +16,11 @@ export function startScheduler(bot) {
       await runOnce(bot);
     } catch (err) {
       console.error('[scheduler] Tick failed:', err);
-      await notifyOwnerOfFailure(bot, err);
     }
   };
 
   tick(); // run immediately on boot, then on the configured interval
   setInterval(tick, CONFIG.pollIntervalMs);
-}
-
-// Avoids spamming the owner's DMs if the price feed stays down for a
-// while — only sends one alert, then waits before sending another.
-let lastFailureNotifiedAt = 0;
-const FAILURE_NOTIFY_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
-
-async function notifyOwnerOfFailure(bot, err) {
-  const now = Date.now();
-  if (now - lastFailureNotifiedAt < FAILURE_NOTIFY_COOLDOWN_MS) return;
-  lastFailureNotifiedAt = now;
-  try {
-    await bot.telegram.sendMessage(
-      CONFIG.ownerId,
-      `⚠️ priceping couldn't fetch prices (both CoinGecko and Binance failed): ${err.message}\n\n` +
-      `Will keep retrying — this is a one-time alert for now to avoid spam.`
-    );
-  } catch {
-    // If even the DM fails, there's nothing more we can do here.
-  }
 }
 
 async function runOnce(bot) {

@@ -39,7 +39,7 @@ numeric ID. That's `OWNER_TELEGRAM_ID`.
    service settings (`BOT_TOKEN`, `OWNER_TELEGRAM_ID` — Railway wires up
    `DATABASE_URL` and `REDIS_URL` automatically once you add those
    plugins)
-6. Railway will run `npm run build` (downloads coin logos + font files
+6. Railway will run `npm run build` (downloads coin logos
    into `/assets` once) and then `npm start`
 
 ### 4. Enable Redis keyspace notifications (for auto-unmute)
@@ -85,21 +85,18 @@ bot (only `/start` is a slash command):
 
 ## Notes on the image banners
 
-- Each coin's banner uses that coin's own known brand color as the
-  background (e.g. Bitcoin orange, Ethereum blue-purple), inset with a
-  small border so it reads as a card rather than an edge-to-edge fill
-- Only the arrow itself (▲/▼) carries the direction color — vivid green
-  for a rise, vivid red for a fall. The ticker and price digits are
-  always bold white, on every coin, so there's no clash with coins whose
-  brand color happens to be red or green (TRON, USDT/USDC)
-- The coin's logo gets a very thin white ring around it, so the icon
-  stays visible even when its own art shares the card's brand color
-  (e.g. Bitcoin's orange glyph on an orange card)
-- Text uses Space Grotesk (a geometric sans-serif), downloaded once at
-  deploy time alongside the coin logos — the caption text itself is
-  plain Telegram message text and unaffected by this
-- Coin logos and the font are downloaded once at deploy time
-  (`npm run build`) and stored locally — the bot never depends on
-  external image or font hosts while actually posting
+- Each coin's banner (1536x480) is a multi-tone gradient built from that
+  coin's brand color (deeper shade bottom-left, brighter highlight
+  top-right, soft glow behind the logo) — deliberately not the flat brand
+  color, so the logo stands out from the background
+- The ticker (bold, letter-spaced, sitting above the price) and the price
+  are white with a soft drop shadow — no outlines. Only the direction arrow
+  is colored: vivid green (rise) or red (fall), with a thin white edge so
+  it stays visible on same-hue backgrounds (TRON's red, USDT's green)
+- The coin logo sits in a white circular margin with a light 3D treatment
+  (soft shadow, gentle highlight and shading)
+- Coin logos are downloaded once at deploy time (`npm run build`) and
+  stored locally; the Poppins font is bundled in `assets/fonts` — the bot
+  never depends on external image or font hosts while actually posting
 - If a coin's logo failed to download for any reason, that one banner
   falls back to a text-only layout rather than breaking the whole post

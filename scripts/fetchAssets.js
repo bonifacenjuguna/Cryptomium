@@ -1,7 +1,8 @@
 // Runs once at deploy time (via `npm run build` on Railway) — NOT on
-// every post. Downloads each coin's logo from CoinGecko and the Source
-// Serif 4 font files, storing them locally under /assets so the running
-// bot never depends on external image/font hosts while serving posts.
+// every post. Downloads each coin's logo from CoinGecko and stores it
+// locally under /assets/logos so the running bot never depends on an
+// external image host while serving posts. (Fonts are bundled in
+// /assets/fonts, so nothing to download for them.)
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,32 +11,12 @@ import { COINS } from '../src/config.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.join(__dirname, '..', 'assets');
 const LOGOS_DIR = path.join(ASSETS_DIR, 'logos');
-const FONTS_DIR = path.join(ASSETS_DIR, 'fonts');
-
-const FONT_FILES = {
-  'SpaceGrotesk-Regular.ttf':
-    'https://raw.githubusercontent.com/floriankarsten/space-grotesk/master/fonts/ttf/SpaceGrotesk-Regular.ttf',
-  'SpaceGrotesk-Bold.ttf':
-    'https://raw.githubusercontent.com/floriankarsten/space-grotesk/master/fonts/ttf/SpaceGrotesk-Bold.ttf',
-};
 
 async function downloadToFile(url, destPath) {
   const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`${url} responded ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   await fs.writeFile(destPath, buffer);
-}
-
-async function fetchFonts() {
-  for (const [filename, url] of Object.entries(FONT_FILES)) {
-    const dest = path.join(FONTS_DIR, filename);
-    try {
-      await downloadToFile(url, dest);
-      console.log(`[fetchAssets] Font saved: ${filename}`);
-    } catch (err) {
-      console.error(`[fetchAssets] FAILED to fetch font ${filename}: ${err.message}`);
-    }
-  }
 }
 
 async function fetchLogos() {
@@ -66,8 +47,6 @@ async function fetchLogos() {
 
 async function main() {
   await fs.mkdir(LOGOS_DIR, { recursive: true });
-  await fs.mkdir(FONTS_DIR, { recursive: true });
-  await fetchFonts();
   await fetchLogos();
   console.log('[fetchAssets] Done.');
 }
