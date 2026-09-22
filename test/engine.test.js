@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { coinByTicker, MODES } from '../src/config.js';
-import { checkMilestone, stepOf, formatStep, previewLevel } from '../src/milestoneEngine.js';
+import { checkMilestone, stepOf, formatStep, previewLevel, nextAlertDistance } from '../src/milestoneEngine.js';
 
 const base = (over = {}) => ({
   threshold: 500, pct_threshold: 0.5, step_unit: 'usd', mode: 'steady', last_milestone: null, ...over,
@@ -90,4 +90,56 @@ test('previewLevel: ladder coins round to a level, % / stable show the live pric
   assert.equal(previewLevel(BTC, base(), 81386), 81500);
   assert.equal(previewLevel(BTC, base({ step_unit: 'pct' }), 81386.42), 81386.42);
   assert.equal(previewLevel(USDT, base(), 1.0004), 1.0004);
+});
+
+test('nextAlertDistance: no reading yet -> baselining', () => {
+  assert.deepEqual(nextAlertDistance(BTC, base(), 81234), { kind: 'baselining' });
+});
+
+test('nextAlertDistance: $ ladder is symmetric around the anchor, in dollars', () => {
+  const s = base({ last_milestone: 81000 }); // step $500
+  assert.deepEqual(nextAlertDistance(BTC, s, 81000), { kind: 'ladder', unit: 'usd', toUp: 500, toDown: 500 });
+  assert.deepEqual(nextAlertDistance(BTC, s, 81300), { kind: 'ladder', unit: 'usd', toUp: 200, toDown: 800 });
+  assert.deepEqual(nextAlertDistance(BTC, s, 80700), { kind: 'ladder', unit: 'usd', toUp: 800, toDown: 200 });
+});
+
+test('nextAlertDistance: $ ladder respects the mode multiplier', () => {
+  const s = base({ last_milestone: 81000, mode: 'hyper' }); // step $125
+  assert.deepEqual(nextAlertDistance(BTC, s, 81000), { kind: 'ladder', unit: 'usd', toUp: 125, toDown: 125 });
+  assert.deepEqual(nextAlertDistance(BTC, s, 81100), { kind: 'ladder', unit: 'usd', toUp: 25, toDown: 225 });
+});
+
+test('nextAlertDistance: % steps are symmetric around the anchor, in percent', () => {
+  const s = base({ step_unit: 'pct', last_milestone: 80000 }); // step 0.5%
+  assert.deepEqual(nextAlertDistance(BTC, s, 80000), { kind: 'pct', unit: 'pct', toUp: 0.5, toDown: 0.5 });
+  const near = nextAlertDistance(BTC, s, 80200); // +0.25%
+  assert.ok(Math.abs(near.toUp - 0.25) < 1e-9 && Math.abs(near.toDown - 0.75) < 1e-9);
+});
+
+function closeTo(actual, expected, eps = 1e-9) {
+  assert.ok(Math.abs(actual - expected) < eps, `expected ${actual} to be close to ${expected}`);
+}
+
+test('nextAlertDistance: stablecoin inside the band', () => {
+  const s = { threshold: 0.005, pct_threshold: 0.5, step_unit: 'usd', mode: 'steady', last_milestone: null };
+  const atPeg = nextAlertDistance(USDT, s, 1.0);
+  assert.equal(atPeg.kind, 'stable-armed');
+  closeTo(atPeg.toUp, 0.005);
+  closeTo(atPeg.toDown, 0.005);
+  const off = nextAlertDistance(USDT, s, 1.002);
+  closeTo(off.toUp, 0.003);
+  closeTo(off.toDown, 0.007);
+});
+
+test('nextAlertDistance: stablecoin already depegged -> distance back inside the band', () => {
+  const s = { threshold: 0.005, pct_threshold: 0.5, step_unit: 'usd', mode: 'steady', last_milestone: 1.008 };
+  const up = nextAlertDistance(USDT, s, 1.008);
+  assert.equal(up.kind, 'stable-outside');
+  assert.equal(up.direction, 'up');
+  closeTo(up.toReturn, 0.003);
+  const s2 = { ...s, last_milestone: 0.992 };
+  const down = nextAlertDistance(USDT, s2, 0.992);
+  assert.equal(down.kind, 'stable-outside');
+  assert.equal(down.direction, 'down');
+  closeTo(down.toReturn, 0.003);
 });

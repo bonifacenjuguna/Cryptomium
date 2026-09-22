@@ -343,14 +343,29 @@ function drawLogoBadge(ctx, logo, cx, cy, pal, ticker, style) {
     ctx.fill();
     ctx.restore();
   } else {
-    // Clean: just a soft drop shadow, cast by a disc in the coin's own color
-    // (which also backs any transparent pixels in the logo). No white ring, so
-    // logos that already have their own circular design don't look crowded.
+    // Clean: no separate white margin/ring (the logo circle IS the badge), but
+    // still needs to visually separate from the banner background, which is
+    // built from the same brand hue and can otherwise make the logo look like
+    // it's floating with no definition. Two things do the work: a soft white
+    // glow just outside the circle (diffusion, not a hard edge), and a pearl
+    // backing fill so transparent pixels inside non-circular logo art (a
+    // diamond, a hex) show a clean neutral color instead of a mismatched,
+    // muddier brand-derived shade.
     ctx.save();
-    ctx.shadowColor = pal.shadow(0.45);
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 12;
-    ctx.fillStyle = pal.brandBottom;
+    const glow = ctx.createRadialGradient(cx, cy, rLogo * 0.82, cx, cy, rLogo * 1.35);
+    glow.addColorStop(0, 'rgba(255,255,255,0.55)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rLogo * 1.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.shadowColor = pal.shadow(0.5);
+    ctx.shadowBlur = 26;
+    ctx.shadowOffsetY = 10;
+    ctx.fillStyle = pal.pearlEdge;
     ctx.beginPath();
     ctx.arc(cx, cy, rLogo - 0.75, 0, Math.PI * 2);
     ctx.fill();
@@ -379,12 +394,13 @@ function drawLogoBadge(ctx, logo, cx, cy, pal, ticker, style) {
   ctx.restore();
 
   if (!ring) {
-    // Subtle, consistent border: a translucent light hairline just inside the
-    // edge, so every coin gets the same crisp outline whatever its artwork.
+    // A crisp, bright edge (much more opaque than a hairline) is what actually
+    // separates the logo from a same-hue background — a faint stroke reads as
+    // no edge at all once the shadow and glow are added on top of it.
     ctx.beginPath();
-    ctx.arc(cx, cy, rLogo - 1.25, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 2.5;
+    ctx.arc(cx, cy, rLogo - 1.5, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.lineWidth = 3.5;
     ctx.stroke();
   }
 }

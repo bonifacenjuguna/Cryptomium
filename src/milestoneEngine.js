@@ -134,6 +134,55 @@ function checkStablecoinDepeg(settings, currentPrice, bandWidth) {
   return null;
 }
 
+/**
+ * How far the current price is from triggering the NEXT alert in each
+ * direction — used by the "🔭 Next alert" screen. Returns one of:
+ *   { kind: 'baselining' }                                   — no reading yet
+ *   { kind: 'ladder' | 'pct', unit, toUp, toDown }            — distance to each side, in the coin's step unit
+ *   { kind: 'stable-armed', unit, toUp, toDown }              — distance to leaving the $1 band on each side
+ *   { kind: 'stable-outside', direction, toReturn }           — already depegged; distance back inside the band
+ */
+export function nextAlertDistance(coin, settings, currentPrice) {
+  const step = stepOf(coin, settings);
+
+  if (coin.stable) {
+    const band = step.unit === 'pct' ? step.value / 100 : step.value;
+    const upper = 1 + band;
+    const lower = 1 - band;
+    const armed = settings.last_milestone === null || settings.last_milestone === undefined;
+    if (!armed) {
+      const direction = currentPrice > upper ? 'up' : 'down';
+      const toReturn = direction === 'up' ? currentPrice - upper : lower - currentPrice;
+      return { kind: 'stable-outside', direction, toReturn: Math.max(0, toReturn) };
+    }
+    return {
+      kind: 'stable-armed',
+      unit: step.unit,
+      toUp: Math.max(0, upper - currentPrice),
+      toDown: Math.max(0, currentPrice - lower),
+    };
+  }
+
+  if (settings.last_milestone === null || settings.last_milestone === undefined) {
+    return { kind: 'baselining' };
+  }
+
+  // Both the dollar ladder and percentage steps reduce to the same shape:
+  // "moved" is how far price has traveled from the anchor, in the step's own
+  // unit ($ for ladder, % for percent) — so the two directions are always
+  // exactly `step.value` apart, symmetric around the anchor.
+  const moved = step.unit === 'pct'
+    ? ((currentPrice - settings.last_milestone) / settings.last_milestone) * 100
+    : currentPrice - settings.last_milestone;
+
+  return {
+    kind: step.unit === 'pct' ? 'pct' : 'ladder',
+    unit: step.unit,
+    toUp: Math.max(0, step.value - moved),
+    toDown: Math.max(0, step.value + moved),
+  };
+}
+
 export function roundToStep(value, step) {
   // Guards against floating point drift (e.g. 0.30000000000000004) by
   // rounding to a sensible number of decimal places derived from the step.

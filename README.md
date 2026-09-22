@@ -97,7 +97,8 @@ bot (only `/start` is a slash command). The menu:
   available the banner simply has no chip
 - **📊 Status** — every coin's step and mute state at a glance, e.g.
   `BTC — 0.5% 🔔`, `ETH — 0.75% 🔔`, `SOL — 0.5% 💨 🔔` (a coin that isn't
-  on Steady also shows its mode icon)
+  on Steady also shows its mode icon). Two buttons underneath: **📈 Post
+  history** and **🔭 Next alert** (see below)
 - **⚙️ Settings** — per coin: edit the base step, switch between `$` steps
   and `%` steps, and choose a mode. "Modes · all coins" and "% / $ · all
   coins" change every coin at once. Also **🌐 Data source** and
@@ -106,7 +107,22 @@ bot (only `/start` is a slash command). The menu:
   (tick the ones you want). Durations: until you unmute, or until a time
   ("in 3 hours", "18:30", "9pm", or add a zone like "9pm EST")
 - **🧪 Test banner** — pick a coin, then Rise, Fall, or a custom price. The
-  preview is sent only to you, never to the channel
+  preview is sent only to you, never to the channel. A **🖼️ Style** row lets
+  you flip between ✨ Clean and ⚪ White ring for just that preview, without
+  changing your saved default (Settings > Logo style)
+
+### Post history & Next alert
+
+Two screens reached from **📊 Status**:
+
+- **📈 Post history** — how many banners have actually been sent, over
+  **Last 24 hours / 7 days / 30 days / All time**, split into automatic
+  milestone alerts vs. manual 📣 Post prices sends, with a per-coin
+  breakdown. This is how you answer "how many posts went out this week?"
+- **🔭 Next alert** — for every unmuted coin, how close the current price is
+  to triggering in each direction right now, e.g. `ETH ▲ +$23.90 · ▼ -$26.10`
+  (or in % for a percent-step coin). Muted coins are hidden from the list.
+  Useful for judging whether a coin's step/mode is calibrated the way you want
 
 ### Steps and modes
 
@@ -161,9 +177,11 @@ choose:
 ### Logo style
 
 **Settings > 🖼️ Logo style** switches how the coin logo is framed on banners:
-✨ **Clean** (default: no ring, a subtle light border and soft shadow, which
-suits logos that already have their own circular design) or ⚪ **White ring**
-(the earlier look). Use 🧪 Test banner to compare them.
+✨ **Clean** (default — no ring; a soft white glow and a crisp bright border
+give it definition against the background without a hard margin) or
+⚪ **White ring** (a full white margin around the logo — the earlier look).
+Use 🧪 Test banner's own style toggle to compare them on a real coin before
+committing to one in Settings.
 
 ### Price format
 
@@ -193,17 +211,20 @@ limit.
 npm test
 ```
 
-Covers the step/mode logic (dollar, percent, stablecoin), input parsing,
-price formatting and captions, the logo downloader (rate limits, retries,
-fallbacks), and the price sources (selection, Binance fallback, health alerts).
+Covers the step/mode logic (dollar, percent, stablecoin), the next-alert
+distance math, input parsing, price formatting and captions, the logo
+downloader (rate limits, retries, fallbacks), and the price sources
+(selection, Binance fallback, health alerts).
 
 ## Previews
 
-**Current banners (1.2.0)** — top: Bitcoin (clean logo style); middle: DOGE
-with a fall chip (it shows the coin-colored ticker badge used when a logo
-file hasn't downloaded; with the logo present, the real logo is shown); bottom:
-Bitcoin in the optional white-ring style. Everything is derived from each
-coin's own brand color, so it applies to every coin automatically.
+**Current banners (1.4.0)** — top: Bitcoin, ✨ Clean logo style (reworked —
+a soft glow and a crisp border give the logo definition without a white
+ring); middle: DOGE with a fall chip (the coin-colored ticker badge used
+when a logo file hasn't downloaded; with the logo present, the real logo is
+shown); bottom: Bitcoin in the optional ⚪ White ring style. Everything is
+derived from each coin's own brand color, so it applies to every coin
+automatically.
 
 ![Current banners](docs/previews/current-banners.png)
 
@@ -238,8 +259,10 @@ logos).
   disappears into it
 - Text is white with a subtle pearl gradient and a soft brand-tinted
   shadow — no outlines
-- The coin logo sits in a pearl-white circular margin with a soft drop
-  shadow; nothing darkens the logo itself
+- The coin logo has two selectable framings (Settings > 🖼️ Logo style): a
+  pearl-white circular margin with a soft drop shadow (⚪ White ring), or
+  (✨ Clean, default) no margin — a soft white glow plus a crisp bright
+  border give it definition instead. Nothing darkens the logo itself
 - Coin logos are stored locally and the Poppins font is bundled in
   `assets/fonts` — posting a banner never waits on an external image or font
   host

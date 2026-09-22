@@ -1,7 +1,7 @@
 // "📣 Post prices": post the CURRENT price of one coin, or of all coins, to the
 // channel on demand (as opposed to the automatic milestone alerts).
 import { COINS, coinByTicker } from '../config.js';
-import { getState } from '../db.js';
+import { getState, logPost } from '../db.js';
 import { getLatestPrices, getChanges24h } from '../priceService.js';
 import { generateBannerImage } from '../imageGenerator.js';
 import { buildCaption } from '../caption.js';
@@ -114,6 +114,7 @@ export async function postCurrentPrices(telegram, tickers, { sleepFn = sleep } =
       const image = await generateBannerImage({ ticker, price, direction });
       const caption = buildCaption({ ticker, price, direction, changePct: change ?? null });
       await telegram.sendPhoto(channelId, { source: image }, { caption });
+      await logPost({ ticker, kind: 'manual', direction, price });
       posted.push(ticker);
     } catch (err) {
       console.error(`[post] ${ticker} failed:`, err);

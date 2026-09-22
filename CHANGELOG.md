@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.4.0
+
+**Fixed: ✨ Clean logo style looked bad**
+- The old version relied on a backing disc color derived from the banner's
+  own gradient math, a very faint 0.5-opacity hairline border, and a shadow
+  that barely registered against a same-hue background — so the logo looked
+  washed out and undefined, especially on real (non-synthetic) logo art.
+- Reworked: a soft white glow just outside the logo, a crisp 0.92-opacity
+  border, and a neutral pearl backing fill (instead of a brand-derived shade
+  that could clash with the actual logo colors). Checked against a real
+  Bitcoin logo, a non-circular (diamond-shaped) logo, and monogram fallbacks.
+
+**New: 📈 Post history (Status > Post history)**
+- Every banner actually sent — automatic milestone alerts and manual
+  📣 Post prices sends — is now logged with its timestamp, direction and
+  price.
+- View totals for Last 24 hours / 7 days / 30 days / All time, split into
+  auto vs. manual, with a per-coin breakdown. Answers "how many posts have
+  gone out, and when."
+
+**New: 🔭 Next alert (Status > Next alert)**
+- Shows how close each unmuted coin is to triggering right now, in both
+  directions, e.g. `ETH ▲ +$23.90 · ▼ -$26.10` (or in % for a percent-step
+  coin; stablecoins show distance to the depeg band, or distance back inside
+  it if already depegged). Useful for judging whether a step/mode is
+  calibrated the way you want.
+
+**New: per-preview logo style in 🧪 Test banner**
+- A 🖼️ Style row on the Rise/Fall and custom-price screens lets you flip
+  between ✨ Clean and ⚪ White ring for just that preview, without touching
+  your saved default in Settings. The caption says which style was used.
+
+**Tests:** 50 unit tests (16 new, covering the next-alert distance math for
+ladder/percent/stablecoin cases) and 53 simulated menu-flow checks (11 new),
+all passing.
+
 ## 1.3.0
 
 **New coins:** AVAX (Avalanche), SUI, XLM (Stellar), HBAR (Hedera), DOT

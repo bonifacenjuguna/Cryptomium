@@ -36,6 +36,21 @@ export async function initDb() {
     );
   `);
 
+  // One row per banner actually sent to the channel — milestone alerts
+  // ('auto', from the scheduler) and on-demand posts ('manual', from
+  // 📣 Post prices). Powers "🔭 Post history" (how many, over what period).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS post_log (
+      id BIGSERIAL PRIMARY KEY,
+      ticker TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      direction TEXT,
+      price DOUBLE PRECISION NOT NULL,
+      posted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS post_log_posted_at_idx ON post_log (posted_at)`);
+
   for (const coin of COINS) {
     await pool.query(
       `INSERT INTO coin_settings (ticker, threshold, pct_threshold)
@@ -118,6 +133,63 @@ export async function unmute(ticker) {
     `UPDATE coin_settings SET muted_indefinitely = FALSE, muted_until = NULL, mute_timezone = NULL WHERE ticker = $1`,
     [ticker]
   );
+}
+
+// ----------------------------------------------------------------------
+// Post log — one row per banner actually sent to the channel
+// ----------------------------------------------------------------------
+
+/** Records a banner that was just sent. Call this AFTER the send succeeds. */
+export async function logPost({ ticker, kind, direction = null, price }) {
+  await pool.query(
+    `INSERT INTO post_log (ticker, kind, direction, price) VALUES ($1, $2, $3, $4)`,
+    [ticker, kind, direction, price]
+  );
+}
+
+export const POST_PERIODS = {
+  '24h': { label: 'Last 24 hours', hours: 24 },
+  '7d': { label: 'Last 7 days', hours: 24 * 7 },
+  '30d': { label: 'Last 30 days', hours: 24 * 30 },
+  all: { label: 'All time', hours: null },
+};
+
+function sinceClause(periodKey) {
+  const period = POST_PERIODS[periodKey] ?? POST_PERIODS['24h'];
+  return period.hours === null ? null : `now() - interval '${period.hours} hours'`;
+}
+
+/** Totals for a period: { total, auto, manual }. */
+export async function postCounts(periodKey) {
+  const since = sinceClause(periodKey);
+  const { rows } = await pool.query(
+    `SELECT kind, COUNT(*)::int AS count FROM post_log
+     ${since ? `WHERE posted_at >= ${since}` : ''}
+     GROUP BY kind`
+  );
+  const byKind = Object.fromEntries(rows.map(r => [r.kind, r.count]));
+  const auto = byKind.auto ?? 0;
+  const manual = byKind.manual ?? 0;
+  return { total: auto + manual, auto, manual };
+}
+
+/** Per-coin totals for a period, most-posted first: [{ ticker, auto, manual, total }]. */
+export async function postCountsByCoin(periodKey) {
+  const since = sinceClause(periodKey);
+  const { rows } = await pool.query(
+    `SELECT ticker, kind, COUNT(*)::int AS count FROM post_log
+     ${since ? `WHERE posted_at >= ${since}` : ''}
+     GROUP BY ticker, kind`
+  );
+  const byTicker = new Map();
+  for (const row of rows) {
+    const entry = byTicker.get(row.ticker) ?? { ticker: row.ticker, auto: 0, manual: 0 };
+    entry[row.kind] = (entry[row.kind] ?? 0) + row.count;
+    byTicker.set(row.ticker, entry);
+  }
+  return [...byTicker.values()]
+    .map(e => ({ ...e, total: e.auto + e.manual }))
+    .sort((a, b) => b.total - a.total);
 }
 
 export async function getState(key) {

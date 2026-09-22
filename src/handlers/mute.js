@@ -7,6 +7,7 @@ import { pending } from '../pending.js';
 import { safeEdit } from '../telegramUtil.js';
 import {
   MENU, muteListKeyboard, muteMenuKeyboard, backToCoinKeyboard, bulkPickKeyboard, bulkDurationKeyboard,
+  statusExtrasKeyboard,
 } from '../keyboards.js';
 
 const LIST_TEXT = 'Choose a coin to mute or unmute, or use the bulk options:';
@@ -163,7 +164,7 @@ export function registerMuteHandlers(bot) {
         return line;
       })
     );
-    await ctx.reply(rows.join('\n'));
+    await ctx.reply(rows.join('\n'), statusExtrasKeyboard());
   });
 
   function clearBulkState(userId) {

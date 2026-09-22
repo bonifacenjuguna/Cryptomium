@@ -1,5 +1,5 @@
 import { Markup } from 'telegraf';
-import { COINS, MODES, SOURCE_MODES, LOGO_STYLES, coinByTicker } from './config.js';
+import { COINS, MODES, SOURCE_MODES, LOGO_STYLES, DEFAULT_LOGO_STYLE, coinByTicker } from './config.js';
 import { stepText } from './coinView.js';
 
 // --- Main menu (the persistent keyboard under the message box) -------------
@@ -130,7 +130,31 @@ export function bulkDurationKeyboard() {
   ]);
 }
 
-// --- Admin: prices + test banner ---------------------------------------------------
+// --- Status extras (from the 📊 Status screen) ------------------------------------
+export function statusExtrasKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('📈 Post history', 'posthistory'),
+      Markup.button.callback('🔭 Next alert', 'nextalert'),
+    ],
+  ]);
+}
+
+// --- Post history ----------------------------------------------------------------
+export function postHistoryKeyboard(periodKey) {
+  const row = keys => keys.map(([key, label]) => Markup.button.callback(`${label}${key === periodKey ? ' ✓' : ''}`, `history:${key}`));
+  return Markup.inlineKeyboard([
+    row([['24h', '24h'], ['7d', '7 days']]),
+    row([['30d', '30 days'], ['all', 'All time']]),
+  ]);
+}
+
+// --- Next alert (how close each coin is right now) -------------------------------
+export function nextAlertKeyboard() {
+  return Markup.inlineKeyboard([[Markup.button.callback('🔄 Refresh', 'nextalert:refresh')]]);
+}
+
+
 export function pricesKeyboard() {
   return Markup.inlineKeyboard([
     [
@@ -179,22 +203,32 @@ export function logoStyleKeyboard(currentKey) {
   return Markup.inlineKeyboard(rows);
 }
 
-export function testOptionsKeyboard(ticker) {
+// A per-preview logo-style toggle, shown on the Test banner screens: lets the
+// owner compare ✨ Clean vs ⚪ White ring without changing the bot's default
+// (Settings > Logo style). Tapping flips it and redraws the same screen.
+function styleToggleRow(styleKey, action) {
+  const style = LOGO_STYLES.find(s => s.key === styleKey) ?? LOGO_STYLES.find(s => s.key === DEFAULT_LOGO_STYLE);
+  return [Markup.button.callback(`🖼️ Style: ${style.emoji} ${style.name} (tap to switch)`, action)];
+}
+
+export function testOptionsKeyboard(ticker, styleKey) {
   return Markup.inlineKeyboard([
     [
       Markup.button.callback('▲ Rise', `testgo:${ticker}:up`),
       Markup.button.callback('▼ Fall', `testgo:${ticker}:down`),
     ],
     [Markup.button.callback('✏️ Custom price', `testcustom:${ticker}`)],
+    styleToggleRow(styleKey, `teststyle:opts:${ticker}`),
     [Markup.button.callback('🔙 Back', 'back:test')],
   ]);
 }
 
-export function testDirectionKeyboard(ticker, price) {
+export function testDirectionKeyboard(ticker, price, styleKey) {
   return Markup.inlineKeyboard([
     [
       Markup.button.callback('▲ Rise', `testgo:${ticker}:up:${price}`),
       Markup.button.callback('▼ Fall', `testgo:${ticker}:down:${price}`),
     ],
+    styleToggleRow(styleKey, `teststyle:dir:${ticker}:${price}`),
   ]);
 }

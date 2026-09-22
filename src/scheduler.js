@@ -1,7 +1,7 @@
 import { COINS, CONFIG } from './config.js';
 import { fetchAllPrices } from './priceService.js';
 import { checkMilestone } from './milestoneEngine.js';
-import { getCoinSettings, setLastMilestone, getState } from './db.js';
+import { getCoinSettings, setLastMilestone, getState, logPost } from './db.js';
 import { generateBannerImage } from './imageGenerator.js';
 import { isMuted } from './coinView.js';
 import { buildCaption } from './caption.js';
@@ -50,6 +50,7 @@ async function runOnce(bot) {
       const caption = buildCaption({ ticker: coin.ticker, price: result.price, direction: result.direction });
 
       await bot.telegram.sendPhoto(channelId, { source: image }, { caption });
+      await logPost({ ticker: coin.ticker, kind: 'auto', direction: result.direction, price: result.price });
     } catch (err) {
       console.error(`[scheduler] Failed to post milestone for ${coin.ticker}:`, err);
     }
