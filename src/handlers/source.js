@@ -77,15 +77,28 @@ function sourceText() {
 }
 
 function testResultsText(results) {
-  const lines = results.map(r => {
-    if (!r.ok) return `${r.label}: ❌ ${r.error} (${r.ms} ms)`;
-    return `${r.label}: ✅ ${r.ms} ms · ${r.count}/${r.expected} coins · ${r.host}`;
+  const blocks = results.map(r => {
+    const head = r.ok
+      ? `${r.label}: ✅ ${r.ms} ms · ${r.count}/${r.expected} coins · ${r.host}`
+      : `${r.label}: ❌ ${r.error} (${r.ms} ms)`;
+    // Show what happened on every address that was tried (e.g. Binance's main
+    // address refused, but its data address worked).
+    const failedHosts = (r.attempts ?? []).filter(a => !a.ok);
+    const details = failedHosts.map(a => `   ↳ ${a.host}: ${a.reason}`);
+    return [head, ...details].join('\n');
   });
+
   const allOk = results.every(r => r.ok);
-  const note = allOk
-    ? 'Both sources work, so the automatic backup has something to fall back to.'
-    : 'A failing source can\'t act as a backup. If Binance shows "blocked", your server region is refused — CoinGecko will keep working on its own.';
-  return `🔍 Source test\n\n${lines.join('\n')}\n\n${note}`;
+  const binance = results.find(r => r.key === 'binance');
+  const mainRefused = binance?.ok && (binance.attempts ?? []).some(a => !a.ok);
+
+  const notes = [];
+  if (allOk) notes.push('Both sources work, so the automatic backup has something to fall back to.');
+  else notes.push('A failing source can\'t act as a backup.');
+  if (mainRefused) {
+    notes.push('Binance\'s main address is refused from your server, but its data address works — so Binance is still usable as a backup.');
+  }
+  return `🔍 Source test\n\n${blocks.join('\n')}\n\n${notes.join('\n')}`;
 }
 
 function logoStyleText() {

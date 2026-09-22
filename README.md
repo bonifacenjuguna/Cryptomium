@@ -86,7 +86,9 @@ bot (only `/start` is a slash command). The menu:
 ```
 
 - **💰 Prices** — live price, step and mode for every coin, with a refresh
-  button (and a shortcut to Post prices)
+  button (and a shortcut to Post prices). It's a normal formatted message
+  (not a code block), so Refresh edits it in place instead of failing to
+  update
 - **📣 Post prices** — post the *current* price of one coin, or of all coins,
   to the channel. You confirm first. Each banner uses the live price, and the
   chip shows the 24h direction (green up / red down); the caption adds the 24h
@@ -146,7 +148,8 @@ choose:
   regions
 - **🔍 Test sources** checks each provider right now and shows ✅ / ❌, the
   response time and how many coins came back — the way to confirm the backup
-  works from your server
+  works from your server. If Binance's main address is blocked but its
+  data address works, both attempts are listed so you can see why
 - You get a private message when the main source starts failing (after 2 bad
   readings in a row) and when it recovers (after 3 good ones), and a 🚨
   message if every source is failing. Messages are limited to one per hour

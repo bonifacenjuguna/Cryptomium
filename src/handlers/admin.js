@@ -1,7 +1,7 @@
 // Owner-side tools: live prices, and the test-banner preview.
 import { COINS, coinByTicker } from '../config.js';
 import { getCoinSettings } from '../db.js';
-import { getLatestPrices } from '../priceService.js';
+import { getLatestPrices, describeError } from '../priceService.js';
 import { previewLevel } from '../milestoneEngine.js';
 import { generateBannerImage } from '../imageGenerator.js';
 import { formatAdminPrice, isMuted, modeText, stepText } from '../coinView.js';
@@ -26,9 +26,19 @@ export function registerAdminHandlers(bot) {
   });
 
   bot.action('prices:refresh', async ctx => {
-    const view = await buildPricesView({ force: true });
-    await ctx.answerCbQuery(view.ok ? 'Refreshed' : 'Could not refresh');
-    await safeEdit(ctx, view.text, { parse_mode: 'HTML', ...pricesKeyboard() });
+    try {
+      const view = await buildPricesView({ force: true });
+      if (!view.ok) {
+        // Keep the list that is already on screen; just say what went wrong.
+        await ctx.answerCbQuery(`Couldn't refresh: ${view.reason}`, { show_alert: true });
+        return;
+      }
+      const changed = await safeEdit(ctx, view.text, { parse_mode: 'HTML', ...pricesKeyboard() });
+      await ctx.answerCbQuery(changed ? 'Updated ✅' : 'Already the latest prices');
+    } catch (err) {
+      console.error('[admin] Prices refresh failed:', err);
+      await ctx.answerCbQuery('Couldn\'t refresh — try again in a moment.', { show_alert: true }).catch(() => {});
+    }
   });
 
   // ------------------------------------------------------------------
@@ -101,24 +111,25 @@ async function buildPricesView({ force }) {
   try {
     latest = await getLatestPrices({ force });
   } catch (err) {
-    return { ok: false, text: `Couldn't fetch live prices right now (${escapeHtml(err.message)}). Try again in a moment.` };
+    const reason = describeError(err);
+    return { ok: false, reason, text: `Couldn't fetch live prices right now (${escapeHtml(reason)}). Try again in a moment.` };
   }
 
+  // A plain formatted message (not a code block), so Telegram can edit it in
+  // place when Refresh is tapped.
   const lines = [];
   for (const coin of COINS) {
     const price = latest.prices.get(coin.ticker);
     const settings = await getCoinSettings(coin.ticker);
-    const priceCell = price === undefined ? 'n/a' : formatAdminPrice(price, { stable: coin.stable });
-    const mode = modeText(settings, { withMultiplier: false }).split(' ')[0]; // just the emoji
+    const priceText = price === undefined ? 'n/a' : formatAdminPrice(price, { stable: coin.stable });
+    const modeIcon = modeText(settings, { withMultiplier: false }).split(' ')[0]; // just the emoji
     const bell = isMuted(settings) ? '🔕' : '🔔';
-    lines.push(
-      `${coin.ticker.padEnd(5)}${priceCell.padStart(13)}  ${stepText(coin, settings).padEnd(7)} ${mode} ${bell}`
-    );
+    lines.push(`<b>${coin.ticker}</b> · ${priceText} · <i>${escapeHtml(stepText(coin, settings))}</i> ${modeIcon} ${bell}`);
   }
 
-  const header = `💰 <b>Live prices</b> · ${latest.source} · ${formatClock(new Date(latest.at))}`;
-  const legend = 'Step and mode shown after each price.';
-  return { ok: true, text: `${header}\n<pre>${escapeHtml(lines.join('\n'))}</pre>${legend}` };
+  const header = `💰 <b>Live prices</b>\n<i>${escapeHtml(latest.source)} · updated ${formatClock(new Date(latest.at))}</i>`;
+  const footer = '<i>Each line: price · step · mode · alerts on/off</i>';
+  return { ok: true, text: `${header}\n\n${lines.join('\n')}\n\n${footer}` };
 }
 
 // ----------------------------------------------------------------------

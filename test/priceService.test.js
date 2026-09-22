@@ -187,3 +187,24 @@ test('a malformed provider response is a clean provider failure, not a crash', a
   // Binance is unusable, so CoinGecko's (null) answer is the last resort and must also fail cleanly.
   await assert.rejects(ps.fetchAllPrices(), /unexpected response/);
 });
+
+test('Binance attempts are recorded per host, for the Test sources screen', async () => {
+  installFakeNetwork();
+  script.binanceMain = () => json(451, {});
+  const results = await ps.testProviders();
+  const binance = results.find(r => r.key === 'binance');
+  assert.equal(binance.ok, true, 'data-api host rescues it');
+  assert.deepEqual(binance.attempts.map(a => a.ok), [false, true]);
+  assert.match(binance.attempts[0].reason, /blocked from this server's region/);
+});
+
+test('when every Binance host fails, testProviders reports both attempts', async () => {
+  installFakeNetwork();
+  script.binanceMain = () => json(451, {});
+  script.binanceVision = () => json(451, {});
+  const results = await ps.testProviders();
+  const binance = results.find(r => r.key === 'binance');
+  assert.equal(binance.ok, false);
+  assert.equal(binance.attempts.length, 2);
+  assert.ok(binance.attempts.every(a => !a.ok));
+});

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.1
+
+**Fixes**
+- 💰 Prices was sent as a code block (`<pre>`), which Telegram won't update in
+  place — tapping Refresh always failed silently. It's now a normal formatted
+  message, so Refresh actually refreshes (and tells you "Already the latest
+  prices" if nothing changed, or the reason if the fetch failed, instead of
+  failing silently).
+- 🔍 Test sources now lists every Binance address it tried, not just the one
+  that answered — so "main address blocked, data address OK" is visible
+  instead of just showing Binance as healthy.
+- Admin price cache: refresh throttle lowered from 3s to 2s.
+
+**Notes**
+- A ✅ on both CoinGecko and Binance in Test sources means your server is not
+  region-blocked from either right now — no separate fix needed there.
+
 ## 1.2.0
 
 **New: choose where prices come from (Settings > 🌐 Data source)**

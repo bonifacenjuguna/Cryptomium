@@ -60,14 +60,20 @@ async function fetchFromCoinGecko() {
  */
 async function fetchFromBinance() {
   const coins = COINS.filter(c => c.binanceSymbol && !c.stable);
+  const attempts = []; // what happened on each host, for the "Test sources" screen
   let lastError;
   for (const host of BINANCE_HOSTS) {
+    const hostName = new URL(host).host;
     try {
-      return await fetchBinanceFrom(host, coins);
+      const result = await fetchBinanceFrom(host, coins);
+      attempts.push({ host: hostName, ok: true });
+      return { ...result, attempts };
     } catch (err) {
+      attempts.push({ host: hostName, ok: false, reason: describeError(err) });
       lastError = err;
     }
   }
+  lastError.attempts = attempts;
   throw lastError;
 }
 
@@ -246,11 +252,11 @@ export async function fetchAllPrices() {
 /**
  * Admin-side helper: returns { prices, changes, at, source, backup } from the
  * shared cache if it is fresh enough, otherwise fetches. `force` bypasses the
- * cache (but is still throttled to one real fetch per 3 seconds).
+ * cache (but is still throttled to one real fetch per 2 seconds).
  */
 export async function getLatestPrices({ maxAgeMs = 20_000, force = false } = {}) {
   const age = Date.now() - latest.at;
-  if (latest.prices && (force ? age < 3_000 : age < maxAgeMs)) return latest;
+  if (latest.prices && (force ? age < 2_000 : age < maxAgeMs)) return latest;
   await fetchAllPrices();
   return latest;
 }
@@ -279,9 +285,9 @@ export async function testProviders() {
     const started = Date.now();
     try {
       const r = await provider.fetch();
-      results.push({ key, label: provider.label, ok: true, ms: Date.now() - started, count: r.prices.size, expected: provider.expected(), host: r.host });
+      results.push({ key, label: provider.label, ok: true, ms: Date.now() - started, count: r.prices.size, expected: provider.expected(), host: r.host, attempts: r.attempts ?? [] });
     } catch (err) {
-      results.push({ key, label: provider.label, ok: false, ms: Date.now() - started, error: describeError(err) });
+      results.push({ key, label: provider.label, ok: false, ms: Date.now() - started, error: describeError(err), attempts: err.attempts ?? [] });
     }
   }
   return results;
