@@ -6,7 +6,8 @@ the ticker, direction arrow, and price.
 
 ## What it does
 
-- Watches BTC, ETH, XRP, BNB, SOL, TRX, DOGE, ADA, LINK, TON, USDT, USDC
+- Watches BTC, ETH, XRP, BNB, SOL, TRX, DOGE, ADA, LINK, TON, AVAX, SUI, XLM,
+  HBAR, DOT, UNI, LTC, ZEC, HYPE, USDT, USDC (21 coins)
 - Posts an image + caption to your channel whenever a coin crosses a
   milestone — either a dollar step (e.g. BTC every $500) or a percentage
   step (e.g. BTC every 0.5%), configurable per coin
@@ -124,7 +125,9 @@ percent (`0.5%` for BTC). A **mode** multiplies it:
 - **% steps**: alerts each time the price has moved that % from the last
   alert (up or down); the banner shows the actual price
 - Default % steps: BTC 0.5%, ETH 0.75%, XRP 1%, BNB 0.75%, SOL 1%, the rest
-  1% (USDT/USDC 0.5%). Existing coins stay on `$` steps until you switch
+  1% (USDT/USDC 0.5%). New coins default to a sensible starting % too (see
+  `src/config.js`) but you'll likely want to tune them to your own targets.
+  Existing coins stay on `$` steps until you switch
 - Switching between $ and % restarts a coin from its current price, so it
   never fires an instant alert
 - For USDT/USDC the step is the depeg band (± dollars, or ± percent)

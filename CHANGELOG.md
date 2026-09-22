@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.0
+
+**New coins:** AVAX (Avalanche), SUI, XLM (Stellar), HBAR (Hedera), DOT
+(Polkadot), UNI (Uniswap), LTC (Litecoin), ZEC (Zcash), HYPE (Hyperliquid) —
+21 coins total, up from 12. Each has a CoinGecko ID, a Binance symbol (for
+the backup price source), a brand color for its banner, and starting $ steps
+matching what was requested; starting % steps are a reasonable default and
+worth tuning per coin.
+
+No other changes — everything else (menus, banner design, data sources,
+post prices) works the same for the new coins automatically, since the whole
+bot reads from the one coin list in `src/config.js`. Confirmed by running the
+full test suite and simulated menu flows with the new coins included, and by
+rendering all 9 new banners to check layout and monogram fallback.
+
+**Note:** logos for the new coins download the same way as any other coin
+(single batched CoinGecko request, with fallback sources) — nothing extra to
+configure.
+
 ## 1.2.1
 
 **Fixes**
