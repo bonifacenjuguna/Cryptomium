@@ -8,7 +8,8 @@
 // This version:
 //   1. asks CoinGecko for ALL coins' image URLs in ONE request,
 //   2. retries with backoff (honoring Retry-After) on 429 / 5xx / timeouts,
-//   3. falls back to other public icon CDNs per coin,
+//   3. falls back to CoinMarketCap's own logos (if a key is configured), then
+//      other public icon CDNs, then a DexScreener token-profile image search,
 //   4. validates + normalizes every download to a 256x256 PNG,
 //   5. can run again at boot / on a timer to heal anything still missing.
 //
@@ -18,12 +19,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { COINS, coingeckoHeaders } from './config.js';
+import { COINS, CONFIG, coingeckoHeaders, coingeckoBaseUrl } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const LOGOS_DIR = process.env.LOGOS_DIR || path.join(__dirname, '..', 'assets', 'logos');
 
-const COINGECKO_MARKETS = 'https://api.coingecko.com/api/v3/coins/markets';
+const COINMARKETCAP_INFO_URL = 'https://pro-api.coinmarketcap.com/v2/cryptocurrency/info';
+const DEXSCREENER_SEARCH_URL = 'https://api.dexscreener.com/latest/dex/search';
 const LOGO_PX = 256;
 const MIN_SOURCE_PX = 48;
 
@@ -118,7 +120,7 @@ export async function fetchMissingLogos({ force = false, fetchFn = fetch, sleep 
   const geckoImages = new Map();
   try {
     const ids = todo.map(c => c.coingeckoId).join(',');
-    const url = `${COINGECKO_MARKETS}?vs_currency=usd&ids=${ids}&per_page=250&page=1&sparkline=false`;
+    const url = `${coingeckoBaseUrl()}/coins/markets?vs_currency=usd&ids=${ids}&per_page=250&page=1&sparkline=false`;
     const res = await fetchWithRetry(url, { fetchFn, sleep, headers: coingeckoHeaders() });
     for (const item of await res.json()) {
       if (item?.id && item?.image) geckoImages.set(item.id, item.image);
@@ -127,10 +129,17 @@ export async function fetchMissingLogos({ force = false, fetchFn = fetch, sleep 
     log.warn(`[logos] CoinGecko image list unavailable (${err.message}); using fallback icon sources.`);
   }
 
+  // CoinMarketCap's own official logos, one batched request — only when a key
+  // is configured (CMC has no keyless tier). Fetched dynamically by symbol
+  // rather than a hard-coded numeric CMC id per coin, so it can't go stale.
+  const cmcImages = CONFIG.coinmarketcapApiKey
+    ? await fetchCoinMarketCapLogos(todo.map(c => c.ticker), { fetchFn, log }).catch(() => new Map())
+    : new Map();
+
   const saved = [];
   const failed = [];
   for (const coin of todo) {
-    const candidates = [geckoImages.get(coin.coingeckoId), ...fallbackUrls(coin)].filter(Boolean);
+    const candidates = [geckoImages.get(coin.coingeckoId), cmcImages.get(coin.ticker), ...fallbackUrls(coin)].filter(Boolean);
     let ok = false;
     for (const url of candidates) {
       try {
@@ -144,10 +153,64 @@ export async function fetchMissingLogos({ force = false, fetchFn = fetch, sleep 
         log.warn(`[logos] ${coin.ticker}: ${new URL(url).host} failed (${err.message})`);
       }
     }
+    // Absolute last resort: search DexScreener for a token profile image.
+    // Same trust bar in spirit as its price role (priceService.js) — an
+    // exact symbol match is required — logos have no liquidity figure to
+    // check, so a wrong match here is just a wrong picture, not a bad alert.
+    if (!ok) {
+      const dexUrl = await fetchDexScreenerLogo(coin, { fetchFn }).catch(() => null);
+      if (dexUrl) {
+        try {
+          const res = await fetchWithRetry(dexUrl, { fetchFn, sleep, tries: 2 });
+          const png = await normalizeToPng(Buffer.from(await res.arrayBuffer()));
+          await fs.writeFile(logoPath(coin.ticker), png);
+          log.log(`[logos] Saved ${coin.ticker} (from DexScreener token profile)`);
+          ok = true;
+        } catch (err) {
+          log.warn(`[logos] ${coin.ticker}: DexScreener image failed (${err.message})`);
+        }
+      }
+    }
     (ok ? saved : failed).push(coin.ticker);
     await sleep(250);
   }
   return { saved, failed };
+}
+
+/** CoinMarketCap's /v2/cryptocurrency/info returns each symbol's own official logo URL directly. */
+async function fetchCoinMarketCapLogos(tickers, { fetchFn = fetch, log = console } = {}) {
+  const images = new Map();
+  try {
+    const url = `${COINMARKETCAP_INFO_URL}?symbol=${tickers.join(',')}`;
+    const res = await fetchFn(url, { headers: { 'X-CMC_PRO_API_KEY': CONFIG.coinmarketcapApiKey, Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`CoinMarketCap responded ${res.status}`);
+    const body = await res.json();
+    for (const ticker of tickers) {
+      const raw = body?.data?.[ticker];
+      const entry = Array.isArray(raw) ? raw[0] : raw;
+      if (entry?.logo) images.set(ticker, entry.logo);
+    }
+  } catch (err) {
+    log.warn(`[logos] CoinMarketCap logo lookup unavailable (${err.message}).`);
+  }
+  return images;
+}
+
+/**
+ * Best-effort DexScreener token-profile image for one coin. Requires an
+ * exact base-token symbol match; picks the highest-liquidity pair among
+ * matches so an obscure impostor token can't win. Returns null (never
+ * throws) when nothing confident is found.
+ */
+async function fetchDexScreenerLogo(coin, { fetchFn = fetch } = {}) {
+  const res = await fetchFn(`${DEXSCREENER_SEARCH_URL}?q=${encodeURIComponent(coin.name)}`, { signal: AbortSignal.timeout(8_000) });
+  if (!res.ok) return null;
+  const body = await res.json();
+  const pairs = Array.isArray(body?.pairs) ? body.pairs : [];
+  const candidates = pairs.filter(p => p?.baseToken?.symbol?.toUpperCase() === coin.ticker && p?.info?.imageUrl);
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => Number(b.liquidity?.usd || 0) - Number(a.liquidity?.usd || 0));
+  return candidates[0].info.imageUrl;
 }
 
 /**

@@ -71,16 +71,26 @@ function sourceText() {
     `Now: ${mode.emoji} ${mode.name} — ${mode.desc}\n` +
     `${status}\n\n` +
     SOURCE_MODES.map(m => `${m.emoji} ${m.name} — ${m.desc}`).join('\n') +
-    '\n\nStablecoins (USDT, USDC) always use CoinGecko, because Binance doesn\'t price them in dollars.\n' +
-    'Use "Test sources" to check both right now.'
+    '\n\n"Auto" and "Kraken first" also lean on CoinPaprika and (last resort) ' +
+    'DexScreener automatically — nothing to configure. Add a free CoinMarketCap ' +
+    'key (COINMARKETCAP_API_KEY) to add it as another backup too.\n' +
+    'Stablecoins (USDT, USDC) always skip Binance — it has no real USD price for ' +
+    'them — but Kraken, CoinPaprika and CoinMarketCap all price them correctly.\n' +
+    'Use "Test sources" to check every source right now.'
   );
 }
+
+// CoinMarketCap has no keyless tier, so "not configured" is an expected,
+// deliberate state for most owners — it shouldn't read as a failing source.
+const isUnconfigured = r => !r.ok && r.key === 'coinmarketcap' && /not configured/i.test(r.error || '');
 
 function testResultsText(results) {
   const blocks = results.map(r => {
     const head = r.ok
       ? `${r.label}: ✅ ${r.ms} ms · ${r.count}/${r.expected} coins · ${r.host}`
-      : `${r.label}: ❌ ${r.error} (${r.ms} ms)`;
+      : isUnconfigured(r)
+        ? `${r.label}: ➖ not configured (optional)`
+        : `${r.label}: ❌ ${r.error} (${r.ms} ms)`;
     // Show what happened on every address that was tried (e.g. Binance's main
     // address refused, but its data address worked).
     const failedHosts = (r.attempts ?? []).filter(a => !a.ok);
@@ -88,12 +98,15 @@ function testResultsText(results) {
     return [head, ...details].join('\n');
   });
 
-  const allOk = results.every(r => r.ok);
+  // "Configured" excludes CoinMarketCap when no key is set — an owner who
+  // hasn't added one shouldn't see that read as something failing.
+  const configured = results.filter(r => !isUnconfigured(r));
+  const allOk = configured.every(r => r.ok);
   const binance = results.find(r => r.key === 'binance');
   const mainRefused = binance?.ok && (binance.attempts ?? []).some(a => !a.ok);
 
   const notes = [];
-  if (allOk) notes.push('Both sources work, so the automatic backup has something to fall back to.');
+  if (allOk) notes.push('Every configured source works, so there is always something to fall back to.');
   else notes.push('A failing source can\'t act as a backup.');
   if (mainRefused) {
     notes.push('Binance\'s main address is refused from your server, but its data address works — so Binance is still usable as a backup.');
