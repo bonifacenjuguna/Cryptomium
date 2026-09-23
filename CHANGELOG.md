@@ -2,47 +2,37 @@
 
 ## 1.5.0
 
-**New: four more price sources, layered in as secondary/tertiary backups**
-- **Kraken** (keyless) — a second full exchange backup alongside Binance, and
-  often reachable from regions where Binance is blocked. Unlike Binance it
-  prices USDT/USDC in real dollars, so it can cover stablecoins too.
-- **CoinPaprika** (keyless) — a second independent aggregator alongside
-  CoinGecko, one batched request, with its own 24h change figures.
-- **CoinMarketCap** (optional — set `COINMARKETCAP_API_KEY`; CMC has no
-  keyless tier) — an extra backup for both prices and logos once configured.
-  Skipped entirely, with zero requests, if no key is set.
-- **DexScreener** (keyless) — the absolute last resort. It has no notion of
-  "BTC", only on-chain trading pairs, so a coin is only trusted from it when
-  a pool's base-token symbol matches exactly *and* clears a $50k liquidity
-  floor (picks the deepest matching pool). Never used for stablecoins — a
-  depeg check needs a precise price, and DEX pricing is noisier than a
-  centralized quote for exactly that case.
-- New **Settings > 🌐 Data source** option: 🐙 **Kraken first**, alongside the
-  existing three. "Auto" and "Kraken first" get the full backup chain
-  (…→ Kraken/Binance → CoinGecko → CoinPaprika → CoinMarketCap if configured
-  → DexScreener); "CoinGecko only" and "Binance first" are unchanged — an
-  owner who picked one of those for a specific reason still gets exactly
-  what its name promises.
-- 🔍 Test sources now lists all six providers, with CoinMarketCap shown as
-  "➖ not configured (optional)" rather than a failure when no key is set.
+**New price sources: Kraken, CoinPaprika, CoinMarketCap, DexScreener**
+(Settings > 🌐 Data source now lists 6 sources plus Auto, up from 2.)
 
-**Hardened: CoinGecko (the primary source)**
-- Works exactly as before with no key. `COINGECKO_API_KEY` (free demo key)
-  still raises the rate limit. New `COINGECKO_API_PLAN=pro` switches to the
-  paid Pro host/header for anyone holding a paid key — almost everyone
-  should leave this unset.
+- **Kraken** (exchange, no key) — genuinely USD-quoted, so unlike Binance it
+  covers stablecoins too. Handles Kraken's legacy X/Z-prefixed response keys
+  (a quirk affecting BTC/ETH/LTC/XRP/XLM) via fuzzy matching rather than a
+  hardcoded table, and retries against the full market if a requested pair
+  name is rejected — the same resilience Binance already had.
+- **CoinPaprika** (aggregator, no key) — one batched call covers all 21
+  coins, matched by CoinPaprika's own coin ID (not the ticker) to avoid
+  symbol collisions with unrelated coins.
+- **CoinMarketCap** (aggregator, needs `COINMARKETCAP_API_KEY`) — the
+  key-free "trial" tier is explicitly not meant for production and can be
+  withdrawn without notice, so this bot never uses it; without a key the
+  source fails fast (no network call) with a clear message instead.
+- **DexScreener** (on-chain pool price) — architecturally different from the
+  others: it prices one specific liquidity pool, not "the" reference price of
+  a coin. Nothing is configured by default (a wrong pool address could
+  silently return a different token's price); coins are added one at a time
+  to `DEXSCREENER_PAIRS` in `src/config.js` only once verified.
+- 🤖 **Auto** now tries CoinGecko → Binance → Kraken → CoinPaprika. CMC and
+  DexScreener are deliberately excluded from Auto (rate-limit / configuration
+  reasons — see the README) but remain available as an explicit pick and are
+  included in 🔍 Test sources.
+- 🔍 **Test sources** now checks all six and explains the two "off by
+  default" ones (CMC needs a key; DexScreener needs configured pairs) instead
+  of just showing them as failed.
 
-**Enhanced: coin logos**
-- CoinMarketCap's own official logo (fetched dynamically by symbol via its
-  `/v2/cryptocurrency/info` endpoint — never a hard-coded numeric ID that
-  could go stale) is tried when a key is configured.
-- DexScreener token-profile images are tried as the very last resort, with
-  the same exact-symbol-match discipline used for its price role.
-
-**Tests:** 18 new unit tests covering all four new price sources (including
-the "auto"/"Kraken first" fallback chains, Kraken's legacy response-key
-matching, DexScreener's liquidity/symbol filtering, and CoinMarketCap being
-fully skipped without a key) and the two new logo sources — 68 total.
+**Tests:** 65 unit tests (15 new, covering response parsing and fallback
+behavior for all four new sources) and 58 simulated menu-flow checks (5 new),
+all passing.
 
 ## 1.4.0
 

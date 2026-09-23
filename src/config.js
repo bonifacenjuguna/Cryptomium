@@ -1,17 +1,19 @@
 // Central, single source of truth for every coin the bot tracks.
 //
 // coingeckoId    -> used for /simple/price and /coins/{id} (logo image) calls
-// binanceSymbol  -> used when Binance supplies prices (backup, or "Binance first").
-//                   null = Binance is never used for that coin: it has no USDTUSDT pair,
-//                   and its USDCUSDT price is USDC measured in USDT (not dollars), which
-//                   would give false depeg signals. Stablecoins always come from CoinGecko
-//                   when Binance is involved.
-// krakenPair     -> altname Kraken's public Ticker endpoint accepts for this coin's
-//                   USD market (e.g. "XBTUSD"). null = not listed on Kraken. Unlike
-//                   Binance, Kraken quotes USDT/USDC directly against USD, so it is
-//                   trusted for stablecoins too.
-// coinpaprikaId  -> CoinPaprika's own id format ("btc-bitcoin"). Used for its bulk
-//                   /v1/tickers endpoint (keyless, also reports USD for stablecoins).
+// binanceSymbol  -> used when Binance supplies prices. null = Binance is never used for
+//                   that coin: it has no USDTUSDT pair, and its USDCUSDT price is USDC
+//                   measured in USDT (not dollars), which would give false depeg signals.
+// krakenSymbol   -> used when Kraken supplies prices. Unlike Binance, Kraken genuinely
+//                   quotes USDT and USDC against real USD (it's a fiat-rail exchange), so
+//                   stablecoins ARE included here. null = not confident Kraken lists it
+//                   (BNB is a rival exchange's token and isn't listed there; HYPE is too
+//                   new to be confident about) — that coin is simply skipped on Kraken.
+// coinpaprikaId  -> used when CoinPaprika supplies prices (its "id" field, not the ticker,
+//                   since several unrelated coins can share a ticker symbol).
+// cmcId          -> CoinMarketCap's numeric coin ID, used only if COINMARKETCAP_API_KEY is
+//                   set (see priceService.js — CMC's key-free tier is not reliable enough
+//                   to depend on, so the bot never uses it without a key).
 // defaultThreshold -> starting milestone step size in dollars (owner can change per-coin in the bot)
 // defaultPercent   -> starting milestone step size when a coin is switched to percentage
 //                     steps (alert every time price moves this % from the last alert)
@@ -23,27 +25,27 @@
 //                  purple as a single flat color for consistency with the
 //                  other 11 coins)
 export const COINS = [
-  { ticker: 'BTC',  name: 'Bitcoin',   coingeckoId: 'bitcoin',           binanceSymbol: 'BTCUSDT',  krakenPair: 'XBTUSD',  coinpaprikaId: 'btc-bitcoin',          defaultThreshold: 500, defaultPercent: 0.5, stable: false, brandColor: '#F7931A' },
-  { ticker: 'ETH',  name: 'Ethereum',  coingeckoId: 'ethereum',          binanceSymbol: 'ETHUSDT',  krakenPair: 'ETHUSD',  coinpaprikaId: 'eth-ethereum',         defaultThreshold: 25, defaultPercent: 0.75, stable: false, brandColor: '#627EEA' },
-  { ticker: 'XRP',  name: 'XRP',       coingeckoId: 'ripple',            binanceSymbol: 'XRPUSDT',  krakenPair: 'XRPUSD',  coinpaprikaId: 'xrp-xrp',              defaultThreshold: 0.02, defaultPercent: 1, stable: false, brandColor: '#23292F' },
-  { ticker: 'BNB',  name: 'BNB',       coingeckoId: 'binancecoin',       binanceSymbol: 'BNBUSDT',  krakenPair: 'BNBUSD',  coinpaprikaId: 'bnb-binance-coin',     defaultThreshold: 5, defaultPercent: 0.75, stable: false, brandColor: '#F0B90B' },
-  { ticker: 'SOL',  name: 'Solana',    coingeckoId: 'solana',            binanceSymbol: 'SOLUSDT',  krakenPair: 'SOLUSD',  coinpaprikaId: 'sol-solana',           defaultThreshold: 1, defaultPercent: 1, stable: false, brandColor: '#9945FF' },
-  { ticker: 'TRX',  name: 'TRON',      coingeckoId: 'tron',              binanceSymbol: 'TRXUSDT',  krakenPair: 'TRXUSD',  coinpaprikaId: 'trx-tron',             defaultThreshold: 0.01, defaultPercent: 1, stable: false, brandColor: '#EF0027' },
-  { ticker: 'DOGE', name: 'Dogecoin',  coingeckoId: 'dogecoin',          binanceSymbol: 'DOGEUSDT', krakenPair: 'XDGUSD',  coinpaprikaId: 'doge-dogecoin',        defaultThreshold: 0.001, defaultPercent: 1, stable: false, brandColor: '#C2A633' },
-  { ticker: 'ADA',  name: 'Cardano',   coingeckoId: 'cardano',           binanceSymbol: 'ADAUSDT',  krakenPair: 'ADAUSD',  coinpaprikaId: 'ada-cardano',          defaultThreshold: 0.005, defaultPercent: 1, stable: false, brandColor: '#0033AD' },
-  { ticker: 'LINK', name: 'Chainlink', coingeckoId: 'chainlink',         binanceSymbol: 'LINKUSDT', krakenPair: 'LINKUSD', coinpaprikaId: 'link-chainlink',       defaultThreshold: 0.25, defaultPercent: 1, stable: false, brandColor: '#2A5ADA' },
-  { ticker: 'TON',  name: 'Toncoin',   coingeckoId: 'the-open-network',  binanceSymbol: 'TONUSDT',  krakenPair: 'TONUSD',  coinpaprikaId: 'ton-toncoin',          defaultThreshold: 0.05, defaultPercent: 1, stable: false, brandColor: '#0098EA' },
-  { ticker: 'AVAX', name: 'Avalanche', coingeckoId: 'avalanche-2',       binanceSymbol: 'AVAXUSDT', krakenPair: 'AVAXUSD', coinpaprikaId: 'avax-avalanche',       defaultThreshold: 0.25, defaultPercent: 2, stable: false, brandColor: '#E84142' },
-  { ticker: 'SUI',  name: 'Sui',       coingeckoId: 'sui',               binanceSymbol: 'SUIUSDT',  krakenPair: 'SUIUSD',  coinpaprikaId: 'sui-sui',              defaultThreshold: 0.005, defaultPercent: 0.5, stable: false, brandColor: '#4DA2FF' },
-  { ticker: 'XLM',  name: 'Stellar',   coingeckoId: 'stellar',           binanceSymbol: 'XLMUSDT',  krakenPair: 'XLMUSD',  coinpaprikaId: 'xlm-stellar',          defaultThreshold: 0.0025, defaultPercent: 1.25, stable: false, brandColor: '#14B6E7' },
-  { ticker: 'HBAR', name: 'Hedera',    coingeckoId: 'hedera-hashgraph',  binanceSymbol: 'HBARUSDT', krakenPair: 'HBARUSD', coinpaprikaId: 'hbar-hedera-hashgraph', defaultThreshold: 0.001, defaultPercent: 1, stable: false, brandColor: '#8259EF' },
-  { ticker: 'DOT',  name: 'Polkadot',  coingeckoId: 'polkadot',          binanceSymbol: 'DOTUSDT',  krakenPair: 'DOTUSD',  coinpaprikaId: 'dot-polkadot',         defaultThreshold: 0.025, defaultPercent: 1, stable: false, brandColor: '#E6007A' },
-  { ticker: 'UNI',  name: 'Uniswap',   coingeckoId: 'uniswap',           binanceSymbol: 'UNIUSDT',  krakenPair: 'UNIUSD',  coinpaprikaId: 'uni-uniswap',          defaultThreshold: 0.025, defaultPercent: 1, stable: false, brandColor: '#FF007A' },
-  { ticker: 'LTC',  name: 'Litecoin',  coingeckoId: 'litecoin',          binanceSymbol: 'LTCUSDT',  krakenPair: 'LTCUSD',  coinpaprikaId: 'ltc-litecoin',         defaultThreshold: 0.25, defaultPercent: 0.5, stable: false, brandColor: '#345D9D' },
-  { ticker: 'ZEC',  name: 'Zcash',     coingeckoId: 'zcash',             binanceSymbol: 'ZECUSDT',  krakenPair: 'ZECUSD',  coinpaprikaId: 'zec-zcash',            defaultThreshold: 5, defaultPercent: 0.5, stable: false, brandColor: '#F4B728' },
-  { ticker: 'HYPE', name: 'Hyperliquid', coingeckoId: 'hyperliquid',     binanceSymbol: 'HYPEUSDT', krakenPair: 'HYPEUSD', coinpaprikaId: 'hype-hyperliquid',     defaultThreshold: 0.25, defaultPercent: 0.5, stable: false, brandColor: '#26D9A5' },
-  { ticker: 'USDT', name: 'Tether',    coingeckoId: 'tether',            binanceSymbol: null,       krakenPair: 'USDTUSD', coinpaprikaId: 'usdt-tether',          defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#26A17B' },
-  { ticker: 'USDC', name: 'USD Coin',  coingeckoId: 'usd-coin',          binanceSymbol: null,       krakenPair: 'USDCUSD', coinpaprikaId: 'usdc-usd-coin',        defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#2775CA' },
+  { ticker: 'BTC',  name: 'Bitcoin',   coingeckoId: 'bitcoin',           binanceSymbol: 'BTCUSDT',  krakenSymbol: 'XBTUSD',  coinpaprikaId: 'btc-bitcoin',      cmcId: 1,     defaultThreshold: 500, defaultPercent: 0.5, stable: false, brandColor: '#F7931A' },
+  { ticker: 'ETH',  name: 'Ethereum',  coingeckoId: 'ethereum',          binanceSymbol: 'ETHUSDT',  krakenSymbol: 'ETHUSD',  coinpaprikaId: 'eth-ethereum',     cmcId: 1027,  defaultThreshold: 25, defaultPercent: 0.75, stable: false, brandColor: '#627EEA' },
+  { ticker: 'XRP',  name: 'XRP',       coingeckoId: 'ripple',            binanceSymbol: 'XRPUSDT',  krakenSymbol: 'XRPUSD',  coinpaprikaId: 'xrp-xrp',          cmcId: 52,    defaultThreshold: 0.02, defaultPercent: 1, stable: false, brandColor: '#23292F' },
+  { ticker: 'BNB',  name: 'BNB',       coingeckoId: 'binancecoin',       binanceSymbol: 'BNBUSDT',  krakenSymbol: null,      coinpaprikaId: 'bnb-binance-coin', cmcId: 1839,  defaultThreshold: 5, defaultPercent: 0.75, stable: false, brandColor: '#F0B90B' },
+  { ticker: 'SOL',  name: 'Solana',    coingeckoId: 'solana',            binanceSymbol: 'SOLUSDT',  krakenSymbol: 'SOLUSD',  coinpaprikaId: 'sol-solana',       cmcId: 5426,  defaultThreshold: 1, defaultPercent: 1, stable: false, brandColor: '#9945FF' },
+  { ticker: 'TRX',  name: 'TRON',      coingeckoId: 'tron',              binanceSymbol: 'TRXUSDT',  krakenSymbol: 'TRXUSD',  coinpaprikaId: 'trx-tron',         cmcId: 1958,  defaultThreshold: 0.01, defaultPercent: 1, stable: false, brandColor: '#EF0027' },
+  { ticker: 'DOGE', name: 'Dogecoin',  coingeckoId: 'dogecoin',          binanceSymbol: 'DOGEUSDT', krakenSymbol: 'XDGUSD',  coinpaprikaId: 'doge-dogecoin',    cmcId: 74,    defaultThreshold: 0.001, defaultPercent: 1, stable: false, brandColor: '#C2A633' },
+  { ticker: 'ADA',  name: 'Cardano',   coingeckoId: 'cardano',           binanceSymbol: 'ADAUSDT',  krakenSymbol: 'ADAUSD',  coinpaprikaId: 'ada-cardano',      cmcId: 2010,  defaultThreshold: 0.005, defaultPercent: 1, stable: false, brandColor: '#0033AD' },
+  { ticker: 'LINK', name: 'Chainlink', coingeckoId: 'chainlink',         binanceSymbol: 'LINKUSDT', krakenSymbol: 'LINKUSD', coinpaprikaId: 'link-chainlink',   cmcId: 1975,  defaultThreshold: 0.25, defaultPercent: 1, stable: false, brandColor: '#2A5ADA' },
+  { ticker: 'TON',  name: 'Toncoin',   coingeckoId: 'the-open-network',  binanceSymbol: 'TONUSDT',  krakenSymbol: 'TONUSD',  coinpaprikaId: 'ton-toncoin',      cmcId: 11419, defaultThreshold: 0.05, defaultPercent: 1, stable: false, brandColor: '#0098EA' },
+  { ticker: 'AVAX', name: 'Avalanche', coingeckoId: 'avalanche-2',       binanceSymbol: 'AVAXUSDT', krakenSymbol: 'AVAXUSD', coinpaprikaId: 'avax-avalanche',   cmcId: 5805,  defaultThreshold: 0.25, defaultPercent: 2, stable: false, brandColor: '#E84142' },
+  { ticker: 'SUI',  name: 'Sui',       coingeckoId: 'sui',               binanceSymbol: 'SUIUSDT',  krakenSymbol: 'SUIUSD',  coinpaprikaId: 'sui-sui',          cmcId: 20947, defaultThreshold: 0.005, defaultPercent: 0.5, stable: false, brandColor: '#4DA2FF' },
+  { ticker: 'XLM',  name: 'Stellar',   coingeckoId: 'stellar',           binanceSymbol: 'XLMUSDT',  krakenSymbol: 'XLMUSD',  coinpaprikaId: 'xlm-stellar',      cmcId: 512,   defaultThreshold: 0.0025, defaultPercent: 1.25, stable: false, brandColor: '#14B6E7' },
+  { ticker: 'HBAR', name: 'Hedera',    coingeckoId: 'hedera-hashgraph',  binanceSymbol: 'HBARUSDT', krakenSymbol: 'HBARUSD', coinpaprikaId: 'hbar-hedera-hashgraph', cmcId: 4642, defaultThreshold: 0.001, defaultPercent: 1, stable: false, brandColor: '#8259EF' },
+  { ticker: 'DOT',  name: 'Polkadot',  coingeckoId: 'polkadot',          binanceSymbol: 'DOTUSDT',  krakenSymbol: 'DOTUSD',  coinpaprikaId: 'dot-polkadot',     cmcId: 6636,  defaultThreshold: 0.025, defaultPercent: 1, stable: false, brandColor: '#E6007A' },
+  { ticker: 'UNI',  name: 'Uniswap',   coingeckoId: 'uniswap',           binanceSymbol: 'UNIUSDT',  krakenSymbol: 'UNIUSD',  coinpaprikaId: 'uni-uniswap',      cmcId: 7083,  defaultThreshold: 0.025, defaultPercent: 1, stable: false, brandColor: '#FF007A' },
+  { ticker: 'LTC',  name: 'Litecoin',  coingeckoId: 'litecoin',          binanceSymbol: 'LTCUSDT',  krakenSymbol: 'LTCUSD',  coinpaprikaId: 'ltc-litecoin',     cmcId: 2,     defaultThreshold: 0.25, defaultPercent: 0.5, stable: false, brandColor: '#345D9D' },
+  { ticker: 'ZEC',  name: 'Zcash',     coingeckoId: 'zcash',             binanceSymbol: 'ZECUSDT',  krakenSymbol: 'ZECUSD',  coinpaprikaId: 'zec-zcash',        cmcId: 1437,  defaultThreshold: 5, defaultPercent: 0.5, stable: false, brandColor: '#F4B728' },
+  { ticker: 'HYPE', name: 'Hyperliquid', coingeckoId: 'hyperliquid',     binanceSymbol: 'HYPEUSDT', krakenSymbol: null,      coinpaprikaId: 'hype-hyperliquid', cmcId: 32196, defaultThreshold: 0.25, defaultPercent: 0.5, stable: false, brandColor: '#26D9A5' },
+  { ticker: 'USDT', name: 'Tether',    coingeckoId: 'tether',            binanceSymbol: null,       krakenSymbol: 'USDTUSD', coinpaprikaId: 'usdt-tether',      cmcId: 825,   defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#26A17B' },
+  { ticker: 'USDC', name: 'USD Coin',  coingeckoId: 'usd-coin',          binanceSymbol: null,       krakenSymbol: 'USDCUSD', coinpaprikaId: 'usdc-usd-coin',    cmcId: 3408,  defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#2775CA' },
 ];
 
 export const TICKERS = COINS.map(c => c.ticker);
@@ -60,18 +62,34 @@ export const DEFAULT_MODE = 'steady';
 
 // Where prices come from. The owner picks this in Settings > Data source.
 //
-// "Auto" and "Kraken first" are the two modes with the full resilience chain
-// behind them (see priceService.js's providerOrder): CoinGecko/Kraken lead,
-// with Binance, CoinPaprika, CoinMarketCap (only if a key is configured) and
-// DexScreener as further backups. "CoinGecko only" and "Binance first" are
-// deliberately left as their original single-backup pairing, so an owner who
-// picked them for a specific reason (e.g. wanting exactly one fallback) sees
-// exactly the behavior the name promises.
+// Each source has a "role" that explains why it's positioned the way it is:
+//   - 'aggregator'  : one call covers every coin (CoinGecko, CoinPaprika, CoinMarketCap)
+//   - 'exchange'     : real order-book prices, but only for coins that exchange lists
+//                      (Binance, Kraken)
+//   - 'dex'          : an on-chain liquidity-pool price rather than one clean reference
+//                      price — architecturally different from the others (DexScreener)
+//
+// "inAuto" sources are the ones 🤖 Auto will try, in order. CoinMarketCap and
+// DexScreener are deliberately left OUT of Auto:
+//   - CoinMarketCap's key-free tier is not reliable enough to depend on, and even
+//     its cheapest keyed tier (10-15k calls/month) can't sustain this bot's default
+//     30-second polling as a live source — it's only useful as an occasional
+//     backup or for 🔍 Test sources, never as the thing Auto silently switches to.
+//   - CoinPaprika's free tier (~20-25k calls/month) has the same ceiling, so it's
+//     listed here but should really only be reached when the primary is down, not
+//     polled every 30s as a steady diet — Auto only calls a backup when the
+//     primary fails, so this is fine in practice.
+//   - DexScreener needs a specific liquidity-pool address per coin (see
+//     priceService.js) and isn't configured for any coin by default, since a
+//     wrong address would silently return a different token's price.
 export const SOURCE_MODES = [
-  { key: 'auto',      emoji: '🤖', name: 'Auto',           desc: 'CoinGecko first, then Binance, Kraken, CoinPaprika and further backups' },
-  { key: 'coingecko', emoji: '🦎', name: 'CoinGecko only', desc: 'never uses any other source' },
-  { key: 'binance',   emoji: '🟨', name: 'Binance first',  desc: 'CoinGecko as backup (and for stablecoins)' },
-  { key: 'kraken',    emoji: '🐙', name: 'Kraken first',   desc: 'Binance, then CoinGecko and further backups' },
+  { key: 'auto',        emoji: '🤖', name: 'Auto',            role: 'aggregator', desc: 'CoinGecko, then Binance, Kraken, CoinPaprika if needed' },
+  { key: 'coingecko',   emoji: '🦎', name: 'CoinGecko only',  role: 'aggregator', desc: 'never uses another source' },
+  { key: 'binance',     emoji: '🟨', name: 'Binance first',   role: 'exchange',   desc: 'CoinGecko as backup (and for stablecoins)' },
+  { key: 'kraken',      emoji: '🐙', name: 'Kraken first',    role: 'exchange',   desc: 'CoinGecko as backup' },
+  { key: 'coinpaprika', emoji: '🌶️', name: 'CoinPaprika first', role: 'aggregator', desc: 'CoinGecko as backup — mind the ~25k calls/month free limit' },
+  { key: 'coinmarketcap', emoji: '🏅', name: 'CoinMarketCap first', role: 'aggregator', desc: 'needs COINMARKETCAP_API_KEY; CoinGecko as backup' },
+  { key: 'dexscreener', emoji: '🦎‍⬛', name: 'DexScreener',   role: 'dex',        desc: 'on-chain pool price — only for coins you configure; CoinGecko fills the rest' },
 ];
 export const DEFAULT_SOURCE_MODE = 'auto';
 
@@ -104,28 +122,27 @@ export const CONFIG = {
   defaultTimezone: process.env.DEFAULT_TIMEZONE || 'Africa/Nairobi',
   // How often the price loop checks for milestone crossings.
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 30_000),
-  // Optional CoinGecko demo/pro key. Not required — CoinGecko's public
-  // endpoint works keyless — but setting one raises the rate limit for both
-  // prices and logo downloads. COINGECKO_API_PLAN picks which endpoint/header
-  // the key is valid for; almost everyone wants the default 'demo' (the free
-  // key you get from coingecko.com/en/api). Set it to 'pro' only if you hold
-  // a paid CoinGecko Pro key.
+  // Optional CoinGecko demo/pro key. Not required, but raises the rate limit
+  // (used for prices and for downloading logos).
   coingeckoApiKey: process.env.COINGECKO_API_KEY || '',
-  coingeckoApiPlan: (process.env.COINGECKO_API_PLAN || 'demo').toLowerCase() === 'pro' ? 'pro' : 'demo',
-  // Optional CoinMarketCap key. CMC has no keyless tier, so it's used only as
-  // an extra (tertiary) backup, and only when this is set — see priceService.js.
-  coinmarketcapApiKey: process.env.COINMARKETCAP_API_KEY || '',
+  // Required for the CoinMarketCap source to be usable at all — see the long
+  // comment above SOURCE_MODES for why there's no key-free fallback for it.
+  coinMarketCapApiKey: process.env.COINMARKETCAP_API_KEY || '',
 };
 
-/** Header CoinGecko expects the key under — differs between its demo and pro tiers. */
 export function coingeckoHeaders() {
-  if (!CONFIG.coingeckoApiKey) return {};
-  return CONFIG.coingeckoApiPlan === 'pro'
-    ? { 'x-cg-pro-api-key': CONFIG.coingeckoApiKey }
-    : { 'x-cg-demo-api-key': CONFIG.coingeckoApiKey };
+  return CONFIG.coingeckoApiKey ? { 'x-cg-demo-api-key': CONFIG.coingeckoApiKey } : {};
 }
 
-/** CoinGecko's demo key works against the free public host; a pro key needs the pro host. */
-export function coingeckoBaseUrl() {
-  return CONFIG.coingeckoApiPlan === 'pro' ? 'https://pro-api.coingecko.com/api/v3' : 'https://api.coingecko.com/api/v3';
-}
+// DexScreener prices a specific liquidity pool, not "the" price of a coin, so
+// unlike the other sources there's no safe generic way to derive which pool to
+// read for a given ticker — the wrong pool (or a copy-cat token with the same
+// symbol) would silently return a completely different asset's price. Nothing
+// is filled in here by default; add an entry only once you've verified the
+// pool address yourself (e.g. on dexscreener.com), for example:
+//   SOL: { chainId: 'solana', pairAddress: '<verified pair address>' },
+// A coin with no entry here is simply skipped by the DexScreener source (and
+// filled in from CoinGecko instead, like any other gap).
+export const DEXSCREENER_PAIRS = {
+  // (empty by default — see comment above)
+};

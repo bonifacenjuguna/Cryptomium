@@ -71,26 +71,21 @@ function sourceText() {
     `Now: ${mode.emoji} ${mode.name} — ${mode.desc}\n` +
     `${status}\n\n` +
     SOURCE_MODES.map(m => `${m.emoji} ${m.name} — ${m.desc}`).join('\n') +
-    '\n\n"Auto" and "Kraken first" also lean on CoinPaprika and (last resort) ' +
-    'DexScreener automatically — nothing to configure. Add a free CoinMarketCap ' +
-    'key (COINMARKETCAP_API_KEY) to add it as another backup too.\n' +
-    'Stablecoins (USDT, USDC) always skip Binance — it has no real USD price for ' +
-    'them — but Kraken, CoinPaprika and CoinMarketCap all price them correctly.\n' +
+    '\n\nStablecoins (USDT, USDC) come from CoinGecko or Kraken (both price them in ' +
+    'real dollars); Binance never supplies them (it has no USDT/USD pair, and would ' +
+    'give a false depeg reading from its USDC/USDT pair).\n' +
+    'CoinMarketCap needs COINMARKETCAP_API_KEY to work at all. DexScreener only covers ' +
+    'coins you configure by hand (see DEXSCREENER_PAIRS in config.js) — nothing is ' +
+    "configured by default, so it won't do anything until you add one.\n" +
     'Use "Test sources" to check every source right now.'
   );
 }
-
-// CoinMarketCap has no keyless tier, so "not configured" is an expected,
-// deliberate state for most owners — it shouldn't read as a failing source.
-const isUnconfigured = r => !r.ok && r.key === 'coinmarketcap' && /not configured/i.test(r.error || '');
 
 function testResultsText(results) {
   const blocks = results.map(r => {
     const head = r.ok
       ? `${r.label}: ✅ ${r.ms} ms · ${r.count}/${r.expected} coins · ${r.host}`
-      : isUnconfigured(r)
-        ? `${r.label}: ➖ not configured (optional)`
-        : `${r.label}: ❌ ${r.error} (${r.ms} ms)`;
+      : `${r.label}: ❌ ${r.error} (${r.ms} ms)`;
     // Show what happened on every address that was tried (e.g. Binance's main
     // address refused, but its data address worked).
     const failedHosts = (r.attempts ?? []).filter(a => !a.ok);
@@ -98,18 +93,24 @@ function testResultsText(results) {
     return [head, ...details].join('\n');
   });
 
-  // "Configured" excludes CoinMarketCap when no key is set — an owner who
-  // hasn't added one shouldn't see that read as something failing.
-  const configured = results.filter(r => !isUnconfigured(r));
-  const allOk = configured.every(r => r.ok);
+  const live = results.filter(r => r.key !== 'coinmarketcap' && r.key !== 'dexscreener');
+  const allLiveOk = live.every(r => r.ok);
   const binance = results.find(r => r.key === 'binance');
   const mainRefused = binance?.ok && (binance.attempts ?? []).some(a => !a.ok);
 
   const notes = [];
-  if (allOk) notes.push('Every configured source works, so there is always something to fall back to.');
-  else notes.push('A failing source can\'t act as a backup.');
+  if (allLiveOk) notes.push('CoinGecko, Binance, Kraken and CoinPaprika all work, so 🤖 Auto has plenty to fall back to.');
+  else notes.push('A failing source can\'t act as a backup for 🤖 Auto.');
   if (mainRefused) {
     notes.push('Binance\'s main address is refused from your server, but its data address works — so Binance is still usable as a backup.');
+  }
+  const cmc = results.find(r => r.key === 'coinmarketcap');
+  if (cmc && !cmc.ok && /needs COINMARKETCAP_API_KEY/.test(cmc.error)) {
+    notes.push('CoinMarketCap: add COINMARKETCAP_API_KEY in Railway to enable it.');
+  }
+  const dex = results.find(r => r.key === 'dexscreener');
+  if (dex && !dex.ok && /no coins configured/.test(dex.error)) {
+    notes.push('DexScreener: expected — no pairs are configured yet (see DEXSCREENER_PAIRS in config.js).');
   }
   return `🔍 Source test\n\n${blocks.join('\n')}\n\n${notes.join('\n')}`;
 }

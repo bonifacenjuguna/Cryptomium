@@ -8,6 +8,8 @@ the ticker, direction arrow, and price.
 
 - Watches BTC, ETH, XRP, BNB, SOL, TRX, DOGE, ADA, LINK, TON, AVAX, SUI, XLM,
   HBAR, DOT, UNI, LTC, ZEC, HYPE, USDT, USDC (21 coins)
+- Prices can come from CoinGecko, Binance, Kraken, CoinPaprika, CoinMarketCap
+  or DexScreener (see Data source below) — Auto tries the first four in order
 - Posts an image + caption to your channel whenever a coin crosses a
   milestone — either a dollar step (e.g. BTC every $500) or a percentage
   step (e.g. BTC every 0.5%), configurable per coin
@@ -150,48 +152,57 @@ percent (`0.5%` for BTC). A **mode** multiplies it:
 
 ### Data source (where prices come from)
 
-Prices are fetched every 30 seconds, from up to six independent sources with
-clear, deliberately layered roles: two **primary** aggregators (CoinGecko,
-CoinPaprika), two **exchange** backups (Binance, Kraken), one **optional
-tertiary** aggregator (CoinMarketCap), and one **last-resort** on-chain source
-(DexScreener). **Settings > 🌐 Data source** picks which one leads:
+Prices are fetched every 30 seconds. **Settings > 🌐 Data source** lets you
+choose:
 
-| Option | Behavior |
-|---|---|
-| 🤖 Auto (default) | CoinGecko first, then Binance, Kraken, CoinPaprika, CoinMarketCap (if configured), DexScreener |
-| 🦎 CoinGecko only | never uses any other source |
-| 🟨 Binance first | Binance leads, CoinGecko as backup (and for stablecoins) |
-| 🐙 Kraken first | Kraken leads, then Binance, CoinGecko and the same further backups as Auto |
+| Option | Role | Behavior |
+|---|---|---|
+| 🤖 Auto (default) | — | CoinGecko, then Binance, Kraken, CoinPaprika if needed |
+| 🦎 CoinGecko only | aggregator | never uses another source |
+| 🟨 Binance first | exchange | CoinGecko as backup (and for stablecoins) |
+| 🐙 Kraken first | exchange | CoinGecko as backup |
+| 🌶️ CoinPaprika first | aggregator | CoinGecko as backup |
+| 🏅 CoinMarketCap first | aggregator, needs a key | CoinGecko as backup |
+| 🦎‍⬛ DexScreener | on-chain pool price | only for coins you configure; CoinGecko fills the rest |
 
-- "Auto" and "Kraken first" get the full backup chain. "CoinGecko only" and
-  "Binance first" are deliberately left exactly as they've always been — if
-  you picked one of those for a specific reason, it still does precisely
-  what its name says
-- Your choice is saved across restarts
-- **Kraken, CoinPaprika and CoinMarketCap all price USDT/USDC correctly in
-  real dollars**, so they can stand in for stablecoins. **Binance can't**: it
-  has no dollar price for USDT, and its USDC price is measured in USDT, which
-  could cause false depeg alerts — so Binance is always skipped for
-  stablecoins specifically, in every mode
-- Binance is tried on two hosts (`api.binance.com`, then
+**Why Auto only uses four of the six:** CoinMarketCap's key-free tier isn't
+reliable enough to depend on (and even its cheapest paid tier's ~10-15k
+calls/month can't sustain 30-second polling as a live feed), and CoinPaprika's
+free tier (~20-25k calls/month) has the same ceiling — both are still listed
+as explicit picks (and used by 🔍 Test sources), and Auto only ever *reaches*
+CoinPaprika as a last-resort backup (called only if CoinGecko, Binance AND
+Kraken all fail at once), which is rare enough to stay well inside its quota.
+DexScreener is architecturally different — see below — so it's opt-in only.
+
+- Every source's choice is saved and survives a restart
+- **Stablecoins (USDT, USDC)** come from CoinGecko or Kraken — both are real
+  fiat-rail exchanges/aggregators that quote them in actual dollars. Binance
+  never supplies them: it has no USDT/USD pair, and its USDC price is
+  measured in USDT, which could cause a false depeg alert
+- **Binance** is tried on two hosts (`api.binance.com`, then
   `data-api.binance.vision`) because the first is blocked from some server
   regions
-- **DexScreener** is the one on-chain source, so it has no notion of "BTC" as
-  such — only trading pairs. A coin is only trusted from it when a pool's
-  base-token symbol matches exactly *and* clears a $50k liquidity floor (the
-  deepest matching pool wins). It's never used for stablecoins, since a
-  depeg check needs a precise price and DEX pricing is comparatively noisy
-- **CoinMarketCap** has no free keyless tier, so it's used only if you set
-  `COINMARKETCAP_API_KEY` (see "Coin logos" below and `.env.example`) —
-  everything else here works with no setup at all
-- **🔍 Test sources** checks every provider right now and shows ✅ / ❌, the
-  response time and how many coins came back — the way to confirm the backups
-  work from your server. CoinMarketCap shows as "➖ not configured (optional)"
-  rather than a failure if you haven't set a key. If Binance's main address is
+- **Kraken** batches all coins in one call; if even one requested pair name
+  is invalid it retries once against Kraken's whole market and filters
+  client-side, the same resilience Binance already has for an unknown symbol.
+  BNB and HYPE are skipped (not listed on Kraken) and filled from the backup
+- **CoinMarketCap** requires `COINMARKETCAP_API_KEY` (Settings > Data source
+  will show it as unavailable, and 🔍 Test sources explains why, until you
+  add one — see `.env.example`). Its key-free "trial" endpoint is explicitly
+  not meant for production, so this bot never uses it
+- **DexScreener** prices a specific on-chain liquidity pool, not "the" price
+  of a coin — there's no safe generic way to pick which pool represents a
+  given ticker (a wrong address, or a copy-cat token sharing the same symbol,
+  would silently return a different asset's price). Nothing is configured by
+  default; add entries to `DEXSCREENER_PAIRS` in `src/config.js` only for
+  pool addresses you've personally verified (e.g. on dexscreener.com)
+- **🔍 Test sources** checks all six providers right now and shows ✅ / ❌,
+  the response time and how many coins came back — the way to confirm a
+  backup actually works from your server. If Binance's main address is
   blocked but its data address works, both attempts are listed so you can see
-  why
-- You get a private message when the leading source starts failing (after 2
-  bad readings in a row) and when it recovers (after 3 good ones), and a 🚨
+  why; CoinMarketCap/DexScreener explain their "not configured" state here too
+- You get a private message when the main source starts failing (after 2 bad
+  readings in a row) and when it recovers (after 3 good ones), and a 🚨
   message if every source is failing. Messages are limited to one per hour
   per kind
 
@@ -218,24 +229,13 @@ One rule for banners, captions and the Prices screen (dynamic precision):
 
 ### Coin logos
 
-Logos are downloaded in one CoinGecko request (with retries) at build time,
-and any that are still missing are fetched again when the bot starts and
-every 30 minutes after. If CoinGecko doesn't have one, the bot tries, in
-order: **CoinMarketCap's own official logo** (only if `COINMARKETCAP_API_KEY`
-is set — fetched dynamically by symbol, so there's no numeric ID to go
-stale), two public icon CDNs, then a **DexScreener** token-profile image
-search as the last resort (same exact-symbol-match discipline as its price
-role, described above). You get a private message if a logo still can't be
-downloaded after all of that. Meanwhile a banner shows a coin-colored badge
-with the ticker instead of the logo, so it never looks empty.
-
-Setting the optional `COINGECKO_API_KEY` (a free demo key from
-coingecko.com/en/api) raises CoinGecko's rate limit for both prices and logo
-downloads — this is the easiest single thing to add if you want more
-headroom. It works automatically, keyless or with a key: unset, requests go
-out with no auth header at all; set, they're sent with it. Only set
-`COINGECKO_API_PLAN=pro` if that key is a paid Pro key rather than the free
-demo one — leave it unset otherwise.
+Logos are downloaded in one CoinGecko request (with retries and fallback
+icon sources) at build time, and any that are still missing are fetched again
+when the bot starts and every 30 minutes after. You get a private message if
+some still can't be downloaded. Meanwhile a banner shows a coin-colored
+badge with the ticker instead of the logo, so it never looks empty. Setting
+the optional `COINGECKO_API_KEY` (a free demo key) raises CoinGecko's rate
+limit.
 
 ### Tests
 
@@ -245,14 +245,11 @@ npm test
 
 Covers the step/mode logic (dollar, percent, stablecoin), the next-alert
 distance math, input parsing, price formatting and captions, the logo
-downloader (rate limits, retries, and all its fallback sources), and the
-price sources (selection across all six providers, every fallback chain,
-Binance's two-host retry, and health alerts). 68 tests in total.
+downloader (rate limits, retries, fallbacks), and all six price sources
+(response parsing, fallback chains, health alerts, and the "not configured"
+states for CoinMarketCap/DexScreener).
 
 ## Previews
-
-> Screenshots are omitted from this README for now — may add them back in a
-> later update. The descriptions below still apply to the current look.
 
 **Current banners (1.4.0)** — top: Bitcoin, ✨ Clean logo style (reworked —
 a soft glow and a crisp border give the logo definition without a white
@@ -262,13 +259,21 @@ shown); bottom: Bitcoin in the optional ⚪ White ring style. Everything is
 derived from each coin's own brand color, so it applies to every coin
 automatically.
 
+![Current banners](docs/previews/current-banners.png)
+
 **Earlier layout (1.0.10)** — much larger logo, smaller price. Top: rise, bottom:
 fall.
+
+![Layout 1.0.10](docs/previews/final-layout.png)
 
 **Other coins (1.0.10)** — same engine (letter circles stand in for real
 logos).
 
+![Other coins](docs/previews/other-coins.png)
+
 **Earlier still** — the version with the chip inline right after the ticker.
+
+![Earlier layout](docs/previews/previous-layout.png)
 
 ## Notes on the image banners
 

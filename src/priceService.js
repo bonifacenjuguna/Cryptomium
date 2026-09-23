@@ -1,17 +1,12 @@
-import { COINS, CONFIG, SOURCE_MODES, DEFAULT_SOURCE_MODE, coingeckoHeaders, coingeckoBaseUrl } from './config.js';
+import { COINS, CONFIG, SOURCE_MODES, DEFAULT_SOURCE_MODE, DEXSCREENER_PAIRS, coingeckoHeaders } from './config.js';
 
+const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price';
 // Binance's main API is blocked (HTTP 451) from some regions/servers; the
 // "data-api" host serves the same public market data and is more permissive.
 const BINANCE_HOSTS = ['https://api.binance.com', 'https://data-api.binance.vision'];
 const KRAKEN_URL = 'https://api.kraken.com/0/public/Ticker';
 const COINPAPRIKA_URL = 'https://api.coinpaprika.com/v1/tickers';
-const COINMARKETCAP_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
-const DEXSCREENER_SEARCH_URL = 'https://api.dexscreener.com/latest/dex/search';
-// Below this, a DexScreener pool is too thin to trust for a price that could
-// trigger a real alert — a shallow pool can swing well past the actual market
-// price on a single trade. DexScreener is a last-resort source, so this floor
-// matters more for it than for anything else here.
-const DEXSCREENER_MIN_LIQUIDITY_USD = 50_000;
+const CMC_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
 /** An HTTP/provider failure that keeps its status code so it can be explained to the owner. */
 export class ProviderError extends Error {
@@ -40,7 +35,7 @@ export function describeError(err) {
 /** One batched CoinGecko request for every coin (also returns 24h change for free). */
 async function fetchFromCoinGecko() {
   const ids = COINS.map(c => c.coingeckoId).join(',');
-  const url = `${coingeckoBaseUrl()}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
+  const url = `${COINGECKO_URL}?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
 
   const res = await fetch(url, { headers: coingeckoHeaders(), signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new ProviderError(`CoinGecko responded ${res.status}`, res.status);
@@ -109,42 +104,63 @@ async function fetchBinanceFrom(host, coins) {
   return { prices, changes: new Map(), host: hostName };
 }
 
-// Kraken predates its own 2019 naming cleanup for a handful of legacy assets,
-// so its response keys for those still carry the old prefixed codes (e.g.
-// "XXBTZUSD") instead of the plain ticker. Rather than hard-code every
-// response key (undocumented, and has drifted before), match loosely: a
-// coin's Kraken code (below) must appear in the key, and the key must be a
-// USD market — that survives both the legacy and modern naming styles.
-const KRAKEN_LEGACY_CODE = { BTC: 'XBT', DOGE: 'XDG' };
-
-/** Kraken spot prices, one request for every coin listed on Kraken. */
+/**
+ * Kraken spot prices — genuinely USD-quoted (Kraken is a fiat-rail exchange),
+ * so unlike Binance, stablecoins ARE included here.
+ *
+ * Kraken rejects the whole batched request if even one requested pair name is
+ * wrong (same failure mode Binance has for one unknown symbol) — so on error
+ * we retry with no `pair` filter (Kraken then returns its whole market) and
+ * pick our coins out of that instead, the same resilience pattern used for
+ * Binance above.
+ */
 async function fetchFromKraken() {
-  const coins = COINS.filter(c => c.krakenPair);
-  const url = `${KRAKEN_URL}?pair=${coins.map(c => c.krakenPair).join(',')}`;
+  const coins = COINS.filter(c => c.krakenSymbol);
+  const pairs = coins.map(c => c.krakenSymbol).join(',');
+  const get = url => fetch(url, { signal: AbortSignal.timeout(10_000) });
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-  if (!res.ok) throw new ProviderError(`Kraken responded ${res.status}`, res.status);
-  const data = await res.json();
-  if (Array.isArray(data?.error) && data.error.length > 0) throw new ProviderError(`Kraken: ${data.error.join('; ')}`);
-  const result = data?.result;
-  if (!result || typeof result !== 'object') throw new ProviderError('Kraken returned an unexpected response');
+  let res = await get(`${KRAKEN_URL}?pair=${encodeURIComponent(pairs)}`);
+  let data = res.ok ? await res.json() : null;
+  if (!res.ok || !data?.result || (Array.isArray(data.error) && data.error.length > 0 && !Object.keys(data.result ?? {}).length)) {
+    res = await get(KRAKEN_URL); // no pair filter -> Kraken's whole market
+    if (!res.ok) throw new ProviderError(`Kraken responded ${res.status}`, res.status);
+    data = await res.json();
+  }
+  if (!data?.result || typeof data.result !== 'object') {
+    throw new ProviderError(`Kraken: ${(data?.error ?? []).join('; ') || 'unexpected response'}`);
+  }
 
-  const entries = Object.entries(result); // [rawKey, tickerBody][]
+  // Kraken's response is keyed by ITS OWN pair name, which for a handful of
+  // "original" assets (BTC, ETH, LTC, XRP, XLM) differs from the altname we
+  // requested — e.g. requesting XBTUSD can return the key XXBTZUSD, a legacy
+  // quirk from before Kraken standardized naming. Rather than hardcode every
+  // legacy key (unverifiable without hitting the live API from here), match
+  // each coin to whichever returned key contains its base code and ends in
+  // "USD" — this works for both the legacy and modern key formats.
+  const resultKeys = Object.keys(data.result);
   const prices = new Map();
   for (const coin of coins) {
-    const code = KRAKEN_LEGACY_CODE[coin.ticker] || coin.ticker;
-    const match = entries.find(([key]) => key.toUpperCase().includes(code) && key.toUpperCase().endsWith('USD'));
-    const price = Number(match?.[1]?.c?.[0]); // 'c' = last trade closed [price, lot volume]
+    const baseCode = coin.ticker === 'BTC' ? 'XBT' : coin.ticker === 'DOGE' ? 'XDG' : coin.ticker;
+    const key = resultKeys.find(k => k.toUpperCase().includes(baseCode) && k.toUpperCase().endsWith('USD'));
+    const price = key ? Number(data.result[key]?.c?.[0]) : NaN;
     if (Number.isFinite(price) && price > 0) prices.set(coin.ticker, price);
   }
   if (prices.size === 0) throw new ProviderError('Kraken returned no usable prices');
   return { prices, changes: new Map(), host: 'api.kraken.com' };
 }
 
-/** CoinPaprika: one bulk (keyless) request, filtered down to our coins. Also gives 24h change. */
+/**
+ * CoinPaprika: one call returns every tracked coin (no auth). Matched by its
+ * "id" field (e.g. "btc-bitcoin"), not the ticker symbol, since several
+ * unrelated coins can share a ticker.
+ *
+ * Free tier is ~20-25k calls/month with no per-minute cap — comfortably fine
+ * as an occasional backup (which is all Auto ever uses it for; see the
+ * comment above SOURCE_MODES in config.js), but NOT sustainable as a 30-second
+ * primary feed, so the bot never makes it the primary in Auto.
+ */
 async function fetchFromCoinPaprika() {
-  const coins = COINS.filter(c => c.coinpaprikaId);
-  const res = await fetch(`${COINPAPRIKA_URL}?quotes=USD`, { signal: AbortSignal.timeout(12_000) });
+  const res = await fetch(COINPAPRIKA_URL, { signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new ProviderError(`CoinPaprika responded ${res.status}`, res.status);
   const data = await res.json();
   if (!Array.isArray(data)) throw new ProviderError('CoinPaprika returned an unexpected response');
@@ -152,14 +168,13 @@ async function fetchFromCoinPaprika() {
   const byId = new Map(data.map(item => [item.id, item]));
   const prices = new Map();
   const changes = new Map();
-  for (const coin of coins) {
-    const quote = byId.get(coin.coinpaprikaId)?.quotes?.USD;
-    const price = quote?.price;
+  for (const coin of COINS) {
+    const usd = byId.get(coin.coinpaprikaId)?.quotes?.USD;
+    const price = usd?.price;
     if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
       prices.set(coin.ticker, price);
-      if (typeof quote.percent_change_24h === 'number' && Number.isFinite(quote.percent_change_24h)) {
-        changes.set(coin.ticker, quote.percent_change_24h);
-      }
+      const change = usd.percent_change_24h;
+      if (typeof change === 'number' && Number.isFinite(change)) changes.set(coin.ticker, change);
     }
   }
   if (prices.size === 0) throw new ProviderError('CoinPaprika returned no usable prices');
@@ -167,35 +182,37 @@ async function fetchFromCoinPaprika() {
 }
 
 /**
- * CoinMarketCap: a tertiary backup, used only when COINMARKETCAP_API_KEY is
- * set (CMC has no keyless tier). Looked up by ticker symbol; when CMC has more
- * than one listing for a symbol it returns them ranked by market cap, and we
- * take the top one — the same default CMC's own docs describe.
+ * CoinMarketCap. Deliberately requires COINMARKETCAP_API_KEY — CMC's key-free
+ * "trial" endpoint is explicitly not meant for production use and can be
+ * withdrawn without notice, so the bot never depends on it. Without a key,
+ * this fails fast (no network call) with a clear "not configured" reason.
+ * Even the cheapest keyed tier (10-15k calls/month) can't sustain this bot's
+ * default 30-second polling as a steady source, so — like CoinPaprika — Auto
+ * never picks it; it's for an explicit "CoinMarketCap first" choice or
+ * 🔍 Test sources only.
  */
 async function fetchFromCoinMarketCap() {
-  if (!CONFIG.coinmarketcapApiKey) throw new ProviderError('API key not configured (optional — see .env.example)');
-  const symbols = COINS.map(c => c.ticker).join(',');
-  const res = await fetch(`${COINMARKETCAP_URL}?symbol=${symbols}&convert=USD`, {
-    headers: { 'X-CMC_PRO_API_KEY': CONFIG.coinmarketcapApiKey, Accept: 'application/json' },
-    signal: AbortSignal.timeout(12_000),
+  if (!CONFIG.coinMarketCapApiKey) {
+    throw new ProviderError('CoinMarketCap needs COINMARKETCAP_API_KEY (not set)');
+  }
+  const ids = COINS.map(c => c.cmcId).join(',');
+  const res = await fetch(`${CMC_URL}?id=${ids}&convert=USD`, {
+    headers: { 'X-CMC_PRO_API_KEY': CONFIG.coinMarketCapApiKey, Accept: 'application/json' },
+    signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new ProviderError(`CoinMarketCap responded ${res.status}`, res.status);
-  const body = await res.json();
-  const data = body?.data;
-  if (!data || typeof data !== 'object') throw new ProviderError('CoinMarketCap returned an unexpected response');
+  const data = await res.json();
+  if (!data?.data || typeof data.data !== 'object') throw new ProviderError('CoinMarketCap returned an unexpected response');
 
   const prices = new Map();
   const changes = new Map();
   for (const coin of COINS) {
-    const raw = data[coin.ticker];
-    const entry = Array.isArray(raw) ? raw[0] : raw;
-    const quote = entry?.quote?.USD;
-    const price = quote?.price;
+    const usd = data.data[String(coin.cmcId)]?.quote?.USD;
+    const price = usd?.price;
     if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
       prices.set(coin.ticker, price);
-      if (typeof quote.percent_change_24h === 'number' && Number.isFinite(quote.percent_change_24h)) {
-        changes.set(coin.ticker, quote.percent_change_24h);
-      }
+      const change = usd.percent_change_24h;
+      if (typeof change === 'number' && Number.isFinite(change)) changes.set(coin.ticker, change);
     }
   }
   if (prices.size === 0) throw new ProviderError('CoinMarketCap returned no usable prices');
@@ -203,52 +220,45 @@ async function fetchFromCoinMarketCap() {
 }
 
 /**
- * DexScreener: the absolute last resort. It has no notion of "BTC" or "ETH"
- * as such — only on-chain trading pairs — so a coin is only trusted here if a
- * pool is found whose base token symbol matches exactly AND clears a minimum
- * liquidity bar (see DEXSCREENER_MIN_LIQUIDITY_USD). That rules out shallow
- * or impostor-token pools rather than trusting whatever the search returns.
- * Stablecoins are skipped entirely — a depeg check needs a precise price, and
- * DEX pool pricing is noisier than a centralized quote for exactly that case.
+ * DexScreener prices a specific on-chain liquidity pool, not "the" price of a
+ * coin — there's no safe generic way to derive which pool to read for a given
+ * ticker (a wrong address, or a copy-cat token sharing the same symbol, would
+ * silently return a completely different asset's price). So this only ever
+ * covers coins explicitly configured in DEXSCREENER_PAIRS (config.js), which
+ * is empty by default. With nothing configured it fails fast with a clear
+ * message rather than making a network call.
  */
-async function fetchDexScreenerMatch(coin, { fetchFn = fetch } = {}) {
-  try {
-    const res = await fetchFn(`${DEXSCREENER_SEARCH_URL}?q=${encodeURIComponent(coin.name)}`, { signal: AbortSignal.timeout(8_000) });
-    if (!res.ok) return null;
-    const body = await res.json();
-    const pairs = Array.isArray(body?.pairs) ? body.pairs : [];
-    const candidates = pairs.filter(p =>
-      p?.baseToken?.symbol?.toUpperCase() === coin.ticker &&
-      Number(p?.liquidity?.usd) >= DEXSCREENER_MIN_LIQUIDITY_USD &&
-      Number(p?.priceUsd) > 0
-    );
-    if (candidates.length === 0) return null;
-    candidates.sort((a, b) => Number(b.liquidity.usd) - Number(a.liquidity.usd));
-    const best = candidates[0];
-    return { price: Number(best.priceUsd), imageUrl: best.info?.imageUrl || null };
-  } catch {
-    return null;
-  }
-}
-
 async function fetchFromDexScreener() {
-  const coins = COINS.filter(c => !c.stable);
-  const matches = await Promise.all(coins.map(coin => fetchDexScreenerMatch(coin)));
+  const entries = Object.entries(DEXSCREENER_PAIRS);
+  if (entries.length === 0) {
+    throw new ProviderError('DexScreener has no coins configured (see DEXSCREENER_PAIRS in config.js)');
+  }
   const prices = new Map();
-  matches.forEach((match, i) => {
-    if (match) prices.set(coins[i].ticker, match.price);
-  });
-  if (prices.size === 0) throw new ProviderError('DexScreener found no confident matches');
+  for (const [ticker, pair] of entries) {
+    try {
+      const res = await fetch(
+        `https://api.dexscreener.com/latest/dex/pairs/${pair.chainId}/${pair.pairAddress}`,
+        { signal: AbortSignal.timeout(10_000) }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const price = Number(data?.pair?.priceUsd);
+      if (Number.isFinite(price) && price > 0) prices.set(ticker, price);
+    } catch {
+      // One bad pair shouldn't fail the whole source.
+    }
+  }
+  if (prices.size === 0) throw new ProviderError('DexScreener returned no usable prices');
   return { prices, changes: new Map(), host: 'api.dexscreener.com' };
 }
 
 const PROVIDERS = {
   coingecko: { label: 'CoinGecko', fetch: fetchFromCoinGecko, expected: () => COINS.length },
   binance: { label: 'Binance', fetch: fetchFromBinance, expected: () => COINS.filter(c => c.binanceSymbol && !c.stable).length },
-  kraken: { label: 'Kraken', fetch: fetchFromKraken, expected: () => COINS.filter(c => c.krakenPair).length },
-  coinpaprika: { label: 'CoinPaprika', fetch: fetchFromCoinPaprika, expected: () => COINS.filter(c => c.coinpaprikaId).length },
+  kraken: { label: 'Kraken', fetch: fetchFromKraken, expected: () => COINS.filter(c => c.krakenSymbol).length },
+  coinpaprika: { label: 'CoinPaprika', fetch: fetchFromCoinPaprika, expected: () => COINS.length },
   coinmarketcap: { label: 'CoinMarketCap', fetch: fetchFromCoinMarketCap, expected: () => COINS.length },
-  dexscreener: { label: 'DexScreener', fetch: fetchFromDexScreener, expected: () => COINS.filter(c => !c.stable).length },
+  dexscreener: { label: 'DexScreener', fetch: fetchFromDexScreener, expected: () => Object.keys(DEXSCREENER_PAIRS).length },
 };
 
 // ---------------------------------------------------------------------
@@ -278,31 +288,18 @@ export function setSourceListener(fn) {
   listener = fn;
 }
 
-/**
- * "CoinMarketCap" is only ever tried when a key is configured (it has no
- * keyless tier) — everything else here is keyless and always available.
- */
-function isProviderAvailable(key) {
-  return key !== 'coinmarketcap' || Boolean(CONFIG.coinmarketcapApiKey);
-}
-
-/**
- * Providers to try, in order, for a given mode.
- *
- * "CoinGecko only" and "Binance first" keep their original, exact two-source
- * chain (unchanged since 1.2.0) — an owner who picked one of those wants
- * precisely the behavior its name promises. "Auto" and "Kraken first" are the
- * two chains hardened with the newer secondary/tertiary sources: an exchange
- * backup, then two independent keyless aggregators, then CoinMarketCap if
- * configured, then DexScreener as the very last resort before giving up.
- */
+/** Providers to try, in order, for a given mode. */
 export function providerOrder(mode) {
   if (mode === 'coingecko') return ['coingecko'];
   if (mode === 'binance') return ['binance', 'coingecko'];
-  const chain = mode === 'kraken'
-    ? ['kraken', 'binance', 'coingecko', 'coinpaprika', 'coinmarketcap', 'dexscreener']
-    : ['coingecko', 'binance', 'kraken', 'coinpaprika', 'coinmarketcap', 'dexscreener'];
-  return chain.filter(isProviderAvailable);
+  if (mode === 'kraken') return ['kraken', 'coingecko'];
+  if (mode === 'coinpaprika') return ['coinpaprika', 'coingecko'];
+  if (mode === 'coinmarketcap') return ['coinmarketcap', 'coingecko'];
+  if (mode === 'dexscreener') return ['dexscreener', 'coingecko'];
+  // Auto: the free, no-key, sustainable-as-a-live-feed sources only. See the
+  // long comment above SOURCE_MODES (config.js) for why CoinMarketCap and
+  // DexScreener are deliberately excluded here.
+  return ['coingecko', 'binance', 'kraken', 'coinpaprika'];
 }
 
 function resetHealth() {
@@ -354,10 +351,10 @@ function recordHealth({ primaryKey, primaryOk, anyOk, usedKey, error }) {
 let latest = { prices: null, changes: new Map(), at: 0, source: null, backup: false };
 
 /**
- * Returns Map<ticker, price>. Tries each provider in the current mode's chain
- * (see providerOrder) in order, stopping at the first success. Any coin the
- * winning provider doesn't supply (e.g. stablecoins from Binance) is filled in
- * from the next providers in the chain. Throws only if every provider fails.
+ * Returns Map<ticker, price>. Tries the preferred provider first and the other
+ * one as backup (unless the mode is "CoinGecko only"). Any coin the winning
+ * provider doesn't supply (e.g. stablecoins from Binance) is filled in from the
+ * other provider. Throws only if every provider fails.
  */
 export async function fetchAllPrices() {
   const order = providerOrder(preferred);

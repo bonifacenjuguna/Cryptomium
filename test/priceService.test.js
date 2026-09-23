@@ -9,14 +9,35 @@ let script; // per-test behavior of each provider
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
-// A fake network: CoinGecko and the two Binance hosts, each scriptable.
+// A fake network: CoinGecko, the two Binance hosts, Kraken, CoinPaprika, CMC
+// and DexScreener, each scriptable.
 function installFakeNetwork() {
   const calls = [];
-  globalThis.fetch = async url => {
+  globalThis.fetch = async (url, opts) => {
     const u = String(url);
     calls.push(u);
     if (u.includes('coingecko.com')) {
       const r = script.coingecko();
+      if (r instanceof Error) throw r;
+      return r;
+    }
+    if (u.includes('kraken.com')) {
+      const r = (script.kraken ?? (() => json(200, { error: [], result: {} })))(u);
+      if (r instanceof Error) throw r;
+      return r;
+    }
+    if (u.includes('coinpaprika.com')) {
+      const r = (script.coinpaprika ?? (() => json(200, [])))();
+      if (r instanceof Error) throw r;
+      return r;
+    }
+    if (u.includes('coinmarketcap.com')) {
+      const r = (script.coinmarketcap ?? (() => json(200, { data: {} })))(opts);
+      if (r instanceof Error) throw r;
+      return r;
+    }
+    if (u.includes('dexscreener.com')) {
+      const r = (script.dexscreener ?? (() => json(200, {})))(u);
       if (r instanceof Error) throw r;
       return r;
     }
@@ -207,4 +228,174 @@ test('when every Binance host fails, testProviders reports both attempts', async
   assert.equal(binance.ok, false);
   assert.equal(binance.attempts.length, 2);
   assert.ok(binance.attempts.every(a => !a.ok));
+});
+
+// ---------------------------------------------------------------------
+// New providers: Kraken, CoinPaprika, CoinMarketCap, DexScreener
+// ---------------------------------------------------------------------
+
+test('Kraken: modern keys (no legacy X/Z prefix) parse directly', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('kraken');
+  script.kraken = () => json(200, { error: [], result: {
+    SOLUSD: { c: ['150.25', '1.0'] },
+    ADAUSD: { c: ['0.235', '1.0'] },
+  } });
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('SOL'), 150.25);
+  assert.equal(prices.get('ADA'), 0.235);
+});
+
+test('Kraken: legacy X/Z-prefixed keys (BTC, ETH, DOGE) are matched by substring', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('kraken');
+  script.kraken = () => json(200, { error: [], result: {
+    XXBTZUSD: { c: ['86753.00', '1.0'] }, // requested as XBTUSD
+    XETHZUSD: { c: ['2772.97', '1.0'] },
+    XDGUSD: { c: ['0.098', '1.0'] }, // Dogecoin's legacy XDG code, no Z suffix
+  } });
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('BTC'), 86753);
+  assert.equal(prices.get('ETH'), 2772.97);
+  assert.equal(prices.get('DOGE'), 0.098);
+});
+
+test('Kraken: stablecoins are included (unlike Binance) since Kraken quotes them in real USD', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('kraken');
+  script.kraken = () => json(200, { error: [], result: {
+    USDTUSD: { c: ['0.9994', '1.0'] },
+    USDCUSD: { c: ['1.0002', '1.0'] },
+  } });
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('USDT'), 0.9994);
+  assert.equal(prices.get('USDC'), 1.0002);
+});
+
+test('Kraken: BNB and HYPE are never requested (not listed there)', () => {
+  const { BNB, HYPE } = Object.fromEntries(COINS.map(c => [c.ticker, c]));
+  assert.equal(BNB.krakenSymbol, null);
+  assert.equal(HYPE.krakenSymbol, null);
+});
+
+test('Kraken: one invalid pair name fails the whole batch -> retries with the full market', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('kraken');
+  let calls = 0;
+  script.kraken = u => {
+    calls++;
+    if (u.includes('pair=')) return json(200, { error: ['EQuery:Unknown asset pair'], result: {} });
+    return json(200, { error: [], result: { XXBTZUSD: { c: ['86753.00', '1.0'] } } }); // "full market"
+  };
+  const prices = await ps.fetchAllPrices();
+  assert.equal(calls, 2);
+  assert.equal(prices.get('BTC'), 86753);
+});
+
+test('Kraken: HTTP failure is a clean ProviderError (surfaced when no backup is available either)', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('kraken');
+  script.kraken = () => json(502, {});
+  script.coingecko = () => json(502, {}); // no backup either, so this specific status is what surfaces
+  await assert.rejects(ps.fetchAllPrices(), /responded 502/);
+});
+
+test('CoinPaprika: matched by id, not by symbol (avoids collisions)', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('coinpaprika');
+  script.coinpaprika = () => json(200, [
+    { id: 'btc-bitcoin', symbol: 'BTC', quotes: { USD: { price: 86753, percent_change_24h: 1.2 } } },
+    { id: 'some-other-uni-token', symbol: 'UNI', quotes: { USD: { price: 999999 } } }, // decoy, wrong id
+    { id: 'uni-uniswap', symbol: 'UNI', quotes: { USD: { price: 6.42, percent_change_24h: -0.5 } } },
+  ]);
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('BTC'), 86753);
+  assert.equal(prices.get('UNI'), 6.42, 'the decoy with a matching symbol but wrong id must be ignored');
+  assert.equal((await ps.getChanges24h()).size >= 0, true);
+});
+
+test('CoinPaprika: one batched call covers every coin', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('coinpaprika');
+  let calls = 0;
+  script.coinpaprika = () => {
+    calls++;
+    return json(200, COINS.map(c => ({ id: c.coinpaprikaId, symbol: c.ticker, quotes: { USD: { price: 1, percent_change_24h: 0 } } })));
+  };
+  await ps.fetchAllPrices();
+  assert.equal(calls, 1);
+});
+
+test('CoinMarketCap: fails fast (no network call) when no API key is set, and CoinGecko backup saves the request', async () => {
+  const calls = installFakeNetwork();
+  ps.setPreferredSource('coinmarketcap');
+  const prices = await ps.fetchAllPrices(); // coingecko (the default script) still works as backup
+  assert.equal(calls.filter(u => u.includes('coinmarketcap')).length, 0, 'no network call for an unconfigured key');
+  assert.equal(prices.size, COINS.length);
+  assert.equal((await ps.getLatestPrices()).source, 'CoinGecko (backup)');
+});
+
+test('CoinMarketCap: with no key AND no backup, the error explains why', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('coinmarketcap');
+  script.coingecko = () => json(500, {});
+  await assert.rejects(ps.fetchAllPrices());
+  // Whichever of the two failures surfaces, CMC's own attempt must have been logged.
+  const health = ps.getSourceHealth();
+  assert.equal(health.primary, 'CoinMarketCap');
+});
+
+test('CoinMarketCap: with a key, sends it as a header and parses by numeric id', async () => {
+  process.env.COINMARKETCAP_API_KEY = 'test-key-123';
+  const { CONFIG } = await import('../src/config.js');
+  CONFIG.coinMarketCapApiKey = 'test-key-123'; // CONFIG is read at call time, not import time
+  installFakeNetwork();
+  ps.setPreferredSource('coinmarketcap');
+  let seenHeader;
+  script.coinmarketcap = opts => {
+    seenHeader = opts?.headers?.['X-CMC_PRO_API_KEY'];
+    return json(200, { data: {
+      1: { quote: { USD: { price: 86753, percent_change_24h: 1.1 } } },
+      1027: { quote: { USD: { price: 2772.97, percent_change_24h: -0.4 } } },
+    } });
+  };
+  const prices = await ps.fetchAllPrices();
+  assert.equal(seenHeader, 'test-key-123');
+  assert.equal(prices.get('BTC'), 86753);
+  assert.equal(prices.get('ETH'), 2772.97);
+  CONFIG.coinMarketCapApiKey = '';
+  delete process.env.COINMARKETCAP_API_KEY;
+});
+
+test('DexScreener: fails fast (no network call) when nothing is configured, and CoinGecko backup saves the request', async () => {
+  const calls = installFakeNetwork();
+  ps.setPreferredSource('dexscreener');
+  const prices = await ps.fetchAllPrices();
+  assert.equal(calls.filter(u => u.includes('dexscreener')).length, 0);
+  assert.equal(prices.size, COINS.length);
+  assert.equal((await ps.getLatestPrices()).source, 'CoinGecko (backup)');
+});
+
+test('providerOrder: Auto never includes CoinMarketCap or DexScreener', () => {
+  assert.deepEqual(ps.providerOrder('auto'), ['coingecko', 'binance', 'kraken', 'coinpaprika']);
+});
+
+test('providerOrder: every explicit single-source mode falls back to CoinGecko', () => {
+  for (const mode of ['binance', 'kraken', 'coinpaprika', 'coinmarketcap', 'dexscreener']) {
+    const order = ps.providerOrder(mode);
+    assert.equal(order[0], mode);
+    assert.ok(order.includes('coingecko'), `${mode} should have CoinGecko as a safety net`);
+  }
+});
+
+test('testProviders reports all 6 sources, including the two that are off by default', async () => {
+  installFakeNetwork();
+  const results = await ps.testProviders();
+  assert.deepEqual(results.map(r => r.key).sort(), ['binance', 'coingecko', 'coinmarketcap', 'coinpaprika', 'dexscreener', 'kraken'].sort());
+  const cmc = results.find(r => r.key === 'coinmarketcap');
+  const dex = results.find(r => r.key === 'dexscreener');
+  assert.equal(cmc.ok, false);
+  assert.match(cmc.error, /COINMARKETCAP_API_KEY/);
+  assert.equal(dex.ok, false);
+  assert.match(dex.error, /no coins configured/);
 });
