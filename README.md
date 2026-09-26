@@ -8,8 +8,9 @@ the ticker, direction arrow, and price.
 
 - Watches BTC, ETH, XRP, BNB, SOL, TRX, DOGE, ADA, LINK, TON, AVAX, SUI, XLM,
   HBAR, DOT, UNI, LTC, ZEC, HYPE, USDT, USDC (21 coins)
-- Prices can come from CoinGecko, Binance, Kraken, CoinPaprika, CoinMarketCap
-  or DexScreener (see Data source below) — Auto tries the first four in order
+- Prices can come from CoinGecko, Binance, Kraken, CoinPaprika, or a real-time
+  blend of the first three (see Data source below) — Auto tries the first
+  four in order
 - Posts an image + caption to your channel whenever a coin crosses a
   milestone — either a dollar step (e.g. BTC every $500) or a percentage
   step (e.g. BTC every 0.5%), configurable per coin
@@ -97,6 +98,11 @@ bot (only `/start` is a slash command). The menu:
   chip shows the 24h direction (green up / red down); the caption adds the 24h
   change, e.g. `▲ BTC $81,385 · 24h +1.23% @priceping`. If the 24h change isn't
   available the banner simply has no chip
+- **📊 Chart** (inside 📣 Post prices) — a price-history chart for one coin:
+  pick the coin, a time range (24H/7D/30D/90D/1Y or a custom day count), then
+  📈 Line or 🕯️ Candlesticks. **Nothing renders until you tap a style** — picking
+  a coin or a range alone never fetches or draws anything. The rendered chart
+  is shown to you first, with a button to post it to the channel
 - **📊 Status** — every coin's step and mute state at a glance, e.g.
   `BTC — 0.5% 🔔`, `ETH — 0.75% 🔔`, `SOL — 0.5% 💨 🔔` (a coin that isn't
   on Steady also shows its mode icon). Two buttons underneath: **📈 Post
@@ -162,45 +168,50 @@ choose:
 | 🟨 Binance first | exchange | CoinGecko as backup (and for stablecoins) |
 | 🐙 Kraken first | exchange | CoinGecko as backup |
 | 🌶️ CoinPaprika first | aggregator | CoinGecko as backup |
-| 🏅 CoinMarketCap first | aggregator, needs a key | CoinGecko as backup |
-| 🦎‍⬛ DexScreener | on-chain pool price | only for coins you configure; CoinGecko fills the rest |
+| 🧮 Average price | blend | CoinGecko + Binance + Kraken at once, midpoint of the range |
 
-**Why Auto only uses four of the six:** CoinMarketCap's key-free tier isn't
-reliable enough to depend on (and even its cheapest paid tier's ~10-15k
-calls/month can't sustain 30-second polling as a live feed), and CoinPaprika's
-free tier (~20-25k calls/month) has the same ceiling — both are still listed
-as explicit picks (and used by 🔍 Test sources), and Auto only ever *reaches*
-CoinPaprika as a last-resort backup (called only if CoinGecko, Binance AND
-Kraken all fail at once), which is rare enough to stay well inside its quota.
-DexScreener is architecturally different — see below — so it's opt-in only.
+**Why Auto only reaches CoinPaprika as a last resort:** its free tier
+(~20-25k calls/month) can't sustain 30-second polling as a steady live feed —
+it's still a real pick (and used by 🔍 Test sources), but Auto only calls it
+if CoinGecko, Binance **and** Kraken all fail at once, which is rare enough to
+stay well inside its quota.
 
 - Every source's choice is saved and survives a restart
+- **CoinGecko API key**: if `COINGECKO_API_KEY` is set, the bot uses it and
+  auto-detects whether it's a free **Demo** key (`api.coingecko.com`) or a
+  paid **Pro** key (`pro-api.coingecko.com`) — these use different hosts and
+  header names, and a Pro key sent to the Demo host (or vice versa) is simply
+  rejected. The bot tries Demo first and, only if that's rejected, tries Pro
+  once and remembers whichever worked. **This means upgrading to a paid
+  CoinGecko plan needs no code or settings change** — just keep
+  `COINGECKO_API_KEY` set to whatever key you have (if CoinGecko issues you a
+  brand new key string on upgrade rather than upgrading the same one, paste
+  that new value into the same Railway variable; nothing else changes)
+- **🧮 Average price** queries CoinGecko, Binance and Kraken concurrently
+  (CoinPaprika is deliberately left out here too, for the same quota reason)
+  and uses **(lowest + highest) ÷ 2** as the price for milestones and banners.
+  The 💰 Prices screen shows the full range next to the result, e.g.
+  `$86,700–$86,820 → $86,760`, so the spread itself is visible, not just the
+  blended number. Still works if one of the three sources fails; only errors
+  if all three do
 - **Stablecoins (USDT, USDC)** come from CoinGecko or Kraken — both are real
   fiat-rail exchanges/aggregators that quote them in actual dollars. Binance
   never supplies them: it has no USDT/USD pair, and its USDC price is
   measured in USDT, which could cause a false depeg alert
 - **Binance** is tried on two hosts (`api.binance.com`, then
   `data-api.binance.vision`) because the first is blocked from some server
-  regions
+  regions — Binance's main address is always tried first on every attempt (not
+  skipped even if it failed before), so if you ever change your server's
+  region and it becomes reachable again, the bot picks that up automatically
 - **Kraken** batches all coins in one call; if even one requested pair name
   is invalid it retries once against Kraken's whole market and filters
   client-side, the same resilience Binance already has for an unknown symbol.
   BNB and HYPE are skipped (not listed on Kraken) and filled from the backup
-- **CoinMarketCap** requires `COINMARKETCAP_API_KEY` (Settings > Data source
-  will show it as unavailable, and 🔍 Test sources explains why, until you
-  add one — see `.env.example`). Its key-free "trial" endpoint is explicitly
-  not meant for production, so this bot never uses it
-- **DexScreener** prices a specific on-chain liquidity pool, not "the" price
-  of a coin — there's no safe generic way to pick which pool represents a
-  given ticker (a wrong address, or a copy-cat token sharing the same symbol,
-  would silently return a different asset's price). Nothing is configured by
-  default; add entries to `DEXSCREENER_PAIRS` in `src/config.js` only for
-  pool addresses you've personally verified (e.g. on dexscreener.com)
-- **🔍 Test sources** checks all six providers right now and shows ✅ / ❌,
+- **🔍 Test sources** checks all five providers right now and shows ✅ / ❌,
   the response time and how many coins came back — the way to confirm a
   backup actually works from your server. If Binance's main address is
   blocked but its data address works, both attempts are listed so you can see
-  why; CoinMarketCap/DexScreener explain their "not configured" state here too
+  why
 - You get a private message when the main source starts failing (after 2 bad
   readings in a row) and when it recovers (after 3 good ones), and a 🚨
   message if every source is failing. Messages are limited to one per hour
@@ -227,6 +238,25 @@ One rule for banners, captions and the Prices screen (dynamic precision):
 | below $0.01 | 4 significant digits — `$0.00001234` |
 | USDT / USDC | 3 decimals — `$0.994` (so a depeg is visible) |
 
+### Charts
+
+📣 Post prices > 📊 Chart renders a price-history chart for one coin, styled
+dark and gridded (the same visual language as most trading platforms — not a
+pixel-for-pixel clone, but a real, detailed, labeled chart: title, current
+price, colored period change, a labeled price axis and time axis, and a
+watermark).
+
+- **Ranges**: 24H, 7D, 30D, 90D, 1Y, or a custom day count (1-365 — CoinGecko's
+  free tier only keeps a year of history)
+- **Styles**: 📈 Line (gradient-filled, from CoinGecko's finer-grained price
+  history) or 🕯️ Candlesticks (open/high/low/close, from CoinGecko's OHLC
+  endpoint — green up, red down). Candlesticks aren't available for a custom
+  range (CoinGecko's OHLC endpoint only accepts fixed day counts); picking
+  candles for a custom range quietly renders a line chart instead and says so
+- **Nothing is automatic**: picking a coin or a range alone never fetches or
+  renders anything — only tapping a style button does, and it's shown to you
+  first with a "📣 Post to channel" button, never posted directly
+
 ### Coin logos
 
 Logos are downloaded in one CoinGecko request (with retries and fallback
@@ -245,9 +275,10 @@ npm test
 
 Covers the step/mode logic (dollar, percent, stablecoin), the next-alert
 distance math, input parsing, price formatting and captions, the logo
-downloader (rate limits, retries, fallbacks), and all six price sources
-(response parsing, fallback chains, health alerts, and the "not configured"
-states for CoinMarketCap/DexScreener).
+downloader (rate limits, retries, fallbacks), all five price sources
+(response parsing, the Average price blend, the CoinGecko Demo/Pro
+auto-detection, fallback chains, health alerts), and chart data-fetching and
+rendering (line/candlestick parsing, custom ranges, degenerate data).
 
 ## Previews
 

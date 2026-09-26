@@ -7,6 +7,7 @@ import { registerAdminHandlers } from './handlers/admin.js';
 import { registerPostHandlers } from './handlers/post.js';
 import { registerSourceHandlers } from './handlers/source.js';
 import { registerStatsHandlers } from './handlers/stats.js';
+import { registerChartHandlers } from './handlers/chart.js';
 import { MENU_LABELS } from './keyboards.js';
 import { pending } from './pending.js';
 
@@ -39,6 +40,7 @@ export function createBot({ onChannelConnected }) {
   registerPostHandlers(bot);
   registerSourceHandlers(bot);
   registerStatsHandlers(bot);
+  registerChartHandlers(bot);
 
   // Only /start is registered as a visible menu command, per spec —
   // everything else is button-driven.

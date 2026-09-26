@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG, LOGO_STYLES, DEFAULT_LOGO_STYLE, coinByTicker } from './config.js';
@@ -64,9 +64,8 @@ const CHIP_LIFT = Math.round(16 * S); // how far the chip rides above the ticker
 
 // Poppins (geometric sans-serif, SIL OFL) is bundled in assets/fonts so the
 // bot never depends on an external font host. Bold is used for the ticker
-// and price; Regular for the watermark.
-const FONT_BOLD = '"Banner Bold", "Helvetica Neue", Arial, sans-serif';
-const FONT_REGULAR = '"Banner Regular", "Helvetica Neue", Arial, sans-serif';
+// and price; Regular for the watermark. Shared with chartGenerator.js.
+import { FONT_BOLD, FONT_REGULAR, ensureFontsRegistered } from './fonts.js';
 
 let logoStyle = DEFAULT_LOGO_STYLE;
 
@@ -77,14 +76,6 @@ export function setLogoStyle(style) {
 
 export function getLogoStyle() {
   return logoStyle;
-}
-
-let fontsRegistered = false;
-function ensureFontsRegistered() {
-  if (fontsRegistered) return;
-  GlobalFonts.registerFromPath(path.join(ASSETS_DIR, 'fonts', 'Poppins-Bold.ttf'), 'Banner Bold');
-  GlobalFonts.registerFromPath(path.join(ASSETS_DIR, 'fonts', 'Poppins-Regular.ttf'), 'Banner Regular');
-  fontsRegistered = true;
 }
 
 /**

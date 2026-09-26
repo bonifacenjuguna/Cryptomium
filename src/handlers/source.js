@@ -74,9 +74,8 @@ function sourceText() {
     '\n\nStablecoins (USDT, USDC) come from CoinGecko or Kraken (both price them in ' +
     'real dollars); Binance never supplies them (it has no USDT/USD pair, and would ' +
     'give a false depeg reading from its USDC/USDT pair).\n' +
-    'CoinMarketCap needs COINMARKETCAP_API_KEY to work at all. DexScreener only covers ' +
-    'coins you configure by hand (see DEXSCREENER_PAIRS in config.js) — nothing is ' +
-    "configured by default, so it won't do anything until you add one.\n" +
+    '🧮 Average price queries CoinGecko, Binance and Kraken at once and uses the ' +
+    'midpoint of whatever range they return — see 💰 Prices for the range itself.\n' +
     'Use "Test sources" to check every source right now.'
   );
 }
@@ -93,24 +92,16 @@ function testResultsText(results) {
     return [head, ...details].join('\n');
   });
 
-  const live = results.filter(r => r.key !== 'coinmarketcap' && r.key !== 'dexscreener');
+  const live = results.filter(r => r.key !== 'average'); // average just re-tests the other three
   const allLiveOk = live.every(r => r.ok);
   const binance = results.find(r => r.key === 'binance');
   const mainRefused = binance?.ok && (binance.attempts ?? []).some(a => !a.ok);
 
   const notes = [];
-  if (allLiveOk) notes.push('CoinGecko, Binance, Kraken and CoinPaprika all work, so 🤖 Auto has plenty to fall back to.');
-  else notes.push('A failing source can\'t act as a backup for 🤖 Auto.');
+  if (allLiveOk) notes.push('CoinGecko, Binance, Kraken and CoinPaprika all work, so 🤖 Auto (and 🧮 Average) have plenty to draw on.');
+  else notes.push('A failing source can\'t act as a backup for 🤖 Auto, or feed into 🧮 Average.');
   if (mainRefused) {
     notes.push('Binance\'s main address is refused from your server, but its data address works — so Binance is still usable as a backup.');
-  }
-  const cmc = results.find(r => r.key === 'coinmarketcap');
-  if (cmc && !cmc.ok && /needs COINMARKETCAP_API_KEY/.test(cmc.error)) {
-    notes.push('CoinMarketCap: add COINMARKETCAP_API_KEY in Railway to enable it.');
-  }
-  const dex = results.find(r => r.key === 'dexscreener');
-  if (dex && !dex.ok && /no coins configured/.test(dex.error)) {
-    notes.push('DexScreener: expected — no pairs are configured yet (see DEXSCREENER_PAIRS in config.js).');
   }
   return `🔍 Source test\n\n${blocks.join('\n')}\n\n${notes.join('\n')}`;
 }

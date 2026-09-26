@@ -1,12 +1,23 @@
-import { COINS, CONFIG, SOURCE_MODES, DEFAULT_SOURCE_MODE, DEXSCREENER_PAIRS, coingeckoHeaders } from './config.js';
+import { COINS, CONFIG, SOURCE_MODES, DEFAULT_SOURCE_MODE } from './config.js';
 
-const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price';
+// Demo keys only work on api.coingecko.com with the x-cg-demo-api-key header;
+// Pro (paid) keys only work on pro-api.coingecko.com with x-cg-pro-api-key —
+// the two hosts/headers are not interchangeable. Rather than require the
+// owner to tell the bot which kind of key they have (and remember to change
+// anything when they upgrade), the bot tries the Demo host first and, only if
+// the key is rejected there, tries the Pro host once and remembers whichever
+// one actually worked — so upgrading COINGECKO_API_KEY to a paid Pro key (or
+// CoinGecko itself upgrading the same key's tier) just works next tick, no
+// config change needed.
+const COINGECKO_DEMO = { base: 'https://api.coingecko.com/api/v3', header: 'x-cg-demo-api-key' };
+const COINGECKO_PRO = { base: 'https://pro-api.coingecko.com/api/v3', header: 'x-cg-pro-api-key' };
+let coingeckoEndpoint = null; // resolved + cached for the process lifetime once a call succeeds
+
 // Binance's main API is blocked (HTTP 451) from some regions/servers; the
 // "data-api" host serves the same public market data and is more permissive.
 const BINANCE_HOSTS = ['https://api.binance.com', 'https://data-api.binance.vision'];
 const KRAKEN_URL = 'https://api.kraken.com/0/public/Ticker';
 const COINPAPRIKA_URL = 'https://api.coinpaprika.com/v1/tickers';
-const CMC_URL = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest';
 
 /** An HTTP/provider failure that keeps its status code so it can be explained to the owner. */
 export class ProviderError extends Error {
@@ -32,12 +43,40 @@ export function describeError(err) {
 // or throws a ProviderError.
 // ---------------------------------------------------------------------
 
+/**
+ * Fetches a CoinGecko API path (e.g. "/simple/price?...") using whichever
+ * host/header currently works for COINGECKO_API_KEY — see the long comment
+ * above for why this isn't just "always use one host". Shared by price
+ * fetching here and by the logo downloader (logoService.js), so both benefit
+ * from the same auto-detection and caching.
+ */
+export async function coingeckoFetch(path, { timeoutMs = 10_000 } = {}) {
+  const call = async endpoint => {
+    const headers = CONFIG.coingeckoApiKey ? { [endpoint.header]: CONFIG.coingeckoApiKey } : {};
+    return fetch(`${endpoint.base}${path}`, { headers, signal: AbortSignal.timeout(timeoutMs) });
+  };
+
+  let endpoint = coingeckoEndpoint ?? COINGECKO_DEMO;
+  let res = await call(endpoint);
+
+  // Not yet resolved and this is a key that the Demo host rejected (401/403)?
+  // It might be a Pro key — try the Pro host once and remember whichever works.
+  if (!coingeckoEndpoint && CONFIG.coingeckoApiKey && (res.status === 401 || res.status === 403)) {
+    const proRes = await call(COINGECKO_PRO);
+    if (proRes.ok) {
+      endpoint = COINGECKO_PRO;
+      res = proRes;
+    }
+  }
+  if (res.ok) coingeckoEndpoint = coingeckoEndpoint ?? endpoint; // first success locks it in
+  return { res, host: new URL(endpoint.base).host };
+}
+
 /** One batched CoinGecko request for every coin (also returns 24h change for free). */
 async function fetchFromCoinGecko() {
   const ids = COINS.map(c => c.coingeckoId).join(',');
-  const url = `${COINGECKO_URL}?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
+  const { res, host } = await coingeckoFetch(`/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
 
-  const res = await fetch(url, { headers: coingeckoHeaders(), signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new ProviderError(`CoinGecko responded ${res.status}`, res.status);
   const data = await res.json();
   if (!data || typeof data !== 'object') throw new ProviderError('CoinGecko returned an unexpected response');
@@ -54,7 +93,7 @@ async function fetchFromCoinGecko() {
     }
   }
   if (prices.size === 0) throw new ProviderError('CoinGecko returned no usable prices');
-  return { prices, changes, host: 'api.coingecko.com' };
+  return { prices, changes, host };
 }
 
 /**
@@ -182,74 +221,58 @@ async function fetchFromCoinPaprika() {
 }
 
 /**
- * CoinMarketCap. Deliberately requires COINMARKETCAP_API_KEY — CMC's key-free
- * "trial" endpoint is explicitly not meant for production use and can be
- * withdrawn without notice, so the bot never depends on it. Without a key,
- * this fails fast (no network call) with a clear "not configured" reason.
- * Even the cheapest keyed tier (10-15k calls/month) can't sustain this bot's
- * default 30-second polling as a steady source, so — like CoinPaprika — Auto
- * never picks it; it's for an explicit "CoinMarketCap first" choice or
- * 🔍 Test sources only.
+ * "Average price": not a single source, but a real-time blend of three that
+ * are all cheap enough to call on every tick — CoinGecko, Binance and Kraken
+ * (CoinPaprika is left out here specifically because of its monthly quota;
+ * see the comment above SOURCE_MODES). Queries all three concurrently, and
+ * for each coin reports the RANGE (lowest and highest price any of them
+ * returned) and the MIDPOINT of that range — (min + max) / 2 — which is what
+ * gets used as "the price" everywhere else in the bot (milestones, banners,
+ * captions). Needs at least one source to succeed; a coin missing from every
+ * source that responded is simply absent from the result, same as any gap.
  */
-async function fetchFromCoinMarketCap() {
-  if (!CONFIG.coinMarketCapApiKey) {
-    throw new ProviderError('CoinMarketCap needs COINMARKETCAP_API_KEY (not set)');
+async function fetchAverageSpread() {
+  const settled = await Promise.allSettled([fetchFromCoinGecko(), fetchFromBinance(), fetchFromKraken()]);
+  const oks = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+  if (oks.length === 0) {
+    const reasons = settled.map(r => describeError(r.reason)).join('; ');
+    throw new ProviderError(`Every source used for the average failed (${reasons})`);
   }
-  const ids = COINS.map(c => c.cmcId).join(',');
-  const res = await fetch(`${CMC_URL}?id=${ids}&convert=USD`, {
-    headers: { 'X-CMC_PRO_API_KEY': CONFIG.coinMarketCapApiKey, Accept: 'application/json' },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!res.ok) throw new ProviderError(`CoinMarketCap responded ${res.status}`, res.status);
-  const data = await res.json();
-  if (!data?.data || typeof data.data !== 'object') throw new ProviderError('CoinMarketCap returned an unexpected response');
+
+  const byTicker = new Map(); // ticker -> number[]
+  for (const result of oks) {
+    for (const [ticker, price] of result.prices) {
+      if (!byTicker.has(ticker)) byTicker.set(ticker, []);
+      byTicker.get(ticker).push(price);
+    }
+  }
 
   const prices = new Map();
+  const ranges = new Map(); // ticker -> { min, max, sources }
+  for (const [ticker, values] of byTicker) {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    prices.set(ticker, (min + max) / 2);
+    ranges.set(ticker, { min, max, sources: values.length });
+  }
+
+  // 24h change, when available, comes from whichever source(s) reported it
+  // (only CoinGecko currently does), averaged if more than one did.
+  const changesByTicker = new Map();
+  for (const result of oks) {
+    for (const [ticker, change] of result.changes) {
+      if (!changesByTicker.has(ticker)) changesByTicker.set(ticker, []);
+      changesByTicker.get(ticker).push(change);
+    }
+  }
   const changes = new Map();
-  for (const coin of COINS) {
-    const usd = data.data[String(coin.cmcId)]?.quote?.USD;
-    const price = usd?.price;
-    if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
-      prices.set(coin.ticker, price);
-      const change = usd.percent_change_24h;
-      if (typeof change === 'number' && Number.isFinite(change)) changes.set(coin.ticker, change);
-    }
+  for (const [ticker, values] of changesByTicker) {
+    changes.set(ticker, values.reduce((a, b) => a + b, 0) / values.length);
   }
-  if (prices.size === 0) throw new ProviderError('CoinMarketCap returned no usable prices');
-  return { prices, changes, host: 'pro-api.coinmarketcap.com' };
-}
 
-/**
- * DexScreener prices a specific on-chain liquidity pool, not "the" price of a
- * coin — there's no safe generic way to derive which pool to read for a given
- * ticker (a wrong address, or a copy-cat token sharing the same symbol, would
- * silently return a completely different asset's price). So this only ever
- * covers coins explicitly configured in DEXSCREENER_PAIRS (config.js), which
- * is empty by default. With nothing configured it fails fast with a clear
- * message rather than making a network call.
- */
-async function fetchFromDexScreener() {
-  const entries = Object.entries(DEXSCREENER_PAIRS);
-  if (entries.length === 0) {
-    throw new ProviderError('DexScreener has no coins configured (see DEXSCREENER_PAIRS in config.js)');
-  }
-  const prices = new Map();
-  for (const [ticker, pair] of entries) {
-    try {
-      const res = await fetch(
-        `https://api.dexscreener.com/latest/dex/pairs/${pair.chainId}/${pair.pairAddress}`,
-        { signal: AbortSignal.timeout(10_000) }
-      );
-      if (!res.ok) continue;
-      const data = await res.json();
-      const price = Number(data?.pair?.priceUsd);
-      if (Number.isFinite(price) && price > 0) prices.set(ticker, price);
-    } catch {
-      // One bad pair shouldn't fail the whole source.
-    }
-  }
-  if (prices.size === 0) throw new ProviderError('DexScreener returned no usable prices');
-  return { prices, changes: new Map(), host: 'api.dexscreener.com' };
+  if (prices.size === 0) throw new ProviderError('The average source returned no usable prices');
+  const sourceNames = ['CoinGecko', 'Binance', 'Kraken'].filter((_, i) => settled[i].status === 'fulfilled');
+  return { prices, changes, ranges, host: `average of ${sourceNames.join(' + ')}` };
 }
 
 const PROVIDERS = {
@@ -257,8 +280,7 @@ const PROVIDERS = {
   binance: { label: 'Binance', fetch: fetchFromBinance, expected: () => COINS.filter(c => c.binanceSymbol && !c.stable).length },
   kraken: { label: 'Kraken', fetch: fetchFromKraken, expected: () => COINS.filter(c => c.krakenSymbol).length },
   coinpaprika: { label: 'CoinPaprika', fetch: fetchFromCoinPaprika, expected: () => COINS.length },
-  coinmarketcap: { label: 'CoinMarketCap', fetch: fetchFromCoinMarketCap, expected: () => COINS.length },
-  dexscreener: { label: 'DexScreener', fetch: fetchFromDexScreener, expected: () => Object.keys(DEXSCREENER_PAIRS).length },
+  average: { label: 'Average price', fetch: fetchAverageSpread, expected: () => COINS.length },
 };
 
 // ---------------------------------------------------------------------
@@ -294,11 +316,13 @@ export function providerOrder(mode) {
   if (mode === 'binance') return ['binance', 'coingecko'];
   if (mode === 'kraken') return ['kraken', 'coingecko'];
   if (mode === 'coinpaprika') return ['coinpaprika', 'coingecko'];
-  if (mode === 'coinmarketcap') return ['coinmarketcap', 'coingecko'];
-  if (mode === 'dexscreener') return ['dexscreener', 'coingecko'];
+  // 'average' already blends CoinGecko + Binance + Kraken internally (degrading
+  // gracefully if one of the three fails), so there's no separate "backup" to
+  // chain after it — trying plain CoinGecko again would just repeat a call
+  // that already happened as part of the average.
+  if (mode === 'average') return ['average'];
   // Auto: the free, no-key, sustainable-as-a-live-feed sources only. See the
-  // long comment above SOURCE_MODES (config.js) for why CoinMarketCap and
-  // DexScreener are deliberately excluded here.
+  // long comment above SOURCE_MODES (config.js) for why CoinPaprika is last.
   return ['coingecko', 'binance', 'kraken', 'coinpaprika'];
 }
 
@@ -348,7 +372,9 @@ function recordHealth({ primaryKey, primaryOk, anyOk, usedKey, error }) {
 
 // Most recent successful reading, shared by the scheduler and the admin
 // screens (Prices, Test banner, Post prices) so they don't each hit the APIs.
-let latest = { prices: null, changes: new Map(), at: 0, source: null, backup: false };
+// `ranges` is only populated when the source is 🧮 Average price (see
+// fetchAverageSpread above) — Map<ticker, { min, max, sources }>.
+let latest = { prices: null, changes: new Map(), ranges: null, at: 0, source: null, backup: false };
 
 /**
  * Returns Map<ticker, price>. Tries the preferred provider first and the other
@@ -405,16 +431,16 @@ export async function fetchAllPrices() {
 
   const backup = usedKey !== primaryKey;
   const label = PROVIDERS[usedKey].label + (backup ? ' (backup)' : '') + (fillLabel ? ` + ${fillLabel}` : '');
-  latest = { prices, changes, at: Date.now(), source: label, backup };
+  latest = { prices, changes, ranges: result.ranges ?? null, at: Date.now(), source: label, backup };
 
   recordHealth({ primaryKey, primaryOk: !backup, anyOk: true, usedKey, error: lastError });
   return prices;
 }
 
 /**
- * Admin-side helper: returns { prices, changes, at, source, backup } from the
- * shared cache if it is fresh enough, otherwise fetches. `force` bypasses the
- * cache (but is still throttled to one real fetch per 2 seconds).
+ * Admin-side helper: returns { prices, changes, ranges, at, source, backup }
+ * from the shared cache if it is fresh enough, otherwise fetches. `force`
+ * bypasses the cache (but is still throttled to one real fetch per 2 seconds).
  */
 export async function getLatestPrices({ maxAgeMs = 20_000, force = false } = {}) {
   const age = Date.now() - latest.at;
@@ -460,5 +486,6 @@ export function _resetForTests() {
   preferred = DEFAULT_SOURCE_MODE;
   listener = null;
   resetHealth();
-  latest = { prices: null, changes: new Map(), at: 0, source: null, backup: false };
+  latest = { prices: null, changes: new Map(), ranges: null, at: 0, source: null, backup: false };
+  coingeckoEndpoint = null;
 }

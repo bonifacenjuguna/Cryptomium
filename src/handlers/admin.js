@@ -160,14 +160,26 @@ async function buildPricesView({ force }) {
   for (const coin of COINS) {
     const price = latest.prices.get(coin.ticker);
     const settings = await getCoinSettings(coin.ticker);
-    const priceText = price === undefined ? 'n/a' : formatAdminPrice(price, { stable: coin.stable });
     const modeIcon = modeText(settings, { withMultiplier: false }).split(' ')[0]; // just the emoji
     const bell = isMuted(settings) ? '🔕' : '🔔';
+
+    let priceText = price === undefined ? 'n/a' : formatAdminPrice(price, { stable: coin.stable });
+    // 🧮 Average price: show the range it was drawn from alongside the midpoint,
+    // e.g. "$86,700–$86,820 → $86,760", so the range is visible, not just the
+    // single blended number.
+    const range = latest.ranges?.get(coin.ticker);
+    if (range && range.sources > 1) {
+      const fmt = v => formatAdminPrice(v, { stable: coin.stable });
+      priceText = `${fmt(range.min)}–${fmt(range.max)} → <b>${fmt(price)}</b>`;
+    }
+
     lines.push(`<b>${coin.ticker}</b> · ${priceText} · <i>${escapeHtml(stepText(coin, settings))}</i> ${modeIcon} ${bell}`);
   }
 
   const header = `💰 <b>Live prices</b>\n<i>${escapeHtml(latest.source)} · updated ${formatClock(new Date(latest.at))}</i>`;
-  const footer = '<i>Each line: price · step · mode · alerts on/off</i>';
+  const footer = latest.ranges
+    ? '<i>Range → midpoint (the alert price), then step · mode · alerts on/off</i>'
+    : '<i>Each line: price · step · mode · alerts on/off</i>';
   return { ok: true, text: `${header}\n\n${lines.join('\n')}\n\n${footer}` };
 }
 

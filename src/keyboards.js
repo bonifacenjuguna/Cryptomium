@@ -1,6 +1,7 @@
 import { Markup } from 'telegraf';
 import { COINS, MODES, SOURCE_MODES, LOGO_STYLES, DEFAULT_LOGO_STYLE, coinByTicker } from './config.js';
 import { stepText } from './coinView.js';
+import { CHART_RANGES } from './chartData.js';
 
 // --- Main menu (the persistent keyboard under the message box) -------------
 export const MENU = {
@@ -166,13 +167,42 @@ export function pricesKeyboard() {
 
 // --- Post current prices to the channel ------------------------------------------
 export function postListKeyboard() {
-  return coinListKeyboard('post', [[Markup.button.callback('📣 Post ALL coins', 'post:ALL')]]);
+  return coinListKeyboard('post', [
+    [Markup.button.callback('📣 Post ALL coins', 'post:ALL')],
+    [Markup.button.callback('📊 Chart', 'chartmenu')],
+  ]);
 }
 
 export function postConfirmKeyboard(target) {
   return Markup.inlineKeyboard([
     [Markup.button.callback(target === 'ALL' ? '✅ Post all now' : '✅ Post now', `postgo:${target}`)],
     [Markup.button.callback('🔙 Back', 'back:post')],
+  ]);
+}
+
+// --- Charts ------------------------------------------------------------------------
+export function chartRangeKeyboard(ticker) {
+  const rows = CHART_RANGES.map(r => [Markup.button.callback(r.label, `chartrange:${ticker}:${r.key}`)]);
+  rows.push([Markup.button.callback('✏️ Custom range', `chartcustom:${ticker}`)]);
+  rows.push([Markup.button.callback('🔙 Back', 'chartmenu')]);
+  return Markup.inlineKeyboard(rows);
+}
+
+// rangeToken is either a CHART_RANGES key (e.g. "7d") or "custom:<days>".
+export function chartStyleKeyboard(ticker, rangeToken) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('📈 Line', `chartgo:${ticker}:${rangeToken}:line`),
+      Markup.button.callback('🕯️ Candles', `chartgo:${ticker}:${rangeToken}:candles`),
+    ],
+    [Markup.button.callback('🔙 Back', `chart:${ticker}`)],
+  ]);
+}
+
+export function chartPostKeyboard(ticker) {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('📣 Post to channel', 'chartpost')],
+    [Markup.button.callback('🔄 New chart', `chart:${ticker}`)],
   ]);
 }
 

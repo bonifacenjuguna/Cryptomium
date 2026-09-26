@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.0.0
+
+**CoinGecko: Demo/Pro auto-detection**
+- The bot now auto-detects whether `COINGECKO_API_KEY` is a free Demo key
+  (`api.coingecko.com`) or a paid Pro key (`pro-api.coingecko.com`) — these
+  use different hosts and header names and are not interchangeable. It tries
+  Demo first and, only if rejected, tries Pro once and remembers whichever
+  worked. Upgrading to a paid CoinGecko plan needs no other change. Shared by
+  both live price fetching and the logo downloader.
+
+**Removed: CoinMarketCap and DexScreener sources**
+- Both are gone from Settings > Data source, 🔍 Test sources, and
+  `src/config.js`/`src/priceService.js`. `COINMARKETCAP_API_KEY` is no longer
+  read or needed.
+
+**New: 🧮 Average price source**
+- Queries CoinGecko, Binance and Kraken concurrently and uses the midpoint of
+  whatever range they return — (lowest + highest) ÷ 2 — as the live price.
+  Still works if one of the three fails; only errors if all three do.
+  💰 Prices shows the full range next to the result when this is active, e.g.
+  `$86,700–$86,820 → $86,760`.
+- CoinPaprika is deliberately excluded from the Average blend (same
+  free-tier-quota reasoning as it being last-resort-only in Auto).
+
+**New: 📊 Chart (under 📣 Post prices)**
+- Renders a price-history chart for one coin: pick the coin, a time range
+  (24H/7D/30D/90D/1Y or a custom day count up to 365), then 📈 Line or
+  🕯️ Candlesticks. Styled dark and gridded — title, current price, colored
+  period change, labeled price/time axes, watermark.
+- Nothing renders until you explicitly tap a style button; the result is
+  shown to you first, with a button to post it to the channel.
+- Candlesticks aren't available for a custom range (CoinGecko's OHLC endpoint
+  only accepts fixed day counts); picking candles there quietly falls back to
+  a line chart and says so in the caption.
+- New modules: `src/chartData.js` (fetching CoinGecko's `market_chart`/`ohlc`
+  endpoints), `src/chartGenerator.js` (rendering), `src/fonts.js` (font
+  registration, factored out and now shared with the banner generator).
+
+**Threshold recalibration**
+- Based on real Post history data, the six most-frequently-alerting coins
+  (UNI, ZEC, HYPE, LTC, SUI, HBAR) had their base $ and % steps raised
+  noticeably (so even 🚀 Hyper mode's ¼x no longer over-alerts), and the eight
+  least-frequently-alerting (TRX, TON, LINK, AVAX, ETH, ADA, DOT, BNB) had
+  theirs lowered moderately. These are still just starting points — tune
+  further in Settings once you see how they behave for you.
+
+**Confirmed, no change needed**
+- Binance's main address (`api.binance.com`) was already always tried first
+  on every price fetch (never permanently skipped after a failure), so if
+  your server's region changes and it becomes reachable again, the bot picks
+  that up automatically on the next tick.
+
+**Tests:** 85 unit tests (14 new: CoinGecko Demo/Pro detection, the Average
+blend, chart data-fetching, chart rendering) and 66 simulated menu-flow checks
+(8 new: the full chart flow, the new/changed Data source list), all passing.
+
 ## 1.5.0
 
 **New price sources: Kraken, CoinPaprika, CoinMarketCap, DexScreener**

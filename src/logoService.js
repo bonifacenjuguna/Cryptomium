@@ -18,12 +18,31 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { COINS, coingeckoHeaders } from './config.js';
+import { COINS, CONFIG } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const LOGOS_DIR = process.env.LOGOS_DIR || path.join(__dirname, '..', 'assets', 'logos');
 
-const COINGECKO_MARKETS = 'https://api.coingecko.com/api/v3/coins/markets';
+// Demo keys only work on api.coingecko.com with x-cg-demo-api-key; Pro keys
+// only work on pro-api.coingecko.com with x-cg-pro-api-key (see the matching
+// comment in priceService.js). Logo downloads are infrequent enough that
+// there's no need to cache which one worked — just try Demo, and if a key is
+// set and gets a 401/403, try Pro once.
+const COINGECKO_MARKETS_DEMO = 'https://api.coingecko.com/api/v3/coins/markets';
+const COINGECKO_MARKETS_PRO = 'https://pro-api.coingecko.com/api/v3/coins/markets';
+
+async function fetchCoinGeckoMarkets(ids, { fetchFn, sleep }) {
+  const query = `?vs_currency=usd&ids=${ids}&per_page=250&page=1&sparkline=false`;
+  const demoHeaders = CONFIG.coingeckoApiKey ? { 'x-cg-demo-api-key': CONFIG.coingeckoApiKey } : {};
+  try {
+    return await fetchWithRetry(`${COINGECKO_MARKETS_DEMO}${query}`, { fetchFn, sleep, headers: demoHeaders });
+  } catch (err) {
+    if (!CONFIG.coingeckoApiKey || ![401, 403].includes(err.status)) throw err;
+    const proHeaders = { 'x-cg-pro-api-key': CONFIG.coingeckoApiKey };
+    return fetchWithRetry(`${COINGECKO_MARKETS_PRO}${query}`, { fetchFn, sleep, headers: proHeaders });
+  }
+}
+
 const LOGO_PX = 256;
 const MIN_SOURCE_PX = 48;
 
@@ -63,7 +82,7 @@ export async function fetchWithRetry(url, { fetchFn = fetch, sleep = defaultSlee
       const res = await fetchFn(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
       if (res.ok) return res;
       lastError = new Error(`${res.status} from ${new URL(url).host}`);
-      if (res.status !== 429 && res.status < 500) throw Object.assign(lastError, { fatal: true });
+      if (res.status !== 429 && res.status < 500) throw Object.assign(lastError, { fatal: true, status: res.status });
       const retryAfter = Number(res.headers?.get?.('retry-after'));
       if (Number.isFinite(retryAfter) && retryAfter > 0) waitMs = Math.min(60_000, retryAfter * 1000);
     } catch (err) {
@@ -118,8 +137,7 @@ export async function fetchMissingLogos({ force = false, fetchFn = fetch, sleep 
   const geckoImages = new Map();
   try {
     const ids = todo.map(c => c.coingeckoId).join(',');
-    const url = `${COINGECKO_MARKETS}?vs_currency=usd&ids=${ids}&per_page=250&page=1&sparkline=false`;
-    const res = await fetchWithRetry(url, { fetchFn, sleep, headers: coingeckoHeaders() });
+    const res = await fetchCoinGeckoMarkets(ids, { fetchFn, sleep });
     for (const item of await res.json()) {
       if (item?.id && item?.image) geckoImages.set(item.id, item.image);
     }

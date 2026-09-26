@@ -9,15 +9,15 @@ let script; // per-test behavior of each provider
 
 const json = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
-// A fake network: CoinGecko, the two Binance hosts, Kraken, CoinPaprika, CMC
-// and DexScreener, each scriptable.
+// A fake network: CoinGecko (both Demo and Pro hosts), the two Binance hosts,
+// Kraken and CoinPaprika, each scriptable.
 function installFakeNetwork() {
   const calls = [];
   globalThis.fetch = async (url, opts) => {
     const u = String(url);
     calls.push(u);
     if (u.includes('coingecko.com')) {
-      const r = script.coingecko();
+      const r = script.coingecko(opts);
       if (r instanceof Error) throw r;
       return r;
     }
@@ -28,16 +28,6 @@ function installFakeNetwork() {
     }
     if (u.includes('coinpaprika.com')) {
       const r = (script.coinpaprika ?? (() => json(200, [])))();
-      if (r instanceof Error) throw r;
-      return r;
-    }
-    if (u.includes('coinmarketcap.com')) {
-      const r = (script.coinmarketcap ?? (() => json(200, { data: {} })))(opts);
-      if (r instanceof Error) throw r;
-      return r;
-    }
-    if (u.includes('dexscreener.com')) {
-      const r = (script.dexscreener ?? (() => json(200, {})))(u);
       if (r instanceof Error) throw r;
       return r;
     }
@@ -326,76 +316,169 @@ test('CoinPaprika: one batched call covers every coin', async () => {
   assert.equal(calls, 1);
 });
 
-test('CoinMarketCap: fails fast (no network call) when no API key is set, and CoinGecko backup saves the request', async () => {
-  const calls = installFakeNetwork();
-  ps.setPreferredSource('coinmarketcap');
-  const prices = await ps.fetchAllPrices(); // coingecko (the default script) still works as backup
-  assert.equal(calls.filter(u => u.includes('coinmarketcap')).length, 0, 'no network call for an unconfigured key');
-  assert.equal(prices.size, COINS.length);
-  assert.equal((await ps.getLatestPrices()).source, 'CoinGecko (backup)');
-});
-
-test('CoinMarketCap: with no key AND no backup, the error explains why', async () => {
-  installFakeNetwork();
-  ps.setPreferredSource('coinmarketcap');
-  script.coingecko = () => json(500, {});
-  await assert.rejects(ps.fetchAllPrices());
-  // Whichever of the two failures surfaces, CMC's own attempt must have been logged.
-  const health = ps.getSourceHealth();
-  assert.equal(health.primary, 'CoinMarketCap');
-});
-
-test('CoinMarketCap: with a key, sends it as a header and parses by numeric id', async () => {
-  process.env.COINMARKETCAP_API_KEY = 'test-key-123';
-  const { CONFIG } = await import('../src/config.js');
-  CONFIG.coinMarketCapApiKey = 'test-key-123'; // CONFIG is read at call time, not import time
-  installFakeNetwork();
-  ps.setPreferredSource('coinmarketcap');
-  let seenHeader;
-  script.coinmarketcap = opts => {
-    seenHeader = opts?.headers?.['X-CMC_PRO_API_KEY'];
-    return json(200, { data: {
-      1: { quote: { USD: { price: 86753, percent_change_24h: 1.1 } } },
-      1027: { quote: { USD: { price: 2772.97, percent_change_24h: -0.4 } } },
-    } });
-  };
-  const prices = await ps.fetchAllPrices();
-  assert.equal(seenHeader, 'test-key-123');
-  assert.equal(prices.get('BTC'), 86753);
-  assert.equal(prices.get('ETH'), 2772.97);
-  CONFIG.coinMarketCapApiKey = '';
-  delete process.env.COINMARKETCAP_API_KEY;
-});
-
-test('DexScreener: fails fast (no network call) when nothing is configured, and CoinGecko backup saves the request', async () => {
-  const calls = installFakeNetwork();
-  ps.setPreferredSource('dexscreener');
-  const prices = await ps.fetchAllPrices();
-  assert.equal(calls.filter(u => u.includes('dexscreener')).length, 0);
-  assert.equal(prices.size, COINS.length);
-  assert.equal((await ps.getLatestPrices()).source, 'CoinGecko (backup)');
-});
-
-test('providerOrder: Auto never includes CoinMarketCap or DexScreener', () => {
+test('providerOrder: Auto is CoinGecko, Binance, Kraken, then CoinPaprika', () => {
   assert.deepEqual(ps.providerOrder('auto'), ['coingecko', 'binance', 'kraken', 'coinpaprika']);
 });
 
 test('providerOrder: every explicit single-source mode falls back to CoinGecko', () => {
-  for (const mode of ['binance', 'kraken', 'coinpaprika', 'coinmarketcap', 'dexscreener']) {
+  for (const mode of ['binance', 'kraken', 'coinpaprika']) {
     const order = ps.providerOrder(mode);
     assert.equal(order[0], mode);
     assert.ok(order.includes('coingecko'), `${mode} should have CoinGecko as a safety net`);
   }
 });
 
-test('testProviders reports all 6 sources, including the two that are off by default', async () => {
+test('providerOrder: "average" has no separate backup (it already blends 3 sources internally)', () => {
+  assert.deepEqual(ps.providerOrder('average'), ['average']);
+});
+
+test('testProviders reports all 5 sources', async () => {
   installFakeNetwork();
   const results = await ps.testProviders();
-  assert.deepEqual(results.map(r => r.key).sort(), ['binance', 'coingecko', 'coinmarketcap', 'coinpaprika', 'dexscreener', 'kraken'].sort());
-  const cmc = results.find(r => r.key === 'coinmarketcap');
-  const dex = results.find(r => r.key === 'dexscreener');
-  assert.equal(cmc.ok, false);
-  assert.match(cmc.error, /COINMARKETCAP_API_KEY/);
-  assert.equal(dex.ok, false);
-  assert.match(dex.error, /no coins configured/);
+  assert.deepEqual(
+    results.map(r => r.key).sort(),
+    ['binance', 'coingecko', 'coinpaprika', 'kraken', 'average'].sort()
+  );
 });
+
+// ---------------------------------------------------------------------
+// CoinGecko: Demo vs Pro key auto-detection
+// ---------------------------------------------------------------------
+
+test('CoinGecko: no key -> Demo host, no auth header', async () => {
+  const calls = installFakeNetwork();
+  let seenHeaders;
+  script.coingecko = opts => { seenHeaders = opts?.headers; return json(200, Object.fromEntries(COINS.map(c => [c.coingeckoId, { usd: 1 }]))); };
+  await ps.fetchAllPrices();
+  assert.ok(calls[0].startsWith('https://api.coingecko.com/'));
+  assert.deepEqual(seenHeaders, {});
+});
+
+test('CoinGecko: Demo key -> Demo host with x-cg-demo-api-key, first try', async () => {
+  const { CONFIG } = await import('../src/config.js');
+  CONFIG.coingeckoApiKey = 'demo-key-abc';
+  const calls = installFakeNetwork();
+  let seenHeaders;
+  script.coingecko = opts => { seenHeaders = opts?.headers; return json(200, Object.fromEntries(COINS.map(c => [c.coingeckoId, { usd: 1 }]))); };
+  await ps.fetchAllPrices();
+  assert.ok(calls[0].startsWith('https://api.coingecko.com/'));
+  assert.deepEqual(seenHeaders, { 'x-cg-demo-api-key': 'demo-key-abc' });
+  assert.equal((await ps.getLatestPrices()).source, 'CoinGecko');
+  CONFIG.coingeckoApiKey = '';
+});
+
+test('CoinGecko: a Pro key (rejected by the Demo host) is retried on the Pro host, then cached', async () => {
+  const { CONFIG } = await import('../src/config.js');
+  CONFIG.coingeckoApiKey = 'pro-key-xyz';
+  const calls = installFakeNetwork();
+  const seenHeaders = [];
+  script.coingecko = opts => {
+    seenHeaders.push(opts?.headers);
+    const isPro = calls.at(-1)?.startsWith('https://pro-api.coingecko.com/');
+    if (!isPro) return json(401, {});
+    return json(200, Object.fromEntries(COINS.map(c => [c.coingeckoId, { usd: 1 }])));
+  };
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.size, COINS.length, 'the Pro retry succeeded and produced real prices');
+  assert.equal(calls.length, 2, 'exactly one retry: Demo then Pro');
+  assert.ok(calls[0].startsWith('https://api.coingecko.com/'));
+  assert.ok(calls[1].startsWith('https://pro-api.coingecko.com/'));
+  assert.deepEqual(seenHeaders[1], { 'x-cg-pro-api-key': 'pro-key-xyz' });
+  assert.equal((await ps.getLatestPrices()).source, 'CoinGecko');
+
+  // Next call: goes straight to Pro, no wasted Demo attempt.
+  const calls2 = installFakeNetwork();
+  script.coingecko = () => json(200, Object.fromEntries(COINS.map(c => [c.coingeckoId, { usd: 2 }])));
+  await ps.fetchAllPrices();
+  assert.equal(calls2.length, 1);
+  assert.ok(calls2[0].startsWith('https://pro-api.coingecko.com/'));
+  CONFIG.coingeckoApiKey = '';
+});
+
+test('CoinGecko: a key rejected on BOTH hosts is a clean, single failure (not an infinite retry loop)', async () => {
+  const { CONFIG } = await import('../src/config.js');
+  CONFIG.coingeckoApiKey = 'bad-key';
+  const calls = installFakeNetwork();
+  script.coingecko = () => json(401, {});
+  script.binanceMain = () => json(500, {});
+  script.binanceVision = () => json(500, {});
+  script.kraken = () => json(500, {});
+  script.coinpaprika = () => json(500, {}); // exhaust the whole Auto chain so the real failure surfaces
+  await assert.rejects(ps.fetchAllPrices());
+  assert.equal(calls.filter(u => u.includes('coingecko.com')).length, 2, 'tried Demo once and Pro once, no more');
+  CONFIG.coingeckoApiKey = '';
+});
+
+// ---------------------------------------------------------------------
+// 🧮 Average price
+// ---------------------------------------------------------------------
+
+test('Average price: midpoint of the min/max across CoinGecko + Binance + Kraken', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('average');
+  script.coingecko = () => json(200, { bitcoin: { usd: 86700 } });
+  script.binanceMain = u => u.includes('symbols=')
+    ? json(200, JSON.parse(decodeURIComponent(u.split('symbols=')[1])).map(symbol => ({ symbol, price: symbol === 'BTCUSDT' ? '86820' : '100' })))
+    : json(200, [{ symbol: 'BTCUSDT', price: '86820' }]);
+  script.kraken = () => json(200, { error: [], result: { XXBTZUSD: { c: ['86760', '1'] } } });
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('BTC'), (86700 + 86820) / 2, 'midpoint of the actual min (86700) and max (86820), not a 3-way mean');
+});
+
+test('Average price: still works if one of the three sources fails (degrades gracefully)', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('average');
+  script.coingecko = () => json(200, { bitcoin: { usd: 86700 } });
+  script.binanceMain = () => json(500, {});
+  script.binanceVision = () => json(500, {});
+  script.kraken = () => json(200, { error: [], result: { XXBTZUSD: { c: ['86760', '1'] } } });
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('BTC'), (86700 + 86760) / 2);
+  assert.equal((await ps.getLatestPrices()).source, 'Average price');
+});
+
+test('Average price: fails only if all three underlying sources fail', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('average');
+  script.coingecko = () => json(500, {});
+  script.binanceMain = () => json(500, {});
+  script.binanceVision = () => json(500, {});
+  script.kraken = () => json(500, {});
+  await assert.rejects(ps.fetchAllPrices(), /Every source used for the average failed/);
+});
+
+test('Average price: exposes the range alongside the midpoint', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('average');
+  script.coingecko = () => json(200, { bitcoin: { usd: 86700 } });
+  script.binanceMain = u => u.includes('symbols=')
+    ? json(200, JSON.parse(decodeURIComponent(u.split('symbols=')[1])).map(symbol => ({ symbol, price: symbol === 'BTCUSDT' ? '86820' : '100' })))
+    : json(200, [{ symbol: 'BTCUSDT', price: '86820' }]);
+  script.kraken = () => json(200, { error: [], result: { XXBTZUSD: { c: ['86760', '1'] } } });
+  await ps.fetchAllPrices();
+  const latest = await ps.getLatestPrices();
+  assert.ok(latest.ranges instanceof Map);
+  const btcRange = latest.ranges.get('BTC');
+  assert.equal(btcRange.min, 86700);
+  assert.equal(btcRange.max, 86820);
+  assert.equal(btcRange.sources, 3);
+});
+
+test('Average price: a coin only one source has is still priced (range = a single point)', async () => {
+  installFakeNetwork();
+  ps.setPreferredSource('average');
+  // Only CoinGecko knows about a hypothetical coin-less-covered scenario: use USDT,
+  // which Binance never supplies and Kraken supplies too — so instead check TRX,
+  // which both Binance and Kraken have, against a CoinGecko script that omits it.
+  script.coingecko = () => json(200, { bitcoin: { usd: 86700 } }); // no tron entry
+  script.binanceMain = u => u.includes('symbols=')
+    ? json(200, JSON.parse(decodeURIComponent(u.split('symbols=')[1])).map(symbol => ({ symbol, price: symbol === 'TRXUSDT' ? '0.344' : '1' })))
+    : json(200, [{ symbol: 'TRXUSDT', price: '0.344' }]);
+  script.kraken = () => json(200, { error: [], result: { TRXUSD: { c: ['0.344', '1'] } } });
+  const prices = await ps.fetchAllPrices();
+  assert.equal(prices.get('TRX'), 0.344);
+  const range = (await ps.getLatestPrices()).ranges.get('TRX');
+  assert.equal(range.min, range.max);
+  assert.equal(range.sources, 2);
+});
+
