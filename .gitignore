@@ -1,5 +1,5 @@
-node_modules
-dist
+node_modules/
 .env
+assets/logos/*.png
+dist/
 .env.local
-.DS_Store

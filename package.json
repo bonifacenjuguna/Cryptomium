@@ -1,12 +1,22 @@
 {
   "name": "priceping",
-  "private": true,
+  "version": "2.0.0",
+  "description": "Owner-only Telegram bot posting milestone crypto price alerts as branded image banners.",
+  "type": "module",
+  "main": "src/index.js",
   "scripts": {
-    "install:all": "npm --prefix backend install && npm --prefix frontend install",
-    "dev": "concurrently -n api,web -c cyan,green \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
-    "build": "npm --prefix backend run build && npm --prefix frontend run build"
+    "build": "node scripts/fetchAssets.js",
+    "start": "node src/index.js",
+    "test": "node --test"
   },
-  "devDependencies": {
-    "concurrently": "^9.1.0"
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "pg": "^8.13.1",
+    "ioredis": "^5.4.1",
+    "@napi-rs/canvas": "^0.1.56",
+    "luxon": "^3.5.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
   }
 }
