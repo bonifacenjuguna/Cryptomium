@@ -96,7 +96,7 @@ comments, is in `.env.example`.
 | `SOURCE_ALERT_COOLDOWN_MIN` | 60 | Minutes between price-source heads-up DMs |
 | `LOGO_RETRY_MIN` | 30 | Minutes between logo download retries |
 | `API_ENABLED` | true | Turn the website API on or off |
-| `ALLOWED_ORIGIN` | `*` | Site(s) allowed to call the API (your Netlify address) |
+| `ALLOWED_ORIGIN` | `*` | Site(s) allowed to call the API (your Vercel address) |
 | `API_REFRESH_MS` | 5000 | Website refresh rate when the data source is Binance/Kraken first |
 | `API_SLOW_REFRESH_MS` | 30000 | Website refresh rate for Auto, CoinGecko only, CoinPaprika, Average |
 | `API_RATE_LIMIT_PER_MIN` | 120 | Requests per visitor per minute |
@@ -107,13 +107,14 @@ saved in the database and are separate from these.
 ## Website dashboard
 
 The bot also serves a read-only API that the `frontend/` folder (in the same
-download) uses to show live prices with logos on a Netlify site.
+download) uses to show live prices with logos on a Vercel site.
 
 1. Deploy this backend on Railway as usual. In the service's **Settings >
    Networking**, click **Generate Domain** so it has a public address.
-2. In the Netlify site's environment variables, set `API_URL` to that address
-   (for example `https://priceping-production.up.railway.app`), then deploy.
-3. Back in Railway, set `ALLOWED_ORIGIN` to your Netlify address so only your
+2. Deploy the `frontend/` folder on Vercel (see its README). Put the Railway
+   address in `frontend/site.config.json` (or set an `API_URL` environment
+   variable in Vercel), then deploy.
+3. Back in Railway, set `ALLOWED_ORIGIN` to your Vercel address so only your
    site can call the API.
 
 Endpoints: `/api/prices`, `/api/logos/<TICKER>.png`, `/health`.

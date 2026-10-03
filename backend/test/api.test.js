@@ -132,9 +132,9 @@ test('GET /api/prices returns JSON with CORS; /health and logos work; unknown pa
 });
 
 test('only the allowed origin gets CORS headers when one is configured', async () => {
-  await withServer({ allowedOrigins: ['https://mine.netlify.app'] }, async base => {
-    const ok = await fetch(`${base}/api/prices`, { headers: { Origin: 'https://mine.netlify.app' } });
-    assert.equal(ok.headers.get('access-control-allow-origin'), 'https://mine.netlify.app');
+  await withServer({ allowedOrigins: ['https://mine.vercel.app'] }, async base => {
+    const ok = await fetch(`${base}/api/prices`, { headers: { Origin: 'https://mine.vercel.app' } });
+    assert.equal(ok.headers.get('access-control-allow-origin'), 'https://mine.vercel.app');
     const bad = await fetch(`${base}/api/prices`, { headers: { Origin: 'https://evil.example' } });
     assert.equal(bad.headers.get('access-control-allow-origin'), null);
   });

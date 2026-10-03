@@ -177,7 +177,7 @@
   }
 
   if (!API) {
-    showMessage('This site is not connected yet. In Netlify, set the API_URL environment variable to your Railway backend address, then redeploy.');
+    showMessage('This site is not connected yet. Set apiUrl in site.config.json (or the API_URL environment variable in Vercel) to your Railway backend address, then redeploy.');
     statusText.textContent = 'Not connected';
     return;
   }

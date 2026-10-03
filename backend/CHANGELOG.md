@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.3
+
+- **Dashboard hosting moved from Netlify to Vercel.** `frontend/` now has
+  `vercel.json` (replacing `netlify.toml`) and a `package.json`. The backend
+  address is read from `site.config.json` (already set to your Railway
+  backend), and an `API_URL` environment variable in Vercel overrides it.
+- Docs and examples now refer to Vercel.
+
 ## 2.1.2
 
 - **Dashboard now shows moving prices.** The old default (Auto = CoinGecko

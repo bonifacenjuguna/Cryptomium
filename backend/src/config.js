@@ -162,12 +162,12 @@ export const CONFIG = {
   // Minutes between retries for logos that failed to download.
   logoRetryMin: envNumber('LOGO_RETRY_MIN', 30, { min: 1 }),
 
-  // --- Website API (read-only, for the Netlify dashboard) --------------------
+  // --- Website API (read-only, for the website dashboard) --------------------
   apiEnabled: envBool('API_ENABLED', true),
   // Railway/Heroku-style hosts provide PORT automatically.
   port: envNumber('PORT', 3000, { min: 1, max: 65535 }),
   // Comma-separated site URLs allowed to call the API, e.g.
-  // "https://my-dashboard.netlify.app". "*" (the default) allows any site.
+  // "https://my-dashboard.vercel.app". "*" (the default) allows any site.
   allowedOrigins: (process.env.ALLOWED_ORIGIN || '*').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean),
   // How often the website gets a fresh price reading while the bot's data
   // source is an exchange (Binance / Kraken first): they update in real time.
