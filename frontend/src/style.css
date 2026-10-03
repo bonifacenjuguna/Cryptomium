@@ -433,20 +433,59 @@ td a.row-link { text-decoration: none; }
   .stat dd { font-size: 1.05rem; }
 }
 
-/* Mobile menu settings: keep the header lean and move display controls into the menu. */
+/* ---------- Mobile menu settings ---------- */
 .mobile-settings { display: none; }
-.mobile-settings .setting-label { color: var(--muted); font-size: .82rem; font-weight: 700; }
+
 @media (max-width: 820px) {
   .mobile-settings {
+    display: grid;
+    gap: 0;
+    margin-top: 6px;
+    padding: 4px 0 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .setting-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-top: 6px;
-    padding: 10px 6px 4px;
+    gap: 16px;
+    min-height: 58px;
+    padding: 8px 6px;
+  }
+
+  .setting-row + .setting-row {
     border-top: 1px solid var(--line);
   }
-  .mobile-settings .select { display: inline-flex; align-items: center; gap: 8px; }
-  .mobile-settings .select select { height: 38px; }
-  .mobile-settings #theme-toggle { flex: none; }
+
+  .setting-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .setting-label {
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .setting-description {
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .mobile-settings .select {
+    flex: none;
+  }
+
+  .mobile-settings .select select {
+    min-width: 86px;
+    height: 38px;
+  }
+
+  .mobile-settings #theme-toggle {
+    flex: none;
+  }
 }
