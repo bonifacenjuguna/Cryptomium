@@ -336,6 +336,7 @@ function initMobileNav() {
 // ---------- Header: current page highlight + boot ----------
 export async function initChrome() {
   initTheme();
+  initMobileNav();
   initCurrency();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
