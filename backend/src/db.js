@@ -51,18 +51,54 @@ export async function initDb() {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS post_log_posted_at_idx ON post_log (posted_at)`);
 
+  await seedCoins();
+}
+
+// Creates a settings row for every coin (first run, or right after a reset).
+async function seedCoins(client = pool) {
   for (const coin of COINS) {
-    await pool.query(
+    await client.query(
       `INSERT INTO coin_settings (ticker, threshold, pct_threshold)
        VALUES ($1, $2, $3)
        ON CONFLICT (ticker) DO NOTHING`,
       [coin.ticker, coin.defaultThreshold, coin.defaultPercent]
     );
     // Backfill the percentage base for rows created before it existed.
-    await pool.query(
+    await client.query(
       `UPDATE coin_settings SET pct_threshold = $2 WHERE ticker = $1 AND pct_threshold IS NULL`,
       [coin.ticker, coin.defaultPercent]
     );
+  }
+}
+
+/** Deletes post-history rows older than `days` days. Returns how many were removed. */
+export async function pruneOldPosts(days) {
+  const { rowCount } = await pool.query(
+    `DELETE FROM post_log WHERE posted_at < now() - ($1::int * INTERVAL '1 day')`,
+    [Math.floor(days)]
+  );
+  return rowCount;
+}
+
+/**
+ * Factory reset: wipes every coin setting, the post history and all saved
+ * choices (channel, price source, logo style), then re-creates the default
+ * coin rows. One transaction, so it is all-or-nothing.
+ */
+export async function factoryReset() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('TRUNCATE post_log RESTART IDENTITY');
+    await client.query('DELETE FROM bot_state');
+    await client.query('DELETE FROM coin_settings');
+    await seedCoins(client);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 }
 

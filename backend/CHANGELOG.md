@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.1.1
+
+- Removed the preview images (and the Previews section) from the README to
+  keep the download small.
+
+## 2.1.0
+
+**New: website API (for a Netlify dashboard)**
+- The bot now also serves a small read-only HTTP API on `PORT`:
+  `GET /api/prices` (live price, 24h change, brand colour and logo link per
+  coin), `GET /api/logos/<TICKER>.png`, and `GET /health`. It only reads the
+  price cache the bot already keeps, so website visitors add no extra calls to
+  the price sources. Visitors share one reading per `API_REFRESH_MS`, requests
+  are limited per visitor, and CORS is restricted with `ALLOWED_ORIGIN`.
+- New `frontend/` folder in the download: a static dashboard for Netlify that
+  refreshes by itself. It takes the backend address from the `API_URL`
+  environment variable at build time.
+
+**Fixed: alerts could be lost**
+- A milestone is now marked as used only after its banner was actually sent.
+  If rendering or Telegram fails, it is retried on the next poll (up to
+  `ALERT_MAX_ATTEMPTS`, then dropped with a log line).
+- Overlapping polls can no longer stack up: a poll that is still running makes
+  the next one skip.
+- Automatic alerts are paced `POST_DELAY_MS` apart, and a Telegram "too many
+  requests" reply pauses sending instead of burning alerts.
+
+**New: optional limits**
+- `MAX_AUTO_POSTS_PER_HOUR` and `MIN_POST_GAP_SECONDS` (both off by default).
+  Held-back alerts are not consumed; they post when there is room.
+
+**New: 🧹 Factory reset** (Settings, with a confirmation step)
+- Erases coin settings, mutes, post history, the chosen data source and logo
+  style, and the channel connection, then restores the defaults.
+
+**Housekeeping**
+- Post history older than `POST_LOG_RETENTION_DAYS` (default 365) is pruned.
+- Previously hard-coded timings are now environment variables: `POST_DELAY_MS`,
+  `SOURCE_ALERT_COOLDOWN_MIN`, `LOGO_RETRY_MIN`.
+- The alert loop moved into `src/alertRunner.js` so it can be unit-tested
+  (new tests for it and for the API).
+- Removed the last mentions of the old CoinMarketCap/DexScreener sources
+  from the tests, and the outdated preview images from the README.
+
 ## 2.0.0
 
 **CoinGecko: Demo/Pro auto-detection**

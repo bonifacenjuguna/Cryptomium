@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PricePing · Live crypto prices</title>
+  <meta name="description" content="Live prices and 24h change for the coins PricePing tracks.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>PricePing</h1>
+      <p class="sub">Live prices for the coins we watch.</p>
+    </div>
+    <div class="controls">
+      <p id="status" class="status" role="status" aria-live="polite"><span class="dot"></span><span id="status-text">Connecting…</span></p>
+      <label class="sort">Sort
+        <select id="sort">
+          <option value="default">Default order</option>
+          <option value="gainers">Biggest gainers</option>
+          <option value="losers">Biggest losers</option>
+          <option value="price">Highest price</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <p id="message" class="message" hidden></p>
+    <ul id="grid" class="grid" aria-label="Coin prices"></ul>
+  </main>
+
+  <footer class="foot">Prices come from public market data and can lag by a few seconds.</footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

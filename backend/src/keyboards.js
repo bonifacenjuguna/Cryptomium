@@ -36,6 +36,14 @@ export function settingsListKeyboard() {
       Markup.button.callback('🌐 Data source', 'source'),
       Markup.button.callback('🖼️ Logo style', 'logostyle'),
     ],
+    [Markup.button.callback('🧹 Factory reset', 'reset')],
+  ]);
+}
+
+export function resetConfirmKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('Yes, erase everything', 'resetgo')],
+    [Markup.button.callback('🔙 Cancel', 'back:settings')],
   ]);
 }
 

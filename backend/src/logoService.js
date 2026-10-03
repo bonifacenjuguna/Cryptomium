@@ -18,10 +18,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { COINS, CONFIG } from './config.js';
+import { COINS, CONFIG, LOGOS_DIR } from './config.js';
+
+export { LOGOS_DIR };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const LOGOS_DIR = process.env.LOGOS_DIR || path.join(__dirname, '..', 'assets', 'logos');
 
 // Demo keys only work on api.coingecko.com with x-cg-demo-api-key; Pro keys
 // only work on pro-api.coingecko.com with x-cg-pro-api-key (see the matching

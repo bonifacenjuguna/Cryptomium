@@ -25,6 +25,12 @@ export async function cancelScheduledMuteExpiry(ticker) {
   await redis.del(`${MUTE_KEY_PREFIX}${ticker}`);
 }
 
+/** Removes every scheduled mute expiry (used by the factory reset). */
+export async function clearAllScheduledMutes() {
+  const keys = await redis.keys(`${MUTE_KEY_PREFIX}*`);
+  if (keys.length > 0) await redis.del(...keys);
+}
+
 /**
  * Wires up keyspace notification listening. Requires the Redis instance to
  * have `notify-keyspace-events` include at least "Ex" (expired events on

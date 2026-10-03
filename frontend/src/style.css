@@ -1,0 +1,119 @@
+:root {
+  --bg: #eef2f0;
+  --panel: #ffffff;
+  --ink: #14211c;
+  --muted: #5d6b65;
+  --line: #d6dfda;
+  --up: #0f7a4a;
+  --up-bg: #dcf3e6;
+  --down: #b3261e;
+  --down-bg: #fbe2df;
+  --flat: #5d6b65;
+  --flat-bg: #e6ece9;
+  --focus: #1b5fd1;
+  box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1a16;
+    --panel: #17251f;
+    --ink: #e8f0ec;
+    --muted: #93a49b;
+    --line: #27382f;
+    --up: #5fd39a;
+    --up-bg: #14382a;
+    --down: #ff8a80;
+    --down-bg: #3d1d1b;
+    --flat: #93a49b;
+    --flat-bg: #22322a;
+    --focus: #7aa7ff;
+  }
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { height: 100%; }
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: clamp(16px, 4vw, 40px);
+}
+h1 {
+  margin: 0;
+  font: 800 clamp(2rem, 5vw, 3.2rem)/1 "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+.top {
+  display: flex; flex-wrap: wrap; gap: 16px 32px;
+  align-items: flex-end; justify-content: space-between;
+  max-width: 1200px; margin: 0 auto 24px;
+}
+.sub { margin: 6px 0 0; color: var(--muted); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.status { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.status.live .dot { background: var(--up); }
+.status.stale .dot { background: var(--down); }
+.sort { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; }
+select {
+  font: inherit; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px;
+}
+select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+main { max-width: 1200px; margin: 0 auto; }
+.message {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px 18px; margin: 0 0 16px;
+}
+.grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+.coin {
+  position: relative;
+  display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 4px 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px 14px 20px;
+  overflow: hidden;
+  transition: background-color .9s ease;
+}
+/* The coin's own brand colour marks its edge, so you can find a coin at a glance. */
+.coin::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--brand, var(--line));
+}
+.coin.flash-up { background-color: var(--up-bg); transition: none; }
+.coin.flash-down { background-color: var(--down-bg); transition: none; }
+
+.logo {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center; overflow: hidden;
+  background: var(--brand, var(--line)); color: #fff;
+  font: 800 .8rem/1 "Bricolage Grotesque", sans-serif;
+  grid-row: 1 / span 2;
+}
+.logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.info { grid-column: 2; grid-row: 1 / span 2; align-self: center; min-width: 0; }
+.name { font-weight: 600; line-height: 1.2; }
+.ticker { color: var(--muted); font-size: .85rem; }
+.price {
+  font: 600 1.25rem/1.2 "IBM Plex Sans", sans-serif;
+  font-variant-numeric: tabular-nums; text-align: right;
+  grid-column: 3; grid-row: 1; align-self: end;
+}
+.change {
+  grid-column: 3; grid-row: 2; justify-self: end; align-self: start; margin-top: 4px; font-size: .85rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 2px 8px; border-radius: 999px;
+}
+.change.up { color: var(--up); background: var(--up-bg); }
+.change.down { color: var(--down); background: var(--down-bg); }
+.change.flat { color: var(--flat); background: var(--flat-bg); }
+.nodata { color: var(--muted); }
+
+.foot { max-width: 1200px; margin: 28px auto 0; color: var(--muted); font-size: .85rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .coin { transition: none; }
+}

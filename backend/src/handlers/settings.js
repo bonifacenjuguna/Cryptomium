@@ -1,13 +1,16 @@
-import { COINS, MODES, coinByTicker, modeByKey } from '../config.js';
+import { COINS, MODES, DEFAULT_SOURCE_MODE, DEFAULT_LOGO_STYLE, coinByTicker, modeByKey } from '../config.js';
 import {
-  getCoinSettings, setBaseStep, setStepUnit, setStepUnitForAll, setMode, setModeForAll,
+  getCoinSettings, setBaseStep, setStepUnit, setStepUnitForAll, setMode, setModeForAll, factoryReset,
 } from '../db.js';
+import { clearAllScheduledMutes } from '../redisClient.js';
+import { setPreferredSource } from '../priceService.js';
+import { setLogoStyle } from '../imageGenerator.js';
 import { stepOf, formatStep } from '../milestoneEngine.js';
 import { describeMuteStatus, modeText, stepText } from '../coinView.js';
 import { pending } from '../pending.js';
 import { safeEdit } from '../telegramUtil.js';
 import {
-  MENU, settingsListKeyboard, coinDetailKeyboard, modeKeyboard, allModesKeyboard, allUnitsKeyboard,
+  MENU, resetConfirmKeyboard, settingsListKeyboard, coinDetailKeyboard, modeKeyboard, allModesKeyboard, allUnitsKeyboard,
 } from '../keyboards.js';
 
 const LIST_TEXT = 'Choose a coin to view or edit:';
@@ -20,6 +23,36 @@ export function registerSettingsHandlers(bot) {
   bot.action('back:settings', async ctx => {
     await ctx.answerCbQuery();
     await safeEdit(ctx, LIST_TEXT, settingsListKeyboard());
+  });
+
+  // --- Factory reset ---------------------------------------------------------
+  bot.action('reset', async ctx => {
+    await ctx.answerCbQuery();
+    await safeEdit(
+      ctx,
+      '🧹 Factory reset\n\n' +
+        'This erases ALL settings: every coin step and mode, mutes, the post history, ' +
+        'the chosen data source and logo style, and the channel connection.\n\n' +
+        'Coins go back to their defaults and you will need to connect the channel again. ' +
+        'This cannot be undone.',
+      resetConfirmKeyboard()
+    );
+  });
+
+  bot.action('resetgo', async ctx => {
+    await ctx.answerCbQuery('Resetting…');
+    try {
+      await factoryReset();
+      await clearAllScheduledMutes();
+      setPreferredSource(DEFAULT_SOURCE_MODE);
+      setLogoStyle(DEFAULT_LOGO_STYLE);
+      pending.clear(ctx.from.id);
+    } catch (err) {
+      console.error('[settings] Factory reset failed:', err);
+      await safeEdit(ctx, 'Reset failed, nothing was changed. Check the logs and try again.', settingsListKeyboard());
+      return;
+    }
+    await safeEdit(ctx, 'Reset done. Everything is back to defaults.\n\nSend /start to connect your channel again.');
   });
 
   // --- One coin ------------------------------------------------------------

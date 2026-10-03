@@ -7,6 +7,7 @@ import { startLogoHealer } from './logoService.js';
 import { setSourceListener } from './priceService.js';
 import { createSourceAlerter } from './sourceAlerts.js';
 import { loadSavedPreferences } from './handlers/source.js';
+import { startApi } from './api.js';
 
 async function main() {
   await initDb();
@@ -36,6 +37,7 @@ async function main() {
   // Private heads-up when a price source starts failing, and when it recovers.
   setSourceListener(
     createSourceAlerter({
+      cooldownMs: CONFIG.sourceAlertCooldownMin * 60_000,
       send: async text => {
         try {
           await bot.telegram.sendMessage(CONFIG.ownerId, text);
@@ -80,13 +82,14 @@ async function main() {
   // Fetch any coin logos the build step missed (rate limits etc.) in the
   // background. Banners work meanwhile — a missing logo draws a monogram badge.
   startLogoHealer({
+    intervalMs: CONFIG.logoRetryMin * 60_000,
     onStillMissing: async tickers => {
       console.warn(`[index] Logos still missing after retry: ${tickers.join(', ')}`);
       try {
         await bot.telegram.sendMessage(
           CONFIG.ownerId,
           `⚠️ Couldn't download logos for: ${tickers.join(', ')}.\n` +
-          'Banners use a text badge for those until they download (I keep retrying every 30 minutes).'
+          `Banners use a text badge for those until they download (I keep retrying every ${CONFIG.logoRetryMin} minutes).`
         );
       } catch {
         /* owner may not have started a chat yet */
@@ -94,8 +97,15 @@ async function main() {
     },
   });
 
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  // Read-only price API for the website dashboard.
+  const api = CONFIG.apiEnabled ? startApi() : null;
+
+  const shutdown = signal => {
+    api?.close();
+    bot.stop(signal);
+  };
+  process.once('SIGINT', () => shutdown('SIGINT'));
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 main().catch(err => {

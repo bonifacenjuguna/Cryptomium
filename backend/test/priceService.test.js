@@ -221,7 +221,7 @@ test('when every Binance host fails, testProviders reports both attempts', async
 });
 
 // ---------------------------------------------------------------------
-// New providers: Kraken, CoinPaprika, CoinMarketCap, DexScreener
+// New providers: Kraken, CoinPaprika
 // ---------------------------------------------------------------------
 
 test('Kraken: modern keys (no legacy X/Z prefix) parse directly', async () => {

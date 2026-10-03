@@ -78,6 +78,45 @@ That confirmation post only happens the first time you connect (or if you
 later reconnect to a different channel) — it never reposts on ordinary
 redeploys or restarts.
 
+## Settings (environment variables)
+
+Everything is set through environment variables, so changing a value never
+needs a code edit. Only `BOT_TOKEN` and `OWNER_TELEGRAM_ID` are required (plus
+the Postgres and Redis URLs that Railway fills in). The full list, with
+comments, is in `.env.example`.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `POLL_INTERVAL_MS` | 30000 | How often prices are checked for alerts |
+| `POST_DELAY_MS` | 1200 | Pause between banners |
+| `MAX_AUTO_POSTS_PER_HOUR` | 0 (no cap) | Cap on automatic alerts per rolling hour |
+| `MIN_POST_GAP_SECONDS` | 0 (off) | Minimum gap between alerts for the same coin |
+| `ALERT_MAX_ATTEMPTS` | 5 | Tries for a failing alert before it is dropped |
+| `POST_LOG_RETENTION_DAYS` | 365 | Post history older than this is deleted (0 = keep) |
+| `SOURCE_ALERT_COOLDOWN_MIN` | 60 | Minutes between price-source heads-up DMs |
+| `LOGO_RETRY_MIN` | 30 | Minutes between logo download retries |
+| `API_ENABLED` | true | Turn the website API on or off |
+| `ALLOWED_ORIGIN` | `*` | Site(s) allowed to call the API (your Netlify address) |
+| `API_REFRESH_MS` | 15000 | How long one price reading is shared between visitors |
+| `API_RATE_LIMIT_PER_MIN` | 120 | Requests per visitor per minute |
+
+Settings changed in Telegram (steps, modes, mutes, data source, logo style) are
+saved in the database and are separate from these.
+
+## Website dashboard
+
+The bot also serves a read-only API that the `frontend/` folder (in the same
+download) uses to show live prices with logos on a Netlify site.
+
+1. Deploy this backend on Railway as usual. In the service's **Settings >
+   Networking**, click **Generate Domain** so it has a public address.
+2. In the Netlify site's environment variables, set `API_URL` to that address
+   (for example `https://priceping-production.up.railway.app`), then deploy.
+3. Back in Railway, set `ALLOWED_ORIGIN` to your Netlify address so only your
+   site can call the API.
+
+Endpoints: `/api/prices`, `/api/logos/<TICKER>.png`, `/health`.
+
 ## Using the bot
 
 Once connected, everything is button-driven in your private chat with the
@@ -118,6 +157,13 @@ bot (only `/start` is a slash command). The menu:
   preview is sent only to you, never to the channel. A **🖼️ Style** row lets
   you flip between ✨ Clean and ⚪ White ring for just that preview, without
   changing your saved default (Settings > Logo style)
+
+### Factory reset
+
+Settings > 🧹 Factory reset (asks you to confirm) erases every coin setting,
+all mutes, the post history, the chosen data source and logo style, and the
+channel connection, and puts the defaults back. Send /start afterwards to
+connect your channel again.
 
 ### Post history & Next alert
 
@@ -261,7 +307,7 @@ watermark).
 
 Logos are downloaded in one CoinGecko request (with retries and fallback
 icon sources) at build time, and any that are still missing are fetched again
-when the bot starts and every 30 minutes after. You get a private message if
+when the bot starts and every `LOGO_RETRY_MIN` minutes (default 30) after. You get a private message if
 some still can't be downloaded. Meanwhile a banner shows a coin-colored
 badge with the ticker instead of the logo, so it never looks empty. Setting
 the optional `COINGECKO_API_KEY` (a free demo key) raises CoinGecko's rate
@@ -278,33 +324,9 @@ distance math, input parsing, price formatting and captions, the logo
 downloader (rate limits, retries, fallbacks), all five price sources
 (response parsing, the Average price blend, the CoinGecko Demo/Pro
 auto-detection, fallback chains, health alerts), and chart data-fetching and
-rendering (line/candlestick parsing, custom ranges, degenerate data).
-
-## Previews
-
-**Current banners (1.4.0)** — top: Bitcoin, ✨ Clean logo style (reworked —
-a soft glow and a crisp border give the logo definition without a white
-ring); middle: DOGE with a fall chip (the coin-colored ticker badge used
-when a logo file hasn't downloaded; with the logo present, the real logo is
-shown); bottom: Bitcoin in the optional ⚪ White ring style. Everything is
-derived from each coin's own brand color, so it applies to every coin
-automatically.
-
-![Current banners](docs/previews/current-banners.png)
-
-**Earlier layout (1.0.10)** — much larger logo, smaller price. Top: rise, bottom:
-fall.
-
-![Layout 1.0.10](docs/previews/final-layout.png)
-
-**Other coins (1.0.10)** — same engine (letter circles stand in for real
-logos).
-
-![Other coins](docs/previews/other-coins.png)
-
-**Earlier still** — the version with the chip inline right after the ticker.
-
-![Earlier layout](docs/previews/previous-layout.png)
+rendering (line/candlestick parsing, custom ranges, degenerate data), the
+alert loop (retry-safe milestones, pacing, caps, overlapping polls) and the
+website API.
 
 ## Notes on the image banners
 

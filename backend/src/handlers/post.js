@@ -1,6 +1,6 @@
 // "📣 Post prices": post the CURRENT price of one coin, or of all coins, to the
 // channel on demand (as opposed to the automatic milestone alerts).
-import { COINS, coinByTicker } from '../config.js';
+import { COINS, CONFIG, coinByTicker } from '../config.js';
 import { getState, logPost } from '../db.js';
 import { getLatestPrices, getChanges24h } from '../priceService.js';
 import { generateBannerImage } from '../imageGenerator.js';
@@ -13,7 +13,6 @@ const POST_TEXT =
   '📣 Post current prices to the channel.\n' +
   'Pick one coin, or post all of them. (You\'ll be asked to confirm.)';
 
-const DELAY_BETWEEN_POSTS_MS = 1200; // stay well under Telegram's per-chat send limit
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const posting = new Set(); // owner ids with a post in progress (guards against double taps)
@@ -120,7 +119,7 @@ export async function postCurrentPrices(telegram, tickers, { sleepFn = sleep } =
       console.error(`[post] ${ticker} failed:`, err);
       failed.push(`${ticker} (${err.description || err.message})`);
     }
-    if (ticker !== tickers[tickers.length - 1]) await sleepFn(DELAY_BETWEEN_POSTS_MS);
+    if (ticker !== tickers[tickers.length - 1]) await sleepFn(CONFIG.postDelayMs);
   }
 
   let summary = `✅ Posted ${posted.length}/${tickers.length}${posted.length === 1 ? `: ${posted[0]}` : ''}.`;

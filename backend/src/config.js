@@ -1,3 +1,6 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 // Central, single source of truth for every coin the bot tracks.
 //
 // coingeckoId    -> used for /simple/price and /coins/{id} (logo image) calls
@@ -21,6 +24,10 @@
 //                  technically a purple->teal gradient; we use its primary
 //                  purple as a single flat color for consistency with the
 //                  other 11 coins)
+// Where coin logo PNGs live (banners and the website API both read from here).
+export const LOGOS_DIR =
+  process.env.LOGOS_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'logos');
+
 export const COINS = [
   { ticker: 'BTC',  name: 'Bitcoin',   coingeckoId: 'bitcoin',           binanceSymbol: 'BTCUSDT',  krakenSymbol: 'XBTUSD',  coinpaprikaId: 'btc-bitcoin',     defaultThreshold: 500, defaultPercent: 0.5, stable: false, brandColor: '#F7931A' },
   { ticker: 'ETH',  name: 'Ethereum',  coingeckoId: 'ethereum',          binanceSymbol: 'ETHUSDT',  krakenSymbol: 'ETHUSD',  coinpaprikaId: 'eth-ethereum',  defaultThreshold: 15, defaultPercent: 0.5, stable: false, brandColor: '#627EEA' },
@@ -101,6 +108,24 @@ export function coinByTicker(ticker) {
   return COINS.find(c => c.ticker === ticker.toUpperCase());
 }
 
+// Reads a numeric env var; falls back to `def` when it is missing or invalid.
+function envNumber(name, def, { min = -Infinity, max = Infinity } = {}) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return def;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < min || n > max) {
+    console.warn(`[config] Ignoring invalid ${name}="${raw}", using ${def}.`);
+    return def;
+  }
+  return n;
+}
+
+function envBool(name, def) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return def;
+  return !/^(0|false|no|off)$/i.test(raw.trim());
+}
+
 export const CONFIG = {
   ownerId: Number(process.env.OWNER_TELEGRAM_ID),
   botToken: process.env.BOT_TOKEN,
@@ -109,12 +134,45 @@ export const CONFIG = {
   watermark: process.env.WATERMARK_HANDLE || '@priceping',
   defaultTimezone: process.env.DEFAULT_TIMEZONE || 'Africa/Nairobi',
   // How often the price loop checks for milestone crossings.
-  pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 30_000),
+  pollIntervalMs: envNumber('POLL_INTERVAL_MS', 30_000, { min: 5_000 }),
   // Optional CoinGecko demo/pro key. Not required, but raises the rate limit
   // (used for prices and for downloading logos). The bot auto-detects
   // whether this is a Demo or Pro-tier key (see priceService.js), so
   // upgrading to a paid CoinGecko plan needs no other change here.
   coingeckoApiKey: process.env.COINGECKO_API_KEY || '',
+
+  // --- Posting pace and limits (all optional) --------------------------------
+  // Pause between consecutive banners (auto alerts and "Post prices"), so a
+  // busy moment never trips Telegram's per-chat send limit.
+  postDelayMs: envNumber('POST_DELAY_MS', 1_200, { min: 0 }),
+  // Most automatic alerts per rolling hour. 0 = no cap. Alerts held back by
+  // the cap are not lost: they post once there is room again.
+  maxAutoPostsPerHour: envNumber('MAX_AUTO_POSTS_PER_HOUR', 0, { min: 0 }),
+  // Minimum seconds between two automatic alerts for the same coin. 0 = off.
+  minPostGapSeconds: envNumber('MIN_POST_GAP_SECONDS', 0, { min: 0 }),
+  // How many times a failing alert is retried (one try per tick) before it is
+  // dropped, so a broken banner can never loop forever.
+  alertMaxAttempts: envNumber('ALERT_MAX_ATTEMPTS', 5, { min: 1 }),
+
+  // --- Housekeeping ----------------------------------------------------------
+  // Post history older than this many days is deleted. 0 = keep forever.
+  postLogRetentionDays: envNumber('POST_LOG_RETENTION_DAYS', 365, { min: 0 }),
+  // Minimum minutes between two "price source" heads-up DMs of the same kind.
+  sourceAlertCooldownMin: envNumber('SOURCE_ALERT_COOLDOWN_MIN', 60, { min: 1 }),
+  // Minutes between retries for logos that failed to download.
+  logoRetryMin: envNumber('LOGO_RETRY_MIN', 30, { min: 1 }),
+
+  // --- Website API (read-only, for the Netlify dashboard) --------------------
+  apiEnabled: envBool('API_ENABLED', true),
+  // Railway/Heroku-style hosts provide PORT automatically.
+  port: envNumber('PORT', 3000, { min: 1, max: 65535 }),
+  // Comma-separated site URLs allowed to call the API, e.g.
+  // "https://my-dashboard.netlify.app". "*" (the default) allows any site.
+  allowedOrigins: (process.env.ALLOWED_ORIGIN || '*').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean),
+  // How long one price reading is shared between all website visitors.
+  apiRefreshMs: envNumber('API_REFRESH_MS', 15_000, { min: 5_000 }),
+  // Requests allowed per visitor (IP) per minute.
+  apiRateLimitPerMin: envNumber('API_RATE_LIMIT_PER_MIN', 120, { min: 1 }),
 };
 
 export function coingeckoHeaders() {
