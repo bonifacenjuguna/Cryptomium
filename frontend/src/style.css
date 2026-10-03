@@ -1143,3 +1143,32 @@ td a.row-link { text-decoration: none; }
   .t-price { font-size: .8rem; }
   .nav a { padding: 10px 11px; }
 }
+
+
+/* ---------- Hero responsive refinements ---------- */
+@media (max-width: 820px) {
+  .hero { padding: 42px 0 30px; }
+  .hero-top { grid-template-columns: 1fr; gap: 24px; }
+  .hero-copy h1 { max-width: 12ch; font-size: clamp(2.65rem, 9vw, 4rem); }
+  .breadth { padding: 20px; }
+}
+@media (max-width: 640px) {
+  .hero { padding: 34px 0 24px; }
+  .hero-top { gap: 20px; }
+  .hero-copy { gap: 18px; }
+  .hero-kicker { font-size: .66rem; }
+  .hero-copy h1 { max-width: 11ch; font-size: clamp(2.55rem, 12.5vw, 3.35rem); }
+  .hero-copy .lede { font-size: .94rem; }
+  .hero-cta { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .hero-cta .btn { min-height: 46px; }
+  .hero-meta { gap: 7px 9px; font-size: .7rem; }
+  .breadth { gap: 13px; padding: 17px; border-radius: 16px; }
+  .breadth-head { align-items: flex-start; }
+  .breadth-foot { font-size: .66rem; }
+}
+@media (max-width: 380px) {
+  .hero-copy h1 { font-size: 2.45rem; }
+  .hero-meta .hero-dot { display: none; }
+  .hero-meta { display: grid; grid-template-columns: 1fr 1fr; }
+  .breadth { padding: 15px; }
+}
