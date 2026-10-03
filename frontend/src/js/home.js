@@ -19,18 +19,6 @@ const state = {
 const SMALL = window.matchMedia('(max-width: 820px)');
 const COLLAPSED_ROWS = 8;
 
-function paintBreadth() {
-  const list = [...state.live.values()].filter(c => typeof c.change24h === 'number');
-  if (!list.length) return;
-  const up = list.filter(c => c.change24h > 0).length;
-  const down = list.filter(c => c.change24h < 0).length;
-  $('b-up').style.flexGrow = Math.max(up, 0.2);
-  $('b-down').style.flexGrow = Math.max(down, 0.2);
-  $('breadth-text').textContent = `${up} of ${list.length} coins are up today` + (down ? `, ${down} down.` : '.');
-  const top = list.reduce((a, b) => (Math.abs(b.change24h) > Math.abs(a.change24h) ? b : a));
-  $('breadth-mover').textContent = `Biggest move: ${top.name} ${pct(top.change24h).text}`;
-}
-
 // ---------------------------------------------------------------- table
 function starButton(ticker, name) {
   const b = el('button', 'fav');
@@ -142,7 +130,7 @@ function paintTable() {
   const rows = (collapse ? list.slice(0, COLLAPSED_ROWS) : list).map(c => state.rows.get(c.ticker).tr);
   const more = $('more-rows');
   more.hidden = !(SMALL.matches && list.length > COLLAPSED_ROWS);
-  more.textContent = state.expanded ? 'Show fewer coins' : `Show all ${list.length} coins`;
+  more.textContent = state.expanded ? 'Show fewer coins' : 'Show all coins';
   const body = $('rows');
   const same = rows.length === body.children.length && rows.every((tr, i) => body.children[i] === tr);
   if (!same) body.replaceChildren(...rows);
@@ -186,7 +174,20 @@ function wireTable() {
 
 // ---------------------------------------------------------------- alerts
 let alertData = [];
+function paintHeroAlert() {
+  const a = alertData[0];
+  const chip = $('hero-alert');
+  if (!a) { chip.hidden = true; return; }
+  const down = a.direction === 'down';
+  const stable = a.ticker === 'USDT' || a.ticker === 'USDC';
+  chip.hidden = false;
+  chip.className = 'alert-chip ' + (down ? 'down' : 'up');
+  $('ac-text').textContent = `${a.ticker} ${down ? 'fell to' : 'rose to'} ${money(a.price, { stable })}`;
+  $('ac-time').textContent = ago(a.at);
+}
+
 function paintAlerts() {
+  paintHeroAlert();
   const list = $('alert-list');
   $('alert-empty').hidden = alertData.length > 0;
   list.replaceChildren(...alertData.slice(0, 8).map(a => {
@@ -237,7 +238,6 @@ async function boot() {
   pollPrices(
     data => {
       state.live = new Map(data.coins.map(c => [c.ticker, c]));
-      paintBreadth();
       paintTable();
       $('board-note').hidden = true;
     },

@@ -306,7 +306,6 @@ td a.row-link { text-decoration: none; }
 .foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-weight: 600; }
 .foot ul a { text-decoration: none; color: var(--muted); }
 .foot ul a:hover { color: var(--ink); }
-.foot-bottom { margin-top: 28px; color: var(--muted); font-size: .85rem; }
 
 /* ---------- Loading ---------- */
 .skeleton .t-price, .skeleton .t-chg { color: transparent; border-radius: 4px; background: var(--surface-2); }
@@ -443,15 +442,11 @@ td a.row-link { text-decoration: none; }
 }
 
 /* ---------- Footer ---------- */
-.site-footer .foot { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(120px, auto)); }
 .foot h3 { font: 700 .8rem/1 var(--text); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
 .foot ul { gap: 10px; }
-.foot-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line); }
 @media (max-width: 640px) {
-  .site-footer .foot { grid-template-columns: 1fr 1fr; }
-  .site-footer .foot-brand { grid-column: 1 / -1; }
-  .foot-bottom { flex-direction: column; }
-}
+    .site-footer .foot-brand { grid-column: 1 / -1; }
+  }
 
 /* ---------- Social link, alerts grid ---------- */
 .social { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; color: var(--muted); }
@@ -462,4 +457,44 @@ td a.row-link { text-decoration: none; }
   .feed .alerts { display: grid; grid-template-columns: 1fr 1fr; }
   .feed .alerts li:nth-child(even) { border-left: 1px solid var(--line); }
   .feed .alerts li:nth-child(2) { border-top: 0; }
+}
+
+/* ---------- Hero (compact: the markets start right below) ---------- */
+.hero { padding: clamp(28px, 5vw, 56px) 0 8px; display: grid; gap: 16px; justify-items: start; }
+.alert-chip {
+  display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 8px 16px 8px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); text-decoration: none; font-weight: 700; font-size: .92rem;
+  transition: border-color .15s;
+}
+.alert-chip:hover { border-color: var(--ink); }
+.ac-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
+.alert-chip.up .ac-dot { background: var(--up-fill); }
+.alert-chip.down .ac-dot { background: var(--down-fill); }
+.ac-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alert-chip.up .ac-text { color: var(--up); }
+.alert-chip.down .ac-text { color: var(--down); }
+.ac-time { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.sec-head .live { margin-left: 8px; vertical-align: middle; }
+#markets { padding-top: 12px; }
+
+/* ---------- Footer ---------- */
+.site-footer { overflow: hidden; padding: 48px 0 0; background: var(--surface); }
+.site-footer .foot { grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(120px, .6fr)); gap: 32px 48px; }
+.foot-brand { display: grid; gap: 14px; justify-items: start; align-content: start; }
+.foot-brand .foot-about { margin: 0; }
+.foot-col ul { gap: 11px; }
+.foot-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; }
+.foot-note { flex: 1 1 320px; }
+.to-top { color: var(--ink); font-weight: 700; text-decoration: none; }
+.to-top:hover { text-decoration: underline; }
+.foot-mark {
+  margin-top: 8px; text-align: center; white-space: nowrap; user-select: none; line-height: .82; padding-bottom: 6px;
+  font: 800 clamp(2.5rem, 11vw, 9rem)/.82 var(--display); letter-spacing: -.04em; color: var(--surface-2);
+  mask-image: linear-gradient(#000 35%, transparent); -webkit-mask-image: linear-gradient(#000 35%, transparent);
+}
+:root[data-theme="dark"] .foot-mark { color: var(--surface-2); }
+@media (max-width: 640px) {
+  .site-footer .foot { grid-template-columns: 1fr 1fr; }
+  .site-footer .foot-brand { grid-column: 1 / -1; }
+  .foot-note { flex-basis: 100%; order: 3; }
 }

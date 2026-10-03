@@ -11,11 +11,11 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>{{BRAND}}: live crypto prices</title>
-  <meta name="description" content="Live prices for 21 leading coins, with 24 hour and 7 day moves, market size, charts and milestone alerts.">
+  <meta name="description" content="Real-time crypto prices, 24 hour and 7 day moves, charts, market size and milestone alerts.">
   <link rel="canonical" href="{{SITE_URL}}/">
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{BRAND}}: live crypto prices">
-  <meta property="og:description" content="Live prices, charts and milestone alerts for 21 leading coins.">
+  <meta property="og:description" content="Real-time crypto prices, charts and milestone alerts.">
   <meta property="og:image" content="{{SITE_URL}}/og.png">
   <meta name="twitter:card" content="summary_large_image">
 </head>
@@ -24,23 +24,13 @@
 <main id="main">
   <div class="wrap">
     <div class="hero">
-      <div class="hero-top">
-        <div class="hero-copy">
-          <h1>Live prices for 21 leading coins.</h1>
-          <p class="lede">Follow the market in real time, with 24 hour and 7 day moves, charts, market size and an alert every time a coin crosses a milestone.</p>
-          <div class="hero-cta">
-            <a class="btn btn-accent" href="#markets">See all markets</a>
-            <a class="btn btn-ghost" href="#alerts">Latest alerts</a>
-          </div>
-        </div>
-        <div class="breadth" id="breadth" aria-live="polite">
-          <span class="live" id="live" data-state="connecting">Connecting</span>
-          <div class="breadth-bar" aria-hidden="true"><span class="b-up" id="b-up"></span><span class="b-down" id="b-down"></span></div>
-          <p id="breadth-text">Loading the market</p>
-          <p class="muted" id="breadth-mover"></p>
-        </div>
-      </div>
-
+      <h1>The crypto market, live.</h1>
+      <p class="lede">Real-time prices, charts and milestone moves for the coins that matter, in one clean place.</p>
+      <a class="alert-chip" id="hero-alert" href="#alerts" hidden>
+        <span class="ac-dot" id="ac-dot"></span>
+        <span class="ac-text" id="ac-text"></span>
+        <span class="ac-time" id="ac-time"></span>
+      </a>
       <p class="board-note" id="board-note" hidden></p>
     </div>
   </div>
@@ -50,7 +40,7 @@
       <div class="sec-head">
         <div>
           <h2>Markets</h2>
-          <p>Prices, 24 hour and 7 day moves, and market size.</p>
+          <p>Prices, 24 hour and 7 day moves, and market size. <span class="live" id="live" data-state="connecting">Connecting</span></p>
         </div>
         <div class="tabs" role="tablist" aria-label="Filter coins" id="tabs">
           <button class="tab" role="tab" data-tab="all" aria-selected="true">All</button>
@@ -105,7 +95,7 @@
       <div class="faq">
         <details><summary>Is {{BRAND}} free?</summary><p>Yes. Everything on the site is free, and there is nothing to sign up for.</p></details>
         <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, the alert appears in Latest alerts.</p></details>
-        <details><summary>Which coins are covered?</summary><p>21 leading coins, including Bitcoin, Ethereum, XRP, BNB, Solana and the USDT and USDC stablecoins. Every one is listed on this page.</p></details>
+        <details><summary>Which coins are covered?</summary><p>The leading coins by market size, including Bitcoin, Ethereum, XRP, BNB, Solana and the USDT and USDC stablecoins. Every one is listed in Markets on this page.</p></details>
       </div>
     </div>
   </section>

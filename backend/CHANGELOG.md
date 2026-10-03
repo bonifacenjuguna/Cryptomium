@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.5
+
+**Website, home page and footer (frontend only; the backend is unchanged apart from the version).**
+- The home page opens with a short headline, "The crypto market, live.", and the
+  Markets table starts right below it. The market summary card and the two buttons
+  are gone.
+- The latest alert now appears as a single line under the headline (for example
+  "BTC rose to $86,500, 4 min ago") and links to the full Latest alerts list.
+- The Live indicator moved next to the Markets heading.
+- No more coin counts in the text ("21 coins" and "Show all 21 coins" are now
+  "the leading coins" and "Show all coins").
+- New footer: brand and Telegram logo, a Popular coins column linking to Bitcoin,
+  Ethereum, Solana, XRP and BNB, an Explore column, a Back to top link, and a large
+  faded Cryptomium wordmark along the bottom.
+
 ## 2.2.4
 
 **Website now stands on its own (frontend only; the backend is unchanged apart from the version).**

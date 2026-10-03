@@ -6,27 +6,36 @@
           <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
           <span>{{BRAND}}</span>
         </a>
-        <p class="foot-about">Live prices, charts and milestone alerts for 21 leading coins.</p>
+        <p class="foot-about">Real-time prices, charts and milestone alerts, kept simple.</p>
+        <a class="social" href="{{CHANNEL_URL}}" target="_blank" rel="noopener" aria-label="{{BRAND}} on Telegram ({{CHANNEL_HANDLE}})" title="Telegram">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.9 4.3c.3-1.1-.8-2-1.8-1.6L2.7 9.4c-1.2.5-1.1 2.2.1 2.6l4.4 1.4 1.7 5.3c.3.9 1.4 1.2 2.1.6l2.4-2 4.5 3.3c.9.6 2.1.2 2.3-.9zM9 13.6l8.9-5.5c.2-.1.4.2.2.3l-7.1 6.5-.3 3z"/></svg>
+        </a>
       </div>
-      <div>
+      <nav class="foot-col" aria-label="Popular coins">
+        <h3>Popular</h3>
+        <ul>
+          <li><a href="/coin/BTC">Bitcoin</a></li>
+          <li><a href="/coin/ETH">Ethereum</a></li>
+          <li><a href="/coin/SOL">Solana</a></li>
+          <li><a href="/coin/XRP">XRP</a></li>
+          <li><a href="/coin/BNB">BNB</a></li>
+        </ul>
+      </nav>
+      <nav class="foot-col" aria-label="Explore">
         <h3>Explore</h3>
         <ul>
           <li><a href="/#markets">Markets</a></li>
           <li><a href="/#alerts">Latest alerts</a></li>
-          <li><a href="/about">About and FAQ</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/about#faq">FAQ</a></li>
         </ul>
-      </div>
-      <div>
-        <h3>Follow</h3>
-        <a class="social" href="{{CHANNEL_URL}}" target="_blank" rel="noopener" aria-label="{{BRAND}} on Telegram ({{CHANNEL_HANDLE}})">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.9 4.3c.3-1.1-.8-2-1.8-1.6L2.7 9.4c-1.2.5-1.1 2.2.1 2.6l4.4 1.4 1.7 5.3c.3.9 1.4 1.2 2.1.6l2.4-2 4.5 3.3c.9.6 2.1.2 2.3-.9zM9 13.6l8.9-5.5c.2-.1.4.2.2.3l-7.1 6.5-.3 3z"/></svg>
-          <span>Telegram</span>
-        </a>
-      </div>
+      </nav>
     </div>
     <div class="foot-bottom">
       <span>&copy; {{YEAR}} {{BRAND}}</span>
-      <span>Market information only, not financial advice. Prices can differ between exchanges.</span>
+      <span class="foot-note">Market information only, not financial advice. Prices can differ between exchanges.</span>
+      <a class="to-top" href="#main">Back to top <span aria-hidden="true">&uarr;</span></a>
     </div>
   </div>
+  <div class="foot-mark" aria-hidden="true">{{BRAND}}</div>
 </footer>

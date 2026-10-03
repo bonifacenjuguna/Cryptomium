@@ -256,7 +256,7 @@ async function boot() {
   if (!known) {
     $('coin-root').replaceChildren(el('div', 'notfound'));
     const box = $('coin-root').firstChild;
-    box.append(el('h1', '', 'We do not track that coin.'), el('p', 'lede', 'Pick one of the 21 coins from the markets list.'));
+    box.append(el('h1', '', 'We do not track that coin.'), el('p', 'lede', 'Pick one of the coins from the markets list.'));
     const a = el('a', 'btn btn-accent', 'Back to markets'); a.href = '/#markets'; box.append(a);
     document.title = 'Coin not found | ' + (window.CRYPTOMIUM?.brand || 'Cryptomium');
     return;
