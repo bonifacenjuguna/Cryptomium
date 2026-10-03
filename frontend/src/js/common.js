@@ -20,12 +20,8 @@ export async function getJSON(path, { timeoutMs = 12000 } = {}) {
 }
 
 export async function getCoinList() {
-  if (Array.isArray(CFG.coins) && CFG.coins.length) return CFG.coins;
   const res = await fetch('/coins.json');
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const coins = await res.json();
-  if (!Array.isArray(coins)) throw new Error('Invalid coin list');
-  return coins;
+  return res.json();
 }
 
 /**

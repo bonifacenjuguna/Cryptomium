@@ -115,7 +115,6 @@ write(
     brand: tokens.BRAND,
     channelUrl: tokens.CHANNEL_URL,
     channelHandle: tokens.CHANNEL_HANDLE,
-    coins,
   })};\n`
 );
 
