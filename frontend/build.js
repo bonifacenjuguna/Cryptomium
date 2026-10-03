@@ -49,6 +49,8 @@ const tokens = {
   CHANNEL_URL: site.channelUrl || 'https://t.me/cryptomiumx',
   BOT_HANDLE: site.botHandle || '@cryptomiumxbot',
   SITE_URL: siteUrl,
+  YEAR: String(new Date().getFullYear()),
+  BOT_USERNAME: (site.botHandle || '@cryptomiumxbot').replace(/^@/, ''),
 };
 
 const fill = (text, extra = {}) =>

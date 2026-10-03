@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.2.3
+
+**Website, home page tidy-up (frontend only; the backend is unchanged apart from the version).**
+- Removed the coloured coin tiles from the top of the home page. The Markets table
+  already shows every coin, so the page now goes from the intro straight to Markets.
+- Latest alerts redesigned: each alert shows the coin logo with a direction badge,
+  the coin, "Rose to" / "Fell to" in green or red, the price and how long ago.
+- The Telegram sample is now shown as a real channel post, with the channel name and
+  a "just now" banner, next to the Join button.
+- Quick answers sit beside a "Read the full FAQ" button on desktop.
+- New footer: a Telegram call-to-action band, tidy Explore and Follow columns, and a
+  copyright line with the disclaimer.
+- Fixed the sample banner's placeholder price showing a stray word before prices load.
+
 ## 2.2.2
 
 **Website, proper phone navigation (frontend only; the backend is unchanged apart from the version).**

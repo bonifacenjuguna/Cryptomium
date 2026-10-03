@@ -41,12 +41,6 @@
         </div>
       </div>
 
-      <div class="board-head">
-        <h2 class="sr">Market board</h2>
-        <span class="scale" aria-hidden="true">Falling<i></i>Rising</span>
-        <span class="scale">Tiles are tinted by the 24 hour move</span>
-      </div>
-      <ul class="board" id="board" aria-label="All coins, tinted by 24 hour change"></ul>
       <p class="board-note" id="board-note" hidden></p>
     </div>
   </div>
@@ -95,24 +89,33 @@
         </div>
       </div>
       <div class="duo">
-        <div class="panel">
+        <div class="panel feed">
           <ul class="alerts" id="alert-list" aria-live="polite"></ul>
           <p class="empty" id="alert-empty" hidden>No alerts yet. They show up here as soon as a coin crosses a milestone.</p>
         </div>
-        <div class="panel join">
-          <div class="banner-sample" id="sample" aria-hidden="true">
-            <div class="bs-row">
-              <div class="bs-logo" id="bs-logo"></div>
-              <div class="bs-text">
-                <div class="bs-sym"><span id="bs-sym">BTC</span><span class="bs-chip"><svg viewBox="0 0 12 11"><path d="M6 0l6 11H0z"/></svg></span></div>
-                <div class="bs-price" id="bs-price">/bin/bash</div>
-              </div>
-            </div>
-            <span class="bs-mark">{{CHANNEL_HANDLE}}</span>
+        <div class="panel tg">
+          <div class="tg-head">
+            <span class="tg-avatar"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg></span>
+            <span class="tg-id"><strong>{{BRAND}}</strong><small>{{CHANNEL_HANDLE}} on Telegram</small></span>
           </div>
-          <div>
-            <h3>Alerts that read at a glance</h3>
-            <p class="join-copy">Each one is a single banner with the coin, the price and the direction. No noise, no reading required.</p>
+          <div class="tg-chat">
+            <div class="tg-bubble">
+              <div class="banner-sample" id="sample" aria-hidden="true">
+                <div class="bs-row">
+                  <div class="bs-logo" id="bs-logo"></div>
+                  <div class="bs-text">
+                    <div class="bs-sym"><span id="bs-sym">BTC</span><span class="bs-chip"><svg viewBox="0 0 12 11"><path d="M6 0l6 11H0z"/></svg></span></div>
+                    <div class="bs-price" id="bs-price">$85,000</div>
+                  </div>
+                </div>
+                <span class="bs-mark">{{CHANNEL_HANDLE}}</span>
+              </div>
+              <span class="tg-time">just now</span>
+            </div>
+          </div>
+          <div class="tg-copy">
+            <h3>One banner per move</h3>
+            <p>The coin, the price and the direction, nothing else. Join the channel and the big moves find you.</p>
           </div>
           <div class="join-actions">
             <a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a>
@@ -123,15 +126,18 @@
     </div>
   </section>
 
-  <section>
-    <div class="wrap">
-      <div class="sec-head"><h2>Quick answers</h2></div>
+  <section class="faq-sec">
+    <div class="wrap faq-grid">
+      <div class="faq-intro">
+        <h2>Quick answers</h2>
+        <p>The basics, in a few lines.</p>
+        <a class="btn btn-ghost" href="/about">Read the full FAQ</a>
+      </div>
       <div class="faq">
         <details><summary>Is {{BRAND}} free?</summary><p>Yes. The site and the Telegram channel are free to use.</p></details>
         <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, a banner is posted to {{CHANNEL_HANDLE}}.</p></details>
         <details><summary>Which coins are covered?</summary><p>21 leading coins, including Bitcoin, Ethereum, XRP, BNB, Solana and the USDT and USDC stablecoins. Every one is listed on this page.</p></details>
       </div>
-      <p class="more"><a href="/about"><strong>Read the full FAQ</strong></a></p>
     </div>
   </section>
 </main>

@@ -1,7 +1,14 @@
 <footer class="site-footer">
   <div class="wrap">
-    <div class="foot">
+    <div class="foot-cta">
       <div>
+        <h3>The big moves, straight to Telegram</h3>
+        <p>Join {{CHANNEL_HANDLE}} and get a clean banner the moment a coin crosses a milestone.</p>
+      </div>
+      <a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a>
+    </div>
+    <div class="foot">
+      <div class="foot-brand">
         <a class="brand" href="/" aria-label="{{BRAND}} home">
           <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
           <span>{{BRAND}}</span>
@@ -19,10 +26,14 @@
       <div>
         <h3>Follow</h3>
         <ul>
-          <li><a href="{{CHANNEL_URL}}" target="_blank" rel="noopener">{{CHANNEL_HANDLE}} on Telegram</a></li>
+          <li><a href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Telegram channel</a></li>
+          <li><a href="https://t.me/{{BOT_USERNAME}}" target="_blank" rel="noopener">Alert bot</a></li>
         </ul>
       </div>
     </div>
-    <p class="foot-bottom">{{BRAND}} shows market information only. It is not financial advice, and prices can differ between exchanges.</p>
+    <div class="foot-bottom">
+      <span>&copy; {{YEAR}} {{BRAND}}</span>
+      <span>Market information only, not financial advice. Prices can differ between exchanges.</span>
+    </div>
   </div>
 </footer>

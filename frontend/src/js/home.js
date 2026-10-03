@@ -1,6 +1,6 @@
 import {
   API, initChrome, getJSON, pollPrices, setLive, currency, onCurrency, money, compactMoney, pct, ago,
-  isFav, toggleFav, onFavs, favCount, el, logoEl, tileEl, paintTile, DIR_SVG,
+  isFav, toggleFav, onFavs, favCount, el, logoEl, DIR_SVG,
 } from './common.js';
 
 const $ = id => document.getElementById(id);
@@ -18,36 +18,6 @@ const state = {
 };
 const SMALL = window.matchMedia('(max-width: 820px)');
 const COLLAPSED_ROWS = 8;
-
-// ---------------------------------------------------------------- board
-function buildBoard() {
-  const board = $('board');
-  const items = state.coins.map((c, i) => {
-    const t = tileEl({ ticker: c.ticker, name: c.name }, i);
-    t.a.classList.add('skeleton');
-    t.price.textContent = '$00,000';
-    t.chg.textContent = '+0.0%';
-    state.tiles.set(c.ticker, t);
-    return t.a;
-  });
-  board.replaceChildren(...items.map(a => { const li = el('li'); li.append(a); return li; }));
-}
-
-function paintBoard() {
-  let i = 0;
-  for (const c of state.coins) {
-    const coin = state.live.get(c.ticker);
-    const t = state.tiles.get(c.ticker);
-    if (coin && t) {
-      paintTile(t, coin);
-      if (state.firstPaint) {
-        t.a.style.setProperty('--i', i++);
-        t.a.classList.add('enter');
-      }
-    }
-  }
-  state.firstPaint = false;
-}
 
 function paintBreadth() {
   const list = [...state.live.values()].filter(c => typeof c.change24h === 'number');
@@ -220,18 +190,23 @@ function paintAlerts() {
   const list = $('alert-list');
   $('alert-empty').hidden = alertData.length > 0;
   list.replaceChildren(...alertData.slice(0, 8).map(a => {
-    const coin = state.coins.find(c => c.ticker === a.ticker);
+    const live = state.live.get(a.ticker);
+    const info = state.coins.find(c => c.ticker === a.ticker) || { ticker: a.ticker, name: a.ticker };
+    const down = a.direction === 'down';
     const li = el('li');
-    const link = el('a', 'alert');
+    const link = el('a', 'alert ' + (down ? 'down' : 'up'));
     link.href = '/coin/' + a.ticker;
-    const dir = el('span', 'a-dir ' + (a.direction || 'up'));
-    dir.innerHTML = DIR_SVG[a.direction === 'down' ? 'down' : 'up'];
-    const main = el('span', 'a-main');
-    const stable = coin && (a.ticker === 'USDT' || a.ticker === 'USDC');
-    main.append(`${a.ticker} `, el('span', '', (a.direction === 'down' ? 'fell to ' : 'rose to ')), el('span', 'num', ''));
-    main.lastChild.textContent = money(a.price, { stable });
-    const time = el('span', 'a-time', ago(a.at));
-    link.append(dir, main, time);
+    const logo = el('span', 'a-logo');
+    logo.append(logoEl(live || { ticker: a.ticker, logo: '/api/logos/' + a.ticker + '.png' }));
+    const badge = el('span', 'a-dir ' + (down ? 'down' : 'up'));
+    badge.innerHTML = DIR_SVG[down ? 'down' : 'up'];
+    logo.append(badge);
+    const body = el('span', 'a-body');
+    body.append(el('strong', 'a-sym', a.ticker), el('span', 'a-verb', (down ? 'Fell to' : 'Rose to')));
+    const right = el('span', 'a-right');
+    const stable = a.ticker === 'USDT' || a.ticker === 'USDC';
+    right.append(el('strong', 'a-price num', money(a.price, { stable })), el('span', 'a-time', ago(a.at)));
+    link.append(logo, body, right);
     li.append(link);
     return li;
   }));
@@ -261,11 +236,10 @@ function paintSample() {
 async function boot() {
   state.coins = await initChrome();
   if (!state.coins.length) return;
-  buildBoard();
   buildRows();
   wireTable();
   paintTable();
-  onCurrency(() => { paintBoard(); paintTable(); paintAlerts(); paintSample(); });
+  onCurrency(() => { paintTable(); paintAlerts(); paintSample(); });
 
   if (!API) {
     $('board-note').hidden = false;
@@ -276,7 +250,6 @@ async function boot() {
   pollPrices(
     data => {
       state.live = new Map(data.coins.map(c => [c.ticker, c]));
-      paintBoard();
       paintBreadth();
       paintTable();
       paintSample();
