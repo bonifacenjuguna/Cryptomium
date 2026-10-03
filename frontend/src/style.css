@@ -466,37 +466,59 @@ td a.row-link { text-decoration: none; }
   /* Mobile navigation: horizontally scrollable, visually intentional instead
      of simply disappearing. */
   .nav {
-    display: flex;
+    display: flex !important;
     position: fixed;
-    left: 12px;
-    right: 12px;
+    z-index: 1000;
     top: 66px;
-    z-index: 25;
+    left: auto;
+    right: 12px;
+    width: min(210px, calc(100vw - 24px));
+    flex-direction: column;
+    gap: 2px;
     padding: 6px;
-    margin: 0;
-    gap: 4px;
-    overflow-x: auto;
     border: 1px solid var(--line);
     border-radius: 14px;
-    background: color-mix(in srgb, var(--surface) 94%, transparent);
-    box-shadow: var(--shadow);
-    scrollbar-width: none;
-    transform: translateY(-8px);
+    background: var(--surface);
+    box-shadow: 0 14px 36px rgba(13,24,34,.16);
+    transform: translateY(-6px);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
+    transition: opacity .14s ease, transform .14s ease, visibility .14s ease;
   }
-  .nav::-webkit-scrollbar { display: none; }
+  .nav.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .nav::before { content: none !important; }
   .nav a {
-    flex: 0 0 auto;
-    padding: 9px 13px;
-    font-size: .82rem;
+    display: block;
+    min-height: auto;
+    padding: 11px 12px;
+    border-radius: 9px;
+    font-size: .9rem;
+    font-weight: 750;
+    background: transparent;
   }
+  .nav a span { font-size: inherit; }
+  .nav a small { display: none; }
+  .nav a:hover,
+  .nav a:focus-visible,
+  .nav a[aria-current="page"] { background: var(--surface-2); }
 
-  /* Use the search control as the compact navigation trigger area without
-     changing application behavior. */
-  .tools {
-    flex: none;
+  .menu-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
   }
+  .menu-toggle .menu-close { display: none; }
+  .menu-toggle[aria-expanded="true"] .menu-open { display: none; }
+  .menu-toggle[aria-expanded="true"] .menu-close { display: block; }
+  .header-join { display: none !important; }
 
   .hero {
     padding-top: 32px;
@@ -1003,9 +1025,9 @@ td a.row-link { text-decoration: none; }
 
   .nav {
     top: 64px;
-    left: 8px;
     right: 8px;
-    border-radius: 16px;
+    width: min(200px, calc(100vw - 16px));
+    border-radius: 13px;
   }
 
   .hero { padding-top: 27px; }
@@ -1086,5 +1108,5 @@ td a.row-link { text-decoration: none; }
   .tile { min-height: 90px; }
   .t-sym { font-size: 1rem; }
   .t-price { font-size: .8rem; }
-  .nav a { min-height: 52px; }
+  .nav a { padding: 10px 11px; }
 }
