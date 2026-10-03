@@ -76,7 +76,7 @@ fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 
 // Plain files first (css, js, icons, coins list).
-const pages = new Set(['index.html', 'about.html', 'coin.html', '404.html', 'settings.html']);
+const pages = new Set(['index.html', 'about.html', 'coin.html', '404.html']);
 fs.cpSync(src, dist, {
   recursive: true,
   filter: file => !file.includes(`${path.sep}partials`) && !pages.has(path.basename(file)),
@@ -88,7 +88,7 @@ const write = (rel, text) => {
   fs.writeFileSync(file, text);
 };
 
-for (const name of ['index.html', 'about.html', 'settings.html', '404.html']) {
+for (const name of ['index.html', 'about.html', '404.html']) {
   write(name, withCsp(fill(compose(fs.readFileSync(path.join(src, name), 'utf8')))));
 }
 

@@ -309,41 +309,11 @@ function initSearch(coins) {
 }
 
 // ---------- Header: current page highlight + boot ----------
-function initMenu() {
-  const nav = document.getElementById('main-nav');
-  const toggle = document.getElementById('menu-toggle');
-  if (!nav || !toggle) return;
-
-  const close = () => {
-    nav.classList.remove('open');
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.setAttribute('aria-label', 'Open menu');
-  };
-  const open = () => {
-    nav.classList.add('open');
-    toggle.setAttribute('aria-expanded', 'true');
-    toggle.setAttribute('aria-label', 'Close menu');
-  };
-
-  toggle.addEventListener('click', () => {
-    nav.classList.contains('open') ? close() : open();
-  });
-  nav.querySelectorAll('a').forEach(a => a.addEventListener('click', close));
-  document.addEventListener('click', e => {
-    if (nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) close();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') close();
-  });
-}
-
 export async function initChrome() {
-  initMenu();
   initTheme();
   initCurrency();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
-  if (path === '/settings') document.querySelector('[data-nav="settings"]')?.setAttribute('aria-current', 'page');
   let coins = [];
   try { coins = await getCoinList(); } catch { /* search just stays empty */ }
   initSearch(coins);
