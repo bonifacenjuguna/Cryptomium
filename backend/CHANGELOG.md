@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.2.4
+
+**Website now stands on its own (frontend only; the backend is unchanged apart from the version).**
+- Telegram no longer runs through the site. The Join buttons are gone from the header
+  menu, the home page, coin pages, the About page and the footer banner, and the
+  Telegram sample post is removed.
+- The only Telegram mention is a Telegram logo link in the footer.
+- The home page now describes the site itself (live prices, charts, market size and
+  alerts), and the main buttons are "See all markets" and "Latest alerts".
+- Latest alerts show in two columns on desktop, and coin pages use the same alert
+  design as the home page.
+- Page titles, descriptions and FAQ wording no longer lead with Telegram.
+
 ## 2.2.3
 
 **Website, home page tidy-up (frontend only; the backend is unchanged apart from the version).**

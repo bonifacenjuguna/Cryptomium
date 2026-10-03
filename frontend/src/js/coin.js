@@ -205,13 +205,19 @@ async function loadHistory() {
 function paintAlerts() {
   $('alert-empty').hidden = state.alerts.length > 0;
   $('alert-list').replaceChildren(...state.alerts.map(a => {
+    const down = a.direction === 'down';
     const li = el('li');
-    const link = el('div', 'alert');
-    const dir = el('span', 'a-dir ' + (a.direction || 'up'));
-    dir.innerHTML = DIR_SVG[a.direction === 'down' ? 'down' : 'up'];
-    const main = el('span', 'a-main');
-    main.append(el('span', '', a.direction === 'down' ? 'Fell to ' : 'Rose to '), el('span', 'num', money(a.price, { stable: state.coin?.stable })));
-    link.append(dir, main, el('span', 'a-time', ago(a.at)));
+    const link = el('div', 'alert ' + (down ? 'down' : 'up'));
+    const logo = el('span', 'a-logo');
+    logo.append(logoEl(state.coin || { ticker, logo: null }));
+    const badge = el('span', 'a-dir ' + (down ? 'down' : 'up'));
+    badge.innerHTML = DIR_SVG[down ? 'down' : 'up'];
+    logo.append(badge);
+    const body = el('span', 'a-body');
+    body.append(el('strong', 'a-sym', ticker), el('span', 'a-verb', down ? 'Fell to' : 'Rose to'));
+    const right = el('span', 'a-right');
+    right.append(el('strong', 'a-price num', money(a.price, { stable: state.coin?.stable })), el('span', 'a-time', ago(a.at)));
+    link.append(logo, body, right);
     li.append(link);
     return li;
   }));

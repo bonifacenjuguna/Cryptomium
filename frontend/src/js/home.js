@@ -219,19 +219,6 @@ async function loadAlerts() {
   } catch { /* keep what is on screen */ }
 }
 
-// ---------------------------------------------------------------- banner sample
-function paintSample() {
-  const btc = state.live.get('BTC');
-  if (!btc) return;
-  const logo = $('bs-logo');
-  if (!logo.firstChild) logo.append(logoEl(btc));
-  $('bs-price').textContent = '$' + (Math.round(btc.price / 500) * 500).toLocaleString('en-US');
-  const s = $('sample');
-  s.style.setProperty('--b1', '#7a4608');
-  s.style.setProperty('--b2', '#c77a10');
-  s.style.setProperty('--b3', '#f5a623');
-}
-
 // ---------------------------------------------------------------- boot
 async function boot() {
   state.coins = await initChrome();
@@ -239,7 +226,7 @@ async function boot() {
   buildRows();
   wireTable();
   paintTable();
-  onCurrency(() => { paintTable(); paintAlerts(); paintSample(); });
+  onCurrency(() => { paintTable(); paintAlerts(); });
 
   if (!API) {
     $('board-note').hidden = false;
@@ -252,7 +239,6 @@ async function boot() {
       state.live = new Map(data.coins.map(c => [c.ticker, c]));
       paintBreadth();
       paintTable();
-      paintSample();
       $('board-note').hidden = true;
     },
     s => {

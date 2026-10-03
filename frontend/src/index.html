@@ -10,12 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
-  <title>{{BRAND}}: live crypto prices and Telegram alerts</title>
-  <meta name="description" content="Live prices for 21 leading coins, with milestone alerts posted to {{CHANNEL_HANDLE}} on Telegram the moment they happen.">
+  <title>{{BRAND}}: live crypto prices</title>
+  <meta name="description" content="Live prices for 21 leading coins, with 24 hour and 7 day moves, market size, charts and milestone alerts.">
   <link rel="canonical" href="{{SITE_URL}}/">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{{BRAND}}: live crypto prices and Telegram alerts">
-  <meta property="og:description" content="Live prices for 21 coins. The big moves go to {{CHANNEL_HANDLE}} on Telegram.">
+  <meta property="og:title" content="{{BRAND}}: live crypto prices">
+  <meta property="og:description" content="Live prices, charts and milestone alerts for 21 leading coins.">
   <meta property="og:image" content="{{SITE_URL}}/og.png">
   <meta name="twitter:card" content="summary_large_image">
 </head>
@@ -26,11 +26,11 @@
     <div class="hero">
       <div class="hero-top">
         <div class="hero-copy">
-          <h1>Live prices for 21 coins. The big moves go to Telegram.</h1>
-          <p class="lede">{{BRAND}} watches the market around the clock and posts a banner to {{CHANNEL_HANDLE}} every time a coin crosses a milestone.</p>
+          <h1>Live prices for 21 leading coins.</h1>
+          <p class="lede">Follow the market in real time, with 24 hour and 7 day moves, charts, market size and an alert every time a coin crosses a milestone.</p>
           <div class="hero-cta">
-            <a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a>
-            <a class="btn btn-ghost" href="#markets">See all markets</a>
+            <a class="btn btn-accent" href="#markets">See all markets</a>
+            <a class="btn btn-ghost" href="#alerts">Latest alerts</a>
           </div>
         </div>
         <div class="breadth" id="breadth" aria-live="polite">
@@ -85,43 +85,12 @@
       <div class="sec-head">
         <div>
           <h2>Latest alerts</h2>
-          <p>Every time a coin crosses its milestone, it lands here and in the channel.</p>
+          <p>Every time a coin crosses a milestone, it shows up here.</p>
         </div>
       </div>
-      <div class="duo">
-        <div class="panel feed">
-          <ul class="alerts" id="alert-list" aria-live="polite"></ul>
-          <p class="empty" id="alert-empty" hidden>No alerts yet. They show up here as soon as a coin crosses a milestone.</p>
-        </div>
-        <div class="panel tg">
-          <div class="tg-head">
-            <span class="tg-avatar"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg></span>
-            <span class="tg-id"><strong>{{BRAND}}</strong><small>{{CHANNEL_HANDLE}} on Telegram</small></span>
-          </div>
-          <div class="tg-chat">
-            <div class="tg-bubble">
-              <div class="banner-sample" id="sample" aria-hidden="true">
-                <div class="bs-row">
-                  <div class="bs-logo" id="bs-logo"></div>
-                  <div class="bs-text">
-                    <div class="bs-sym"><span id="bs-sym">BTC</span><span class="bs-chip"><svg viewBox="0 0 12 11"><path d="M6 0l6 11H0z"/></svg></span></div>
-                    <div class="bs-price" id="bs-price">$85,000</div>
-                  </div>
-                </div>
-                <span class="bs-mark">{{CHANNEL_HANDLE}}</span>
-              </div>
-              <span class="tg-time">just now</span>
-            </div>
-          </div>
-          <div class="tg-copy">
-            <h3>One banner per move</h3>
-            <p>The coin, the price and the direction, nothing else. Join the channel and the big moves find you.</p>
-          </div>
-          <div class="join-actions">
-            <a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a>
-            <a class="btn btn-ghost" href="/about">How alerts work</a>
-          </div>
-        </div>
+      <div class="panel feed">
+        <ul class="alerts" id="alert-list" aria-live="polite"></ul>
+        <p class="empty" id="alert-empty" hidden>No alerts yet. They show up here as soon as a coin crosses a milestone.</p>
       </div>
     </div>
   </section>
@@ -134,8 +103,8 @@
         <a class="btn btn-ghost" href="/about">Read the full FAQ</a>
       </div>
       <div class="faq">
-        <details><summary>Is {{BRAND}} free?</summary><p>Yes. The site and the Telegram channel are free to use.</p></details>
-        <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, a banner is posted to {{CHANNEL_HANDLE}}.</p></details>
+        <details><summary>Is {{BRAND}} free?</summary><p>Yes. Everything on the site is free, and there is nothing to sign up for.</p></details>
+        <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, the alert appears in Latest alerts.</p></details>
         <details><summary>Which coins are covered?</summary><p>21 leading coins, including Bitcoin, Ethereum, XRP, BNB, Solana and the USDT and USDC stablecoins. Every one is listed on this page.</p></details>
       </div>
     </div>

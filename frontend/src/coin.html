@@ -73,16 +73,9 @@
   <section>
     <div class="wrap">
       <div class="sec-head"><h2 id="alerts-title">Recent alerts</h2></div>
-      <div class="duo">
-        <div class="panel">
-          <ul class="alerts" id="alert-list" aria-live="polite"></ul>
-          <p class="empty" id="alert-empty" hidden>No alerts for this coin yet. The next one lands here and in the channel.</p>
-        </div>
-        <div class="panel join">
-          <h3>Get every {{COIN_TICKER}} move on Telegram</h3>
-          <p>Join {{CHANNEL_HANDLE}} and each milestone arrives as a banner, so you never need to keep this page open.</p>
-          <div class="join-actions"><a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a></div>
-        </div>
+      <div class="panel feed">
+        <ul class="alerts" id="alert-list" aria-live="polite"></ul>
+        <p class="empty" id="alert-empty" hidden>No alerts for this coin yet. The next one will show up here.</p>
       </div>
     </div>
   </section>
