@@ -93,12 +93,16 @@ function drawChart() {
   const stable = state.coin?.stable;
   const pts = h.points.map(([t, p]) => [t, p * currency.rate]);
   const W = host.clientWidth || 640, H = host.clientHeight || 300;
-  const padL = 4, padR = 62, padT = 12, padB = 26;
-  const iw = W - padL - padR, ih = H - padT - padB;
+  const padL = 4, padT = 12, padB = 26;
   const vals = pts.map(p => p[1]);
   let lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = (hi - lo) * 0.08 || hi * 0.01;
   lo -= pad; hi += pad;
+  // Room for the price labels on the right grows with the longest label (KES and NGN prices are long).
+  const tickValues = niceTicks(lo, hi);
+  const longest = Math.max(0, ...tickValues.map(v => money(v / currency.rate, { stable }).length));
+  const padR = Math.min(W * 0.42, Math.max(62, longest * 6.8 + 16));
+  const iw = W - padL - padR, ih = H - padT - padB;
   const x = i => padL + (i / (pts.length - 1)) * iw;
   const y = v => padT + (1 - (v - lo) / (hi - lo)) * ih;
   const up = vals.at(-1) >= vals[0];
@@ -111,7 +115,7 @@ function drawChart() {
   defs.append(grad);
   root.append(defs);
 
-  for (const v of niceTicks(lo, hi)) {
+  for (const v of tickValues) {
     const yy = y(v);
     root.append(svg('line', { class: 'grid-line', x1: padL, x2: W - padR, y1: yy, y2: yy }));
     const t = svg('text', { class: 'axis-t', x: W - padR + 8, y: yy + 4 });

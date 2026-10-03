@@ -79,8 +79,8 @@ export function initTheme() {
 
 // ---------- Currency ----------
 const SYMBOLS = {
-  USD: '$', EUR: '€', GBP: '£', KES: 'KSh ', NGN: '₦', ZAR: 'R ', GHS: 'GH₵', UGX: 'USh ', TZS: 'TSh ',
-  INR: '₹', AED: 'AED ', CAD: 'C$', AUD: 'A$', JPY: '¥', BRL: 'R$',
+  USD: '$', EUR: '€', GBP: '£', KES: 'KSh\u00a0', NGN: '₦', ZAR: 'R\u00a0', GHS: 'GH₵', UGX: 'USh\u00a0', TZS: 'TSh\u00a0',
+  INR: '₹', AED: 'AED\u00a0', CAD: 'C$', AUD: 'A$', JPY: '¥', BRL: 'R$',
 };
 export const currency = { code: 'USD', rate: 1, rates: { USD: 1 } };
 const currencyListeners = new Set();
@@ -133,7 +133,7 @@ function numberText(v, stable) {
   return frac === undefined ? grouped : grouped + '.' + frac;
 }
 
-const sym = () => SYMBOLS[currency.code] || currency.code + ' ';
+const sym = () => SYMBOLS[currency.code] || currency.code + '\u00a0';
 
 export function money(usd, { stable = false } = {}) {
   if (typeof usd !== 'number' || !Number.isFinite(usd) || usd <= 0) return '–';

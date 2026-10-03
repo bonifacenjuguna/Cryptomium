@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.2.1
+
+**Website, phone fixes (frontend only; the backend is unchanged apart from the version).**
+- Coin tiles no longer overlap: each tile now stacks symbol, price and 24h change,
+  and coin symbols use a narrower typeface.
+- The page no longer drags sideways. The header's Join button is removed on phones
+  (the Join button in the hero stays), and sideways overflow is blocked everywhere.
+- The markets list shows 8 coins on phones with a "Show all 21 coins" button, so the
+  page is much shorter. Desktop is unchanged.
+- Coin page: long prices (KES, NGN) wrap safely, and the chart makes room for long
+  price labels.
+
 ## 2.2.0
 
 **Rebrand: Cryptomium.** The default banner/caption watermark is now `@cryptomiumx`

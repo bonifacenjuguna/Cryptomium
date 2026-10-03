@@ -14,7 +14,10 @@ const state = {
   tab: 'all',
   sort: { key: 'default', dir: 1 },
   firstPaint: true,
+  expanded: false,
 };
+const SMALL = window.matchMedia('(max-width: 820px)');
+const COLLAPSED_ROWS = 8;
 
 // ---------------------------------------------------------------- board
 function buildBoard() {
@@ -165,7 +168,11 @@ function paintTable() {
     }
     r.star.paint();
   }
-  const rows = list.map(c => state.rows.get(c.ticker).tr);
+  const collapse = SMALL.matches && !state.expanded && list.length > COLLAPSED_ROWS;
+  const rows = (collapse ? list.slice(0, COLLAPSED_ROWS) : list).map(c => state.rows.get(c.ticker).tr);
+  const more = $('more-rows');
+  more.hidden = !(SMALL.matches && list.length > COLLAPSED_ROWS);
+  more.textContent = state.expanded ? 'Show fewer coins' : `Show all ${list.length} coins`;
   const body = $('rows');
   const same = rows.length === body.children.length && rows.every((tr, i) => body.children[i] === tr);
   if (!same) body.replaceChildren(...rows);
@@ -203,6 +210,8 @@ function wireTable() {
     paintTable();
   });
   onFavs(paintTable);
+  $('more-rows').addEventListener('click', () => { state.expanded = !state.expanded; paintTable(); });
+  SMALL.addEventListener('change', paintTable);
 }
 
 // ---------------------------------------------------------------- alerts
