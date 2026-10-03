@@ -343,6 +343,7 @@ export async function initChrome() {
   initCurrency();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
+  if (path === '/settings') document.querySelector('[data-nav="settings"]')?.setAttribute('aria-current', 'page');
   let coins = [];
   try { coins = await getCoinList(); } catch { /* search just stays empty */ }
   initSearch(coins);
