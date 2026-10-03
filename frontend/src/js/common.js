@@ -308,35 +308,9 @@ function initSearch(coins) {
   });
 }
 
-// ---------- Header: mobile navigation ----------
-function initMobileNav() {
-  const nav = document.getElementById('main-nav');
-  const toggle = document.getElementById('menu-toggle');
-  if (!nav || !toggle) return;
-
-  const setOpen = open => {
-    nav.classList.toggle('is-open', open);
-    toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
-    document.documentElement.classList.toggle('nav-open', open);
-  };
-
-  toggle.addEventListener('click', () => setOpen(!nav.classList.contains('is-open')));
-  nav.addEventListener('click', e => {
-    if (e.target.closest('a')) setOpen(false);
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') setOpen(false);
-  });
-  document.addEventListener('click', e => {
-    if (!nav.contains(e.target) && !toggle.contains(e.target)) setOpen(false);
-  });
-}
-
 // ---------- Header: current page highlight + boot ----------
 export async function initChrome() {
   initTheme();
-  initMobileNav();
   initCurrency();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
