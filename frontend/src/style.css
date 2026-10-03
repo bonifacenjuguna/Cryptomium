@@ -442,3 +442,389 @@ td a.row-link { text-decoration: none; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+
+/* ============================================================
+   Cryptomium Mobile UI Redesign
+   UI-only layer. Existing data, markup and desktop behavior stay intact.
+   ============================================================ */
+
+@media (max-width: 820px) {
+  /* Turn the header into a compact app bar. */
+  .site-header {
+    box-shadow: 0 1px 0 var(--line);
+  }
+  .bar {
+    min-height: 62px;
+    gap: 8px;
+  }
+  .brand {
+    font-size: 1.08rem;
+    letter-spacing: -.03em;
+  }
+
+  /* Mobile navigation: horizontally scrollable, visually intentional instead
+     of simply disappearing. */
+  .nav {
+    display: flex;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: 66px;
+    z-index: 25;
+    padding: 6px;
+    margin: 0;
+    gap: 4px;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: var(--shadow);
+    scrollbar-width: none;
+    transform: translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a {
+    flex: 0 0 auto;
+    padding: 9px 13px;
+    font-size: .82rem;
+  }
+
+  /* Use the search control as the compact navigation trigger area without
+     changing application behavior. */
+  .tools {
+    flex: none;
+  }
+
+  .hero {
+    padding-top: 32px;
+  }
+  .hero-top {
+    gap: 18px;
+  }
+  .hero-copy {
+    gap: 15px;
+  }
+  .hero-copy h1 {
+    max-width: 13ch;
+  }
+
+  .breadth {
+    border-radius: 16px;
+    padding: 14px 15px;
+  }
+
+  /* Market board becomes a deliberate 2xN mobile dashboard. */
+  .board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .tile {
+    min-height: 104px;
+    padding: 12px;
+    border-radius: 10px;
+  }
+  .t-sym {
+    font-size: 1.18rem;
+  }
+  .t-name {
+    display: block;
+    font-size: .72rem;
+  }
+  .t-price {
+    padding-top: 7px;
+    font-size: .92rem;
+  }
+
+  /* Markets: mobile rows prioritize identity, price and 24h move. */
+  .table-wrap {
+    overflow: hidden;
+  }
+  table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+  th, td {
+    padding: 12px 7px;
+  }
+  th:first-child, td:first-child {
+    width: 34px;
+  }
+  th:nth-child(2), td:nth-child(2) {
+    width: 43%;
+  }
+  th:nth-child(3), td:nth-child(3) {
+    width: 29%;
+  }
+  th:nth-child(4), td:nth-child(4) {
+    width: 28%;
+  }
+  .col-7d, .col-cap, .col-spark {
+    display: none;
+  }
+  .coin-cell {
+    gap: 8px;
+    min-width: 0;
+  }
+  .coin-cell .c-sym {
+    font-size: .9rem;
+  }
+  .logo {
+    width: 29px;
+    height: 29px;
+  }
+  .price-cell,
+  .chg {
+    font-size: .82rem;
+  }
+
+  /* Alert cards read like compact feed items. */
+  .duo {
+    gap: 12px;
+  }
+  .panel {
+    border-radius: 16px;
+  }
+  .alert {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 10px;
+  }
+  .a-main {
+    min-width: 0;
+  }
+  .a-time {
+    font-size: .72rem;
+  }
+
+  .join {
+    padding: 14px;
+  }
+
+  /* Keep the sample banner visually strong instead of making it tiny. */
+  .banner-sample {
+    min-height: 150px;
+  }
+
+  .faq details {
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    width: calc(100% - 20px);
+  }
+  .site-header .wrap {
+    width: calc(100% - 16px);
+  }
+
+  /* Header: brand + essential controls, with a clean menu surface. */
+  .bar {
+    min-height: 58px;
+  }
+  .brand .mark {
+    width: 26px;
+    height: 26px;
+  }
+  .tools {
+    gap: 5px;
+  }
+  .select select {
+    max-width: 70px;
+    height: 35px;
+    padding-left: 8px;
+    padding-right: 23px;
+  }
+  .icon-btn {
+    width: 35px;
+    height: 35px;
+  }
+  .tools > .btn {
+    display: inline-flex;
+    min-height: 35px;
+    padding: 0 12px;
+    font-size: .78rem;
+  }
+
+  .nav {
+    top: 62px;
+    left: 8px;
+    right: 8px;
+    border-radius: 13px;
+  }
+
+  .hero {
+    padding: 25px 0 16px;
+  }
+  h1 {
+    font-size: clamp(2.05rem, 11vw, 2.85rem);
+    max-width: 12ch;
+    letter-spacing: -.045em;
+  }
+  .lede {
+    font-size: .96rem;
+  }
+  .hero-cta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .hero-cta .btn {
+    min-height: 45px;
+  }
+
+  .board-head {
+    margin-top: 22px;
+  }
+  .board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .tile {
+    min-height: 98px;
+    padding: 10px;
+  }
+  .t-sym {
+    font-size: 1.1rem;
+  }
+  .t-name {
+    display: none;
+  }
+  .t-price {
+    font-size: .88rem;
+  }
+
+  section {
+    padding-top: 38px;
+  }
+  .sec-head {
+    align-items: flex-start;
+  }
+  .sec-head p {
+    max-width: 38ch;
+  }
+
+  .tabs {
+    overflow-x: auto;
+    width: 100%;
+    padding: 3px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 1 0 auto;
+    min-width: 76px;
+    height: 35px;
+  }
+
+  .table-wrap {
+    border-radius: 14px;
+  }
+  table {
+    font-size: .82rem;
+  }
+  th, td {
+    padding: 11px 5px;
+  }
+  th:first-child, td:first-child {
+    width: 30px;
+  }
+  th:nth-child(2), td:nth-child(2) {
+    width: 43%;
+  }
+  th:nth-child(3), td:nth-child(3) {
+    width: 29%;
+  }
+  th:nth-child(4), td:nth-child(4) {
+    width: 28%;
+  }
+  .coin-cell .c-sym {
+    font-size: .84rem;
+  }
+  .logo {
+    width: 26px;
+    height: 26px;
+  }
+  .price-cell, .chg {
+    font-size: .77rem;
+  }
+
+  .duo {
+    grid-template-columns: 1fr;
+  }
+  .alert {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .a-time {
+    grid-column: 2;
+    margin-top: -4px;
+  }
+  .join-actions {
+    grid-template-columns: 1fr;
+  }
+  .join-actions .btn {
+    width: 100%;
+  }
+
+  .faq summary {
+    min-height: 50px;
+    align-items: center;
+  }
+
+  .coin-head {
+    gap: 10px;
+  }
+  .chart-card {
+    border-radius: 14px;
+  }
+  .chart {
+    height: 225px;
+  }
+  .stats {
+    gap: 7px;
+  }
+  .stat {
+    border-radius: 12px;
+  }
+
+  .foot {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand span {
+    display: inline;
+  }
+  .tools > .btn {
+    padding-inline: 10px;
+  }
+  .select select {
+    max-width: 62px;
+  }
+  .hero-cta {
+    grid-template-columns: 1fr;
+  }
+  .breadth {
+    padding: 13px;
+  }
+  .tile {
+    min-height: 92px;
+  }
+  .t-price {
+    font-size: .84rem;
+  }
+  .t-chg {
+    font-size: .75rem;
+  }
+}
+
+@media (min-width: 821px) {
+  .nav {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+}
