@@ -828,3 +828,24 @@ td a.row-link { text-decoration: none; }
     transform: none;
   }
 }
+
+
+@media (max-width: 820px) {
+  /* Mobile quick-nav: always available, compact and thumb-friendly. */
+  .nav {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+  .nav::before {
+    content: "Navigate";
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 0 7px 0 5px;
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+}
