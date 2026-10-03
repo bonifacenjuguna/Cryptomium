@@ -1,6 +1,6 @@
 import {
   API, initChrome, getJSON, pollPrices, setLive, currency, onCurrency, money, compactMoney, pct, ago,
-  isFav, toggleFav, onFavs, favCount, el, logoEl, tileEl, paintTile, DIR_SVG,
+  isFav, toggleFav, onFavs, favCount, el, logoEl, DIR_SVG,
 } from './common.js';
 
 const $ = id => document.getElementById(id);
@@ -9,7 +9,6 @@ const state = {
   coins: [],            // static list (ticker, name) so the page has shape before data arrives
   live: new Map(),      // ticker -> latest coin from /api/prices
   market: {},           // ticker -> market details from /api/market
-  tiles: new Map(),
   rows: new Map(),
   tab: 'all',
   sort: { key: 'default', dir: 1 },
@@ -19,36 +18,7 @@ const state = {
 const SMALL = window.matchMedia('(max-width: 820px)');
 const COLLAPSED_ROWS = 8;
 
-// ---------------------------------------------------------------- board
-function buildBoard() {
-  const board = $('board');
-  const items = state.coins.map((c, i) => {
-    const t = tileEl({ ticker: c.ticker, name: c.name }, i);
-    t.a.classList.add('skeleton');
-    t.price.textContent = '$00,000';
-    t.chg.textContent = '+0.0%';
-    state.tiles.set(c.ticker, t);
-    return t.a;
-  });
-  board.replaceChildren(...items.map(a => { const li = el('li'); li.append(a); return li; }));
-}
-
-function paintBoard() {
-  let i = 0;
-  for (const c of state.coins) {
-    const coin = state.live.get(c.ticker);
-    const t = state.tiles.get(c.ticker);
-    if (coin && t) {
-      paintTile(t, coin);
-      if (state.firstPaint) {
-        t.a.style.setProperty('--i', i++);
-        t.a.classList.add('enter');
-      }
-    }
-  }
-  state.firstPaint = false;
-}
-
+// ---------------------------------------------------------------- market breadth
 function paintBreadth() {
   const list = [...state.live.values()].filter(c => typeof c.change24h === 'number');
   if (!list.length) return;
@@ -261,33 +231,24 @@ function paintSample() {
 async function boot() {
   state.coins = await initChrome();
   if (!state.coins.length) return;
-  buildBoard();
   buildRows();
   wireTable();
   paintTable();
-  onCurrency(() => { paintBoard(); paintTable(); paintAlerts(); paintSample(); });
+  onCurrency(() => { paintTable(); paintAlerts(); paintSample(); });
 
   if (!API) {
-    $('board-note').hidden = false;
-    $('board-note').textContent = 'The price service is not connected yet.';
     return;
   }
 
   pollPrices(
     data => {
       state.live = new Map(data.coins.map(c => [c.ticker, c]));
-      paintBoard();
       paintBreadth();
       paintTable();
       paintSample();
-      $('board-note').hidden = true;
     },
     s => {
       setLive($('live'), s);
-      if (s !== 'live' && !state.live.size) {
-        $('board-note').hidden = false;
-        $('board-note').textContent = 'Prices are taking longer than usual to load. We keep trying, so this page will fill in on its own.';
-      }
     }
   );
 
