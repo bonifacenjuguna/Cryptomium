@@ -435,8 +435,8 @@ td a.row-link { text-decoration: none; }
 
 /* ---------- Settings ---------- */
 .settings-page {
-  max-width: 720px;
-  padding: clamp(34px, 6vw, 64px) 0 72px;
+  max-width: 860px;
+  padding: clamp(30px, 5vw, 56px) 0 72px;
 }
 
 .settings-back {
@@ -451,37 +451,41 @@ td a.row-link { text-decoration: none; }
 .settings-back:hover { color: var(--ink); }
 
 .settings-heading {
-  display: grid;
-  gap: 10px;
-  margin-top: 28px;
-  padding-bottom: 24px;
+  margin-top: 30px;
+  padding: 0 0 30px;
   border-bottom: 1px solid var(--line);
 }
+.settings-eyebrow {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
 .settings-heading h1 {
-  font-size: clamp(2rem, 4.6vw, 3.2rem);
   max-width: none;
+  font-size: clamp(2.4rem, 6vw, 4rem);
 }
 .settings-heading .lede {
+  margin-top: 12px;
   font-size: 1rem;
-  max-width: 54ch;
+  max-width: 52ch;
 }
 
 .settings-section {
-  padding-top: 28px;
+  padding-top: 30px;
 }
 .settings-section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .settings-section-head h2 {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 .settings-section-head p {
+  margin-top: 4px;
   color: var(--muted);
-  font-size: .8rem;
+  font-size: .82rem;
 }
 
 .settings-list {
@@ -489,15 +493,16 @@ td a.row-link { text-decoration: none; }
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .settings-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  min-height: 78px;
-  padding: 16px 18px;
+  gap: 28px;
+  min-height: 92px;
+  padding: 18px 20px;
 }
 .settings-item + .settings-item {
   border-top: 1px solid var(--line);
@@ -506,55 +511,59 @@ td a.row-link { text-decoration: none; }
   min-width: 0;
 }
 .settings-copy h3 {
-  font-size: .98rem;
+  font-size: 1rem;
 }
 .settings-copy p {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: .82rem;
-  line-height: 1.4;
+  font-size: .83rem;
+  line-height: 1.45;
 }
-.settings-control {
-  flex: none;
-}
-.settings-control select {
-  min-width: 92px;
-}
+.settings-control,
 .settings-theme {
   flex: none;
 }
-
-.settings-footnote {
-  margin: 12px 2px 0;
-  color: var(--muted);
-  font-size: .78rem;
+.settings-control select {
+  min-width: 100px;
+}
+.settings-theme {
+  width: 42px;
+  height: 42px;
+  background: var(--surface-2);
+}
+.settings-theme:hover {
+  background: var(--surface);
+}
+.settings-theme svg {
+  width: 19px;
+  height: 19px;
 }
 
 @media (max-width: 560px) {
   .settings-page {
-    padding-top: 26px;
+    padding-top: 24px;
     padding-bottom: 52px;
   }
   .settings-heading {
-    margin-top: 22px;
-    padding-bottom: 20px;
+    margin-top: 24px;
+    padding-bottom: 24px;
+  }
+  .settings-heading h1 {
+    font-size: 2.45rem;
   }
   .settings-section {
     padding-top: 24px;
   }
-  .settings-section-head p {
-    display: none;
-  }
   .settings-item {
-    min-height: 72px;
-    gap: 14px;
-    padding: 14px;
+    min-height: 82px;
+    gap: 16px;
+    padding: 16px;
   }
   .settings-copy p {
     font-size: .78rem;
   }
   .settings-control select {
-    min-width: 84px;
-    height: 36px;
+    min-width: 88px;
+    height: 38px;
   }
 }
