@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  API_URL = "https://priceping-production-7baf.up.railway.app"
 
 [[headers]]
   for = "/*"
