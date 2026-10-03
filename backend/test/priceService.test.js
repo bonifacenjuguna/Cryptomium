@@ -54,6 +54,7 @@ const binanceOk = (price = '99') => u => {
 
 beforeEach(() => {
   ps._resetForTests();
+  ps.setPreferredSource('auto'); // most tests below start from Auto; the app default is Binance first
   events.length = 0;
   ps.setSourceListener(e => events.push(e));
   script = { coingecko: geckoOk(), binanceMain: binanceOk(), binanceVision: binanceOk() };
@@ -111,6 +112,19 @@ test('"Binance first": Binance leads, and stablecoins are filled in from CoinGec
   assert.equal(prices.size, COINS.length);
   assert.equal(latest.source, 'Binance + CoinGecko');
   assert.equal(latest.backup, false);
+});
+
+test('"Binance first": 24h changes come from CoinGecko, and repeated fetches reuse that reading', async () => {
+  const calls = installFakeNetwork();
+  ps.setPreferredSource('binance');
+  await ps.fetchAllPrices();
+  const latest = await ps.getLatestPrices();
+  assert.equal(latest.changes.get('BTC'), 1.5, 'Binance has no 24h change, so it is filled from CoinGecko');
+  const geckoCalls = () => calls.filter(u => u.includes('coingecko.com')).length;
+  assert.equal(geckoCalls(), 1);
+  for (let i = 0; i < 5; i++) await ps.fetchAllPrices(); // e.g. a fast-refreshing website
+  assert.equal(geckoCalls(), 1, 'CoinGecko is not hit again within the minute');
+  assert.equal(calls.filter(u => u.startsWith('https://api.binance.com') || u.includes('binance.vision')).length, 6, 'Binance itself is fetched every time (real-time prices)');
 });
 
 test('"Binance first": if Binance fails, CoinGecko is the backup', async () => {

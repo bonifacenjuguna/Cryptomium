@@ -97,7 +97,8 @@ comments, is in `.env.example`.
 | `LOGO_RETRY_MIN` | 30 | Minutes between logo download retries |
 | `API_ENABLED` | true | Turn the website API on or off |
 | `ALLOWED_ORIGIN` | `*` | Site(s) allowed to call the API (your Netlify address) |
-| `API_REFRESH_MS` | 15000 | How long one price reading is shared between visitors |
+| `API_REFRESH_MS` | 5000 | Website refresh rate when the data source is Binance/Kraken first |
+| `API_SLOW_REFRESH_MS` | 30000 | Website refresh rate for Auto, CoinGecko only, CoinPaprika, Average |
 | `API_RATE_LIMIT_PER_MIN` | 120 | Requests per visitor per minute |
 
 Settings changed in Telegram (steps, modes, mutes, data source, logo style) are
@@ -116,6 +117,13 @@ download) uses to show live prices with logos on a Netlify site.
    site can call the API.
 
 Endpoints: `/api/prices`, `/api/logos/<TICKER>.png`, `/health`.
+
+The website uses the data source you pick in Telegram (🌐 Data source), with
+the same fallbacks as the bot. The default is **Binance first, CoinGecko as
+backup**. Binance prices move in real time, so the dashboard changes every few
+seconds; CoinGecko only updates about once a minute, so with Auto or CoinGecko
+only the numbers will look still between updates. The status line on the
+dashboard shows which source is in use.
 
 ## Using the bot
 
@@ -209,9 +217,9 @@ choose:
 
 | Option | Role | Behavior |
 |---|---|---|
-| 🤖 Auto (default) | — | CoinGecko, then Binance, Kraken, CoinPaprika if needed |
+| 🤖 Auto | — | CoinGecko, then Binance, Kraken, CoinPaprika if needed |
 | 🦎 CoinGecko only | aggregator | never uses another source |
-| 🟨 Binance first | exchange | CoinGecko as backup (and for stablecoins) |
+| 🟨 Binance first (default) | exchange | CoinGecko as backup (and for stablecoins) |
 | 🐙 Kraken first | exchange | CoinGecko as backup |
 | 🌶️ CoinPaprika first | aggregator | CoinGecko as backup |
 | 🧮 Average price | blend | CoinGecko + Binance + Kraken at once, midpoint of the range |

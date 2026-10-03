@@ -36,6 +36,43 @@ test('snapshot has price, 24h change, logo and colour per coin', async () => {
   assert.equal(s.stale, false);
 });
 
+test('snapshot includes the price source label', async () => {
+  const { p } = provider({
+    getPrices: async () => ({ prices: new Map([['BTC', 1]]), changes: new Map([['BTC', 2]]), at: 1, source: 'Binance + CoinGecko' }),
+  });
+  assert.equal((await p()).source, 'Binance + CoinGecko');
+});
+
+test('refresh speed follows the data source (function ttl), and a switch takes effect', async () => {
+  let ttl = 5_000;
+  const { p, calls, advance } = provider({ ttlMs: () => ttl });
+  await p();
+  advance(5_001);
+  await p();
+  assert.equal(calls(), 2, 'fast source: refreshed after 5s');
+  ttl = 30_000;
+  advance(10_000);
+  await p();
+  assert.equal(calls(), 2, 'slow source: 10s is not enough');
+  advance(21_000);
+  await p();
+  assert.equal(calls(), 3);
+});
+
+test('missing 24h changes are looked up at most once a minute, even if that fails', async () => {
+  let lookups = 0;
+  const { p, advance } = provider({
+    getPrices: async () => ({ prices: new Map([['BTC', 1]]), changes: new Map(), at: 1 }),
+    getChanges: async () => { lookups++; throw new Error('rate limited'); },
+    ttlMs: 5_000,
+  });
+  for (let i = 0; i < 6; i++) { await p(); advance(5_001); }
+  assert.ok(lookups <= 1 + 1, `looked up ${lookups} times in 30s`);
+  advance(60_000);
+  await p();
+  assert.ok(lookups >= 2);
+});
+
 test('visitors share one snapshot inside the refresh window', async () => {
   const { p, calls, advance } = provider();
   await Promise.all([p(), p(), p()]);

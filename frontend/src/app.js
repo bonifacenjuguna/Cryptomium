@@ -14,6 +14,7 @@
   let failing = false;
   let timer = null;
   let refreshMs = 15000;
+  let source = null;
 
   // --- Formatting: same rules as the Telegram banners -------------------------
   function formatPrice(price, stable) {
@@ -144,7 +145,7 @@
     } else if (failing) {
       statusText.textContent = "Can't reach the price server. Showing prices from " + ago(Date.now() - updatedAt) + '.';
     } else {
-      statusText.textContent = 'Live · updated ' + ago(Date.now() - updatedAt);
+      statusText.textContent = 'Live · ' + (source ? source + ' · ' : '') + 'updated ' + ago(Date.now() - updatedAt);
     }
   }
 
@@ -162,7 +163,8 @@
       const data = await res.json();
       coins = data.coins || [];
       updatedAt = Date.parse(data.updatedAt) || Date.now();
-      refreshMs = Math.max(5000, Number(data.refreshMs) || 15000);
+      refreshMs = Math.max(3000, Number(data.refreshMs) || 15000);
+      source = data.source || null;
       failing = Boolean(data.stale);
       showMessage('');
       render();

@@ -86,7 +86,7 @@ export const SOURCE_MODES = [
   { key: 'coinpaprika', emoji: '🌶️', name: 'CoinPaprika first', role: 'aggregator', desc: 'CoinGecko as backup — mind the ~25k calls/month free limit' },
   { key: 'average',     emoji: '🧮', name: 'Average price',   role: 'blend',      desc: 'CoinGecko + Binance + Kraken, midpoint of the range' },
 ];
-export const DEFAULT_SOURCE_MODE = 'auto';
+export const DEFAULT_SOURCE_MODE = 'binance';
 
 // How the coin logo is framed on banners. The owner can flip this in
 // Settings > Logo style and compare with the Test banner button.
@@ -169,8 +169,13 @@ export const CONFIG = {
   // Comma-separated site URLs allowed to call the API, e.g.
   // "https://my-dashboard.netlify.app". "*" (the default) allows any site.
   allowedOrigins: (process.env.ALLOWED_ORIGIN || '*').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean),
-  // How long one price reading is shared between all website visitors.
-  apiRefreshMs: envNumber('API_REFRESH_MS', 15_000, { min: 5_000 }),
+  // How often the website gets a fresh price reading while the bot's data
+  // source is an exchange (Binance / Kraken first): they update in real time.
+  apiRefreshMs: envNumber('API_REFRESH_MS', 5_000, { min: 3_000 }),
+  // Same, but when the data source is an aggregator (Auto, CoinGecko only,
+  // CoinPaprika, Average). Those refresh about once a minute and have request
+  // limits, so asking more often only repeats the same numbers.
+  apiSlowRefreshMs: envNumber('API_SLOW_REFRESH_MS', 30_000, { min: 10_000 }),
   // Requests allowed per visitor (IP) per minute.
   apiRateLimitPerMin: envNumber('API_RATE_LIMIT_PER_MIN', 120, { min: 1 }),
 };

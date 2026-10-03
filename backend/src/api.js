@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { COINS, CONFIG, LOGOS_DIR } from './config.js';
-import { getLatestPrices, getChanges24h } from './priceService.js';
+import { getLatestPrices, getChanges24h, getPreferredSource } from './priceService.js';
 
 /**
  * One shared snapshot for all visitors: rebuilt at most once per `ttlMs`, and
@@ -22,17 +22,30 @@ export function createSnapshotProvider({
   getPrices,
   getChanges,
   hasLogo,
-  ttlMs,
+  ttlMs, // a number, or a function returning the current number
+  changesCacheMs = 60_000,
   now = () => Date.now(),
 }) {
   let cached = null;
   let cachedAt = 0;
   let inflight = null;
+  let fallbackChanges = { at: -Infinity, value: new Map() };
+  const currentTtl = () => (typeof ttlMs === 'function' ? ttlMs() : ttlMs);
 
-  async function build() {
-    const latest = await getPrices({ maxAgeMs: ttlMs });
+  // Used only when the price reading carries no 24h changes. Cached (even when
+  // it fails) so a fast refresh never turns into a flood of extra requests.
+  async function changesFallback() {
+    if (now() - fallbackChanges.at < changesCacheMs) return fallbackChanges.value;
+    let value = new Map();
+    try { value = (await getChanges()) ?? new Map(); } catch { /* leave empty */ }
+    fallbackChanges = { at: now(), value };
+    return value;
+  }
+
+  async function build(ttl) {
+    const latest = await getPrices({ maxAgeMs: ttl });
     if (!latest?.prices || latest.prices.size === 0) throw new Error('No prices available yet.');
-    const changes = latest.changes?.size > 0 ? latest.changes : await getChanges();
+    const changes = latest.changes?.size > 0 ? latest.changes : await changesFallback();
 
     const list = [];
     for (const coin of coins) {
@@ -50,16 +63,18 @@ export function createSnapshotProvider({
     }
     return {
       updatedAt: new Date(latest.at || now()).toISOString(),
-      refreshMs: ttlMs,
+      refreshMs: ttl,
+      source: latest.source ?? null,
       stale: false,
       coins: list,
     };
   }
 
   return async function getSnapshot() {
-    if (cached && now() - cachedAt < ttlMs) return cached;
+    const ttl = currentTtl();
+    if (cached && now() - cachedAt < ttl) return cached;
     if (!inflight) {
-      inflight = build()
+      inflight = build(ttl)
         .then(snap => {
           cached = snap;
           cachedAt = now();
@@ -145,7 +160,7 @@ export function createApiHandler({ getSnapshot, logosDir, allowedOrigins, allow 
     if (url.pathname === '/api/prices') {
       try {
         const snapshot = await getSnapshot();
-        return json(res, 200, snapshot, { 'Cache-Control': 'public, max-age=5' });
+        return json(res, 200, snapshot, { 'Cache-Control': 'no-cache' });
       } catch (err) {
         console.error('[api] Could not build price snapshot:', err.message);
         return json(res, 503, { error: 'Prices are not available yet. Try again shortly.' });
@@ -183,7 +198,10 @@ export function startApi() {
     getPrices: getLatestPrices,
     getChanges: getChanges24h,
     hasLogo,
-    ttlMs: CONFIG.apiRefreshMs,
+    // Exchange sources move in real time, so refresh fast. Aggregators
+    // (CoinGecko etc.) only update about once a minute and have request
+    // limits, so refreshing faster would just repeat the same numbers.
+    ttlMs: () => (['binance', 'kraken'].includes(getPreferredSource()) ? CONFIG.apiRefreshMs : CONFIG.apiSlowRefreshMs),
   });
   const handler = createApiHandler({
     getSnapshot,

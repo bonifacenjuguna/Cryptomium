@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.2
+
+- **Dashboard now shows moving prices.** The old default (Auto = CoinGecko
+  first) only updates about once a minute, so the website kept repeating the
+  same numbers. The default data source is now **Binance first, CoinGecko as
+  backup** (existing installs keep whatever was chosen in 🌐 Data source).
+- The website refreshes every 5 seconds on Binance/Kraken and every 30 seconds
+  on aggregator sources (`API_REFRESH_MS`, `API_SLOW_REFRESH_MS`).
+- With Binance first, 24h changes for every coin now come from CoinGecko, and
+  that reading is reused for a minute (the old code asked CoinGecko again on
+  every price check). Auto mode is unchanged.
+- `/api/prices` now includes `source`, and the dashboard shows it
+  ("Live · Binance + CoinGecko · updated 3s ago").
+- Frontend: `netlify.toml` now contains the Railway `API_URL`.
+
 ## 2.1.1
 
 - Removed the preview images (and the Previews section) from the README to

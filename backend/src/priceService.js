@@ -376,6 +376,18 @@ function recordHealth({ primaryKey, primaryOk, anyOk, usedKey, error }) {
 // fetchAverageSpread above) — Map<ticker, { min, max, sources }>.
 let latest = { prices: null, changes: new Map(), ranges: null, at: 0, source: null, backup: false };
 
+// Gap-fill readings are reused for a minute (see fetchAllPrices).
+const FILL_CACHE_MS = 60_000;
+const fillCache = new Map(); // provider key -> { at, result }
+
+async function fillReading(key) {
+  const hit = fillCache.get(key);
+  if (hit && Date.now() - hit.at < FILL_CACHE_MS) return hit.result;
+  const result = await PROVIDERS[key].fetch();
+  fillCache.set(key, { at: Date.now(), result });
+  return result;
+}
+
 /**
  * Returns Map<ticker, price>. Tries the preferred provider first and the other
  * one as backup (unless the mode is "CoinGecko only"). Any coin the winning
@@ -409,19 +421,29 @@ export async function fetchAllPrices() {
   const changes = new Map(result.changes);
   let fillLabel = null;
 
-  // Fill gaps (stablecoins on Binance, or a coin one provider lacks) from the others.
+  // Fill gaps from the other providers: stablecoins on Binance, a coin one
+  // provider lacks, and 24h changes (Binance has none). The filler's reading
+  // is reused for FILL_CACHE_MS, so a fast-refreshing primary (Binance) does
+  // not hammer CoinGecko on every call.
   const missing = () => COINS.filter(c => !prices.has(c.ticker));
+  // Only CoinGecko supplies 24h changes, so only it is asked to fill them.
+  const needsChanges = key => key === 'coingecko' && changes.size === 0;
   for (const key of order) {
-    if (key === usedKey || missing().length === 0) continue;
+    if (key === usedKey || (missing().length === 0 && !needsChanges(key))) continue;
     try {
-      const extra = await PROVIDERS[key].fetch();
+      const extra = await fillReading(key);
       let filled = false;
       for (const coin of missing()) {
         if (extra.prices.has(coin.ticker)) {
           prices.set(coin.ticker, extra.prices.get(coin.ticker));
-          if (extra.changes.has(coin.ticker)) changes.set(coin.ticker, extra.changes.get(coin.ticker));
           filled = true;
         }
+      }
+      // Changes: when the primary supplied none, take the filler's for every coin.
+      if (needsChanges(key)) {
+        for (const [ticker, change] of extra.changes) if (prices.has(ticker)) { changes.set(ticker, change); filled = true; }
+      } else {
+        for (const coin of COINS) if (!changes.has(coin.ticker) && extra.changes.has(coin.ticker)) changes.set(coin.ticker, extra.changes.get(coin.ticker));
       }
       if (filled) fillLabel = PROVIDERS[key].label;
     } catch {
@@ -483,6 +505,7 @@ export async function testProviders() {
 
 /** Test helper: back to a clean slate. */
 export function _resetForTests() {
+  fillCache.clear();
   preferred = DEFAULT_SOURCE_MODE;
   listener = null;
   resetHealth();

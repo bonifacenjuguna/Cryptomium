@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Your Railway backend address. A value set in the Netlify UI overrides this.
   API_URL = "https://priceping-production-7baf.up.railway.app"
 
 [[headers]]
