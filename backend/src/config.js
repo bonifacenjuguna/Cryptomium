@@ -131,7 +131,7 @@ export const CONFIG = {
   botToken: process.env.BOT_TOKEN,
   databaseUrl: process.env.DATABASE_URL,
   redisUrl: process.env.REDIS_URL,
-  watermark: process.env.WATERMARK_HANDLE || '@priceping',
+  watermark: process.env.WATERMARK_HANDLE || '@cryptomiumx',
   defaultTimezone: process.env.DEFAULT_TIMEZONE || 'Africa/Nairobi',
   // How often the price loop checks for milestone crossings.
   pollIntervalMs: envNumber('POLL_INTERVAL_MS', 30_000, { min: 5_000 }),
@@ -177,7 +177,11 @@ export const CONFIG = {
   // limits, so asking more often only repeats the same numbers.
   apiSlowRefreshMs: envNumber('API_SLOW_REFRESH_MS', 30_000, { min: 10_000 }),
   // Requests allowed per visitor (IP) per minute.
-  apiRateLimitPerMin: envNumber('API_RATE_LIMIT_PER_MIN', 120, { min: 1 }),
+  apiRateLimitPerMin: envNumber('API_RATE_LIMIT_PER_MIN', 240, { min: 1 }),
+  // How many reverse proxies sit in front of the API (Railway = 1). The visitor's
+  // address is read that many entries from the END of X-Forwarded-For, because the
+  // start of that header can be written by the visitor.
+  trustedProxyHops: envNumber('TRUSTED_PROXY_HOPS', 1, { min: 0, max: 5 }),
 };
 
 export function coingeckoHeaders() {

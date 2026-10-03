@@ -37,7 +37,8 @@ export function startScheduler(bot) {
   };
 
   tick(); // run immediately on boot, then on the configured interval
-  setInterval(tick, CONFIG.pollIntervalMs);
+  const tickTimer = setInterval(tick, CONFIG.pollIntervalMs);
+  let pruneTimer = null;
 
   // Post history housekeeping: once at boot, then every 6 hours.
   if (CONFIG.postLogRetentionDays > 0) {
@@ -50,6 +51,11 @@ export function startScheduler(bot) {
       }
     };
     prune();
-    setInterval(prune, 6 * 60 * 60 * 1000).unref?.();
+    pruneTimer = setInterval(prune, 6 * 60 * 60 * 1000);
   }
+
+  return () => {
+    clearInterval(tickTimer);
+    if (pruneTimer) clearInterval(pruneTimer);
+  };
 }

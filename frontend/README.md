@@ -1,33 +1,52 @@
-# PricePing dashboard (Vercel)
+# Cryptomium website (Vercel)
 
-A static page that shows live prices, 24h change and logos from the PricePing
-backend, and refreshes by itself (no page reload).
+The public site for Cryptomium: a live tile board and markets table, a page for
+each of the 21 coins (chart, market stats, that coin's alerts), the latest
+Telegram alerts, About and FAQ. It needs no framework and no install step.
 
-## Deploy on Vercel
+## Deploy on Vercel (same as before)
 
-1. Put this `frontend/` folder in a Git repo (or in the same repo as the
-   backend). In Vercel, choose **Add New > Project** and import it.
-   - If the repo also holds the backend, set **Root Directory** to `frontend`.
-   - **Framework Preset:** Other. `vercel.json` already sets the build command
-     (`node build.js`) and output folder (`dist`).
-2. Deploy. The backend address is read from `site.config.json`
-   (already set to your Railway backend).
-3. In Railway, set the backend's `ALLOWED_ORIGIN` to your Vercel address
-   (for example `https://priceping.vercel.app`) so only this site can call
-   the API.
+Nothing about the setup changes: push this `frontend/` folder, keep **Framework
+Preset: Other** (and **Root Directory: `frontend`** if the repo also holds the
+backend), and redeploy. `vercel.json` already sets the build command
+(`node build.js`), the output folder (`dist`), clean URLs and the `/coin/<TICKER>`
+address rewrite.
 
-Prefer the CLI? Run `npx vercel` in this folder, then `npx vercel --prod`.
+After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site address
+(for example `https://cryptomium.com`). If you use both a custom domain and the
+`*.vercel.app` address, list both separated by a comma.
 
-## Changing the backend address
+## Settings
 
-Either edit `apiUrl` in `site.config.json`, or set an `API_URL` environment
-variable in Vercel (it wins over the file), then redeploy. No trailing slash.
+`site.config.json` (everything is public on the website):
 
-If no address is found, the site shows a short setup message instead of prices.
+| Key | Meaning |
+|---|---|
+| `apiUrl` | Your Railway backend address, no trailing slash. The `API_URL` environment variable in Vercel overrides it. |
+| `brand` | Site name |
+| `channelHandle`, `channelUrl` | Telegram channel shown on every Join button |
+| `botHandle` | Mentioned on the About page as the account that posts alerts (it is not linked, because the bot only answers its owner) |
+| `siteUrl` | Public address of the site, used for link previews and the sitemap. Optional: Vercel's own address is used when empty. Set `SITE_URL` in Vercel after you add a custom domain. |
 
-## Files
+## What is where
 
-- `src/` — the page (`index.html`, `style.css`, `app.js`)
-- `build.js` — copies `src/` to `dist/` and writes `config.js` with the backend address
-- `site.config.json` — the backend address
-- `vercel.json` — build settings and security headers
+- `src/` pages (`index.html`, `coin.html`, `about.html`, `404.html`), `style.css`, `js/`
+- `src/partials/` shared header and footer, inserted at build time
+- `coins.json` the 21 coins (used for search and for building one static page per coin)
+- `build.js` builds `dist/`: fills in the brand, writes `dist/coin/BTC.html` and the other
+  coin pages, the sitemap, `config.js` and a Content-Security-Policy that allows only
+  this site, Google Fonts and your backend
+- `vercel.json` build settings, rewrites and security headers
+
+Visitors' choices (theme, currency, starred coins) are saved in their own browser only.
+
+## Adding or removing a coin
+
+Add it to the backend `src/config.js`, then add its ticker and name to `coins.json`
+here and redeploy.
+
+## Needs from the backend (v2.2.0 or newer)
+
+`/api/prices`, `/api/market`, `/api/history/<TICKER>`, `/api/alerts`, `/api/rates` and
+`/api/logos/<TICKER>.png`. If one is missing the page still works and quietly leaves
+that part out.

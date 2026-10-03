@@ -378,23 +378,37 @@ let latest = { prices: null, changes: new Map(), ranges: null, at: 0, source: nu
 
 // Gap-fill readings are reused for a minute (see fetchAllPrices).
 const FILL_CACHE_MS = 60_000;
-const fillCache = new Map(); // provider key -> { at, result }
+// A failed gap-fill is remembered briefly too, so a rate-limited provider is not
+// asked again on every fast refresh (which only makes the rate limit worse).
+const FILL_FAIL_CACHE_MS = 30_000;
+const fillCache = new Map(); // provider key -> { at, result } or { at, failed, error }
 
 async function fillReading(key) {
   const hit = fillCache.get(key);
-  if (hit && Date.now() - hit.at < FILL_CACHE_MS) return hit.result;
-  const result = await PROVIDERS[key].fetch();
-  fillCache.set(key, { at: Date.now(), result });
-  return result;
+  if (hit) {
+    const age = Date.now() - hit.at;
+    if (hit.failed && age < FILL_FAIL_CACHE_MS) throw hit.error;
+    if (!hit.failed && age < FILL_CACHE_MS) return hit.result;
+  }
+  try {
+    const result = await PROVIDERS[key].fetch();
+    fillCache.set(key, { at: Date.now(), result });
+    return result;
+  } catch (err) {
+    fillCache.set(key, { at: Date.now(), failed: true, error: err });
+    throw err;
+  }
 }
 
 /**
- * Returns Map<ticker, price>. Tries the preferred provider first and the other
+ * Returns Map<ticker, price>. `track: false` keeps the reading out of the source-health
+ * counters (used for website traffic, so visitors never trigger "source failing" alerts).
+ * Tries the preferred provider first and the other
  * one as backup (unless the mode is "CoinGecko only"). Any coin the winning
  * provider doesn't supply (e.g. stablecoins from Binance) is filled in from the
  * other provider. Throws only if every provider fails.
  */
-export async function fetchAllPrices() {
+export async function fetchAllPrices({ track = true } = {}) {
   const order = providerOrder(preferred);
   const primaryKey = order[0];
 
@@ -413,7 +427,7 @@ export async function fetchAllPrices() {
   }
 
   if (!result) {
-    recordHealth({ primaryKey, primaryOk: false, anyOk: false, error: lastError });
+    if (track) recordHealth({ primaryKey, primaryOk: false, anyOk: false, error: lastError });
     throw lastError ?? new Error('No price source available');
   }
 
@@ -455,7 +469,7 @@ export async function fetchAllPrices() {
   const label = PROVIDERS[usedKey].label + (backup ? ' (backup)' : '') + (fillLabel ? ` + ${fillLabel}` : '');
   latest = { prices, changes, ranges: result.ranges ?? null, at: Date.now(), source: label, backup };
 
-  recordHealth({ primaryKey, primaryOk: !backup, anyOk: true, usedKey, error: lastError });
+  if (track) recordHealth({ primaryKey, primaryOk: !backup, anyOk: true, usedKey, error: lastError });
   return prices;
 }
 
@@ -464,11 +478,16 @@ export async function fetchAllPrices() {
  * from the shared cache if it is fresh enough, otherwise fetches. `force`
  * bypasses the cache (but is still throttled to one real fetch per 2 seconds).
  */
-export async function getLatestPrices({ maxAgeMs = 20_000, force = false } = {}) {
+export async function getLatestPrices({ maxAgeMs = 20_000, force = false, track = true } = {}) {
   const age = Date.now() - latest.at;
   if (latest.prices && (force ? age < 2_000 : age < maxAgeMs)) return latest;
-  await fetchAllPrices();
+  await fetchAllPrices({ track });
   return latest;
+}
+
+/** True when the last reading came from a backup source rather than the chosen one. */
+export function isUsingBackup() {
+  return Boolean(latest.backup);
 }
 
 /**

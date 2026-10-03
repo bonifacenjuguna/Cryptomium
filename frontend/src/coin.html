@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>{{COIN_NAME}} ({{COIN_TICKER}}) price, chart and alerts | {{BRAND}}</title>
+  <meta name="description" content="Live {{COIN_NAME}} ({{COIN_TICKER}}) price, 24 hour change, price chart and recent milestone alerts on {{BRAND}}.">
+  <link rel="canonical" href="{{SITE_URL}}/coin/{{COIN_TICKER}}">
+  <meta property="og:title" content="{{COIN_NAME}} ({{COIN_TICKER}}) price | {{BRAND}}">
+  <meta property="og:description" content="Live {{COIN_NAME}} price, chart and milestone alerts.">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body>
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/#markets">All markets</a>
+    <div id="coin-root">
+      <div class="coin-head">
+        <div class="coin-id">
+          <div class="logo lg" id="c-logo"></div>
+          <div>
+            <h1 id="c-name">{{COIN_NAME}}</h1>
+            <span class="sym" id="c-sym">{{COIN_TICKER}}</span>
+          </div>
+          <button class="fav" id="c-fav" type="button" aria-pressed="false" aria-label="Star {{COIN_NAME}}">
+            <svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>
+          </button>
+        </div>
+        <div class="coin-price">
+          <div class="big num" id="c-price">–</div>
+          <div class="chg flat num" id="c-chg">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="panel chart-card">
+        <div class="chart-top">
+          <div class="tabs" role="tablist" aria-label="Chart range" id="ranges">
+            <button class="tab" role="tab" data-range="24h" aria-selected="false">24H</button>
+            <button class="tab" role="tab" data-range="7d" aria-selected="true">7D</button>
+            <button class="tab" role="tab" data-range="30d" aria-selected="false">30D</button>
+            <button class="tab" role="tab" data-range="90d" aria-selected="false">90D</button>
+            <button class="tab" role="tab" data-range="1y" aria-selected="false">1Y</button>
+          </div>
+          <div class="readout num" id="c-readout"></div>
+        </div>
+        <div class="chart" id="chart" tabindex="0" role="img" aria-label="Price chart"></div>
+      </div>
+
+      <dl class="stats" id="stats">
+        <div class="stat"><dt>Market cap</dt><dd class="num" id="s-cap">–</dd></div>
+        <div class="stat"><dt>24h volume</dt><dd class="num" id="s-vol">–</dd></div>
+        <div class="stat"><dt>7 day change</dt><dd class="num" id="s-7d">–</dd></div>
+        <div class="stat"><dt>24h change</dt><dd class="num" id="s-24h">–</dd></div>
+        <div class="stat range-bar">
+          <dt>24 hour range</dt>
+          <dd>
+            <div class="rb-track" id="rb-track"><span class="rb-pin" id="rb-pin"></span></div>
+            <div class="rb-ends num"><span id="rb-low">–</span><span id="rb-high">–</span></div>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><h2 id="alerts-title">Recent alerts</h2></div>
+      <div class="duo">
+        <div class="panel">
+          <ul class="alerts" id="alert-list" aria-live="polite"></ul>
+          <p class="empty" id="alert-empty" hidden>No alerts for this coin yet. The next one lands here and in the channel.</p>
+        </div>
+        <div class="panel join">
+          <h3>Get every {{COIN_TICKER}} move on Telegram</h3>
+          <p>Join {{CHANNEL_HANDLE}} and each milestone arrives as a banner, so you never need to keep this page open.</p>
+          <div class="join-actions"><a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><h2>More coins</h2></div>
+      <ul class="others" id="others"></ul>
+    </div>
+  </section>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/coin.js"></script>
+</body>
+</html>

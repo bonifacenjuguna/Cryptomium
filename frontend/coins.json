@@ -1,0 +1,86 @@
+[
+ {
+  "ticker": "BTC",
+  "name": "Bitcoin"
+ },
+ {
+  "ticker": "ETH",
+  "name": "Ethereum"
+ },
+ {
+  "ticker": "XRP",
+  "name": "XRP"
+ },
+ {
+  "ticker": "BNB",
+  "name": "BNB"
+ },
+ {
+  "ticker": "SOL",
+  "name": "Solana"
+ },
+ {
+  "ticker": "TRX",
+  "name": "TRON"
+ },
+ {
+  "ticker": "DOGE",
+  "name": "Dogecoin"
+ },
+ {
+  "ticker": "ADA",
+  "name": "Cardano"
+ },
+ {
+  "ticker": "LINK",
+  "name": "Chainlink"
+ },
+ {
+  "ticker": "TON",
+  "name": "Toncoin"
+ },
+ {
+  "ticker": "AVAX",
+  "name": "Avalanche"
+ },
+ {
+  "ticker": "SUI",
+  "name": "Sui"
+ },
+ {
+  "ticker": "XLM",
+  "name": "Stellar"
+ },
+ {
+  "ticker": "HBAR",
+  "name": "Hedera"
+ },
+ {
+  "ticker": "DOT",
+  "name": "Polkadot"
+ },
+ {
+  "ticker": "UNI",
+  "name": "Uniswap"
+ },
+ {
+  "ticker": "LTC",
+  "name": "Litecoin"
+ },
+ {
+  "ticker": "ZEC",
+  "name": "Zcash"
+ },
+ {
+  "ticker": "HYPE",
+  "name": "Hyperliquid"
+ },
+ {
+  "ticker": "USDT",
+  "name": "Tether"
+ },
+ {
+  "ticker": "USDC",
+  "name": "USD Coin"
+ }
+]

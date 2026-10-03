@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>About {{BRAND}} and how alerts work</title>
+  <meta name="description" content="What {{BRAND}} is, how milestone alerts work, which coins are covered, and answers to common questions.">
+  <link rel="canonical" href="{{SITE_URL}}/about">
+  <meta property="og:title" content="About {{BRAND}}">
+  <meta property="og:description" content="How {{BRAND}} tracks 21 coins and posts milestone alerts to Telegram.">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body>
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top">
+      <h1>Prices you can trust at a glance.</h1>
+      <p class="lede">{{BRAND}} is a live price board for 21 leading coins, paired with a Telegram channel that tells you the moment one of them makes a real move.</p>
+      <div class="hero-cta"><a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a></div>
+    </div>
+
+    <section>
+      <div class="prose">
+        <h2>How alerts work</h2>
+        <p>Every coin has a <strong>step</strong>. For most coins it is a percentage, for example 0.5% for Bitcoin. When the price has moved one full step from the last alert, in either direction, {{BRAND}} posts a banner to {{CHANNEL_HANDLE}} showing the coin, the price and whether it rose or fell.</p>
+        <p>If the market jumps several steps at once, you get one alert for the furthest level reached, not a burst of messages.</p>
+        <p><strong>Stablecoins</strong> (USDT and USDC) work differently. They only alert when the price strays from $1.00 by more than a small safety band, so a quiet day means no messages.</p>
+        <p>Banners are posted by {{BOT_HANDLE}}. It only posts to the channel, so there is nothing to message it about.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="prose">
+        <h2>Where the numbers come from</h2>
+        <p>Prices come from major public market data providers and exchanges, and refresh every few seconds while you are on the page. Market cap, volume and history come from aggregated market data and update every few minutes.</p>
+        <p>Different exchanges quote slightly different prices at any moment, so figures here can differ a little from the one you trade on.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Frequently asked questions</h2></div>
+      <div class="faq">
+        <details><summary>Is {{BRAND}} free?</summary><p>Yes. The website and the Telegram channel are free.</p></details>
+        <details><summary>Do I need an account?</summary><p>No. There is nothing to sign up for. Starred coins and your theme and currency choices are saved in your own browser.</p></details>
+        <details><summary>How do I get the alerts?</summary><p>Join {{CHANNEL_HANDLE}} on Telegram and turn notifications on for the channel. Every alert arrives as a single banner.</p></details>
+        <details><summary>Which currencies can I view prices in?</summary><p>US dollars by default. Use the currency menu at the top of the page to switch, and your choice is remembered. Alerts in the channel are always in US dollars.</p></details>
+        <details><summary>Why does a price differ from my exchange?</summary><p>Exchanges set their own prices, so small differences are normal, especially for less traded coins and during fast moves.</p></details>
+        <details><summary>Is this financial advice?</summary><p>No. {{BRAND}} shows market information only. Do your own research before making decisions with your money.</p></details>
+      </div>
+    </section>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/page.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { initDb, unmute } from './db.js';
+import { initDb, unmute, recentAlerts } from './db.js';
 import { initMuteExpiryListener } from './redisClient.js';
 import { createBot } from './bot.js';
 import { startScheduler } from './scheduler.js';
@@ -68,13 +68,13 @@ async function main() {
   });
   console.log('[index] Bot launched.');
 
-  startScheduler(bot);
+  const stopScheduler = startScheduler(bot);
   console.log(`[index] Scheduler started (every ${CONFIG.pollIntervalMs}ms).`);
 
   // Private liveness DM to the owner only — the channel stays untouched
   // on ordinary deploys/restarts.
   try {
-    await bot.telegram.sendMessage(CONFIG.ownerId, 'priceping is back online.');
+    await bot.telegram.sendMessage(CONFIG.ownerId, 'Cryptomium bot is back online.');
   } catch (err) {
     console.warn('[index] Could not send startup DM to owner (has the owner started a chat with the bot yet?):', err.message);
   }
@@ -98,15 +98,20 @@ async function main() {
   });
 
   // Read-only price API for the website dashboard.
-  const api = CONFIG.apiEnabled ? startApi() : null;
+  const api = CONFIG.apiEnabled ? startApi({ recentAlerts }) : null;
 
   const shutdown = signal => {
+    stopScheduler();
     api?.close();
     bot.stop(signal);
+    // Database/Redis connections can keep the process alive; do not wait for them forever.
+    setTimeout(() => process.exit(0), 3_000).unref();
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
 }
+
+process.on('unhandledRejection', err => console.error('[index] Unhandled rejection:', err));
 
 main().catch(err => {
   console.error('[index] Fatal startup error:', err);

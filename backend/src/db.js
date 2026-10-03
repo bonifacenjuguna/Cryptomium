@@ -183,6 +183,26 @@ export async function logPost({ ticker, kind, direction = null, price }) {
   );
 }
 
+/**
+ * Latest automatic milestone alerts (newest first) for the website feed.
+ * Manual "Post prices" sends are not alerts and are left out.
+ */
+export async function recentAlerts({ limit = 20, ticker = null } = {}) {
+  const n = Math.min(50, Math.max(1, Math.floor(limit)));
+  const { rows } = ticker
+    ? await pool.query(
+        `SELECT id, ticker, direction, price, posted_at FROM post_log
+         WHERE kind = 'auto' AND ticker = $1 ORDER BY posted_at DESC, id DESC LIMIT $2`,
+        [ticker, n]
+      )
+    : await pool.query(
+        `SELECT id, ticker, direction, price, posted_at FROM post_log
+         WHERE kind = 'auto' ORDER BY posted_at DESC, id DESC LIMIT $1`,
+        [n]
+      );
+  return rows;
+}
+
 export const POST_PERIODS = {
   '24h': { label: 'Last 24 hours', hours: 24 },
   '7d': { label: 'Last 7 days', hours: 24 * 7 },

@@ -3,7 +3,7 @@
 // and lets the owner post the result to the channel. Nothing renders until
 // the owner explicitly taps a style button; picking a coin or a range alone
 // never triggers a fetch or a render.
-import { coinByTicker } from '../config.js';
+import { CONFIG, coinByTicker } from '../config.js';
 import { getState, logPost } from '../db.js';
 import { CHART_RANGES, chartRangeByKey, parseCustomDays, fetchChartData } from '../chartData.js';
 import { generateChartImage } from '../chartGenerator.js';
@@ -124,7 +124,7 @@ async function renderAndShow(ctx, ticker, rangeToken, style) {
   }
 
   const lastPrice = data.style === 'candles' ? data.points.at(-1).c : data.points.at(-1).price;
-  const caption = `📊 ${ticker} · ${rangeLabel} chart @priceping`;
+  const caption = `📊 ${ticker} · ${rangeLabel} chart ${CONFIG.watermark}`;
   lastRendered.set(ctx.from.id, { ticker, buffer, caption, lastPrice });
 
   await ctx.replyWithPhoto(

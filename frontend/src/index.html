@@ -3,41 +3,139 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PricePing · Live crypto prices</title>
-  <meta name="description" content="Live prices and 24h change for the coins PricePing tracks.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>{{BRAND}}: live crypto prices and Telegram alerts</title>
+  <meta name="description" content="Live prices for 21 leading coins, with milestone alerts posted to {{CHANNEL_HANDLE}} on Telegram the moment they happen.">
+  <link rel="canonical" href="{{SITE_URL}}/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{BRAND}}: live crypto prices and Telegram alerts">
+  <meta property="og:description" content="Live prices for 21 coins. The big moves go to {{CHANNEL_HANDLE}} on Telegram.">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+  <meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
-  <header class="top">
-    <div>
-      <h1>PricePing</h1>
-      <p class="sub">Live prices for the coins we watch.</p>
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-top">
+        <div class="hero-copy">
+          <h1>Live prices for 21 coins. The big moves go to Telegram.</h1>
+          <p class="lede">{{BRAND}} watches the market around the clock and posts a banner to {{CHANNEL_HANDLE}} every time a coin crosses a milestone.</p>
+          <div class="hero-cta">
+            <a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a>
+            <a class="btn btn-ghost" href="#markets">See all markets</a>
+          </div>
+        </div>
+        <div class="breadth" id="breadth" aria-live="polite">
+          <span class="live" id="live" data-state="connecting">Connecting</span>
+          <div class="breadth-bar" aria-hidden="true"><span class="b-up" id="b-up"></span><span class="b-down" id="b-down"></span></div>
+          <p id="breadth-text">Loading the market</p>
+          <p class="muted" id="breadth-mover"></p>
+        </div>
+      </div>
+
+      <div class="board-head">
+        <h2 class="sr">Market board</h2>
+        <span class="scale" aria-hidden="true">Falling<i></i>Rising</span>
+        <span class="scale">Tiles are tinted by the 24 hour move</span>
+      </div>
+      <ul class="board" id="board" aria-label="All coins, tinted by 24 hour change"></ul>
+      <p class="board-note" id="board-note" hidden></p>
     </div>
-    <div class="controls">
-      <p id="status" class="status" role="status" aria-live="polite"><span class="dot"></span><span id="status-text">Connecting…</span></p>
-      <label class="sort">Sort
-        <select id="sort">
-          <option value="default">Default order</option>
-          <option value="gainers">Biggest gainers</option>
-          <option value="losers">Biggest losers</option>
-          <option value="price">Highest price</option>
-        </select>
-      </label>
+  </div>
+
+  <section id="markets">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <h2>Markets</h2>
+          <p>Prices, 24 hour and 7 day moves, and market size.</p>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Filter coins" id="tabs">
+          <button class="tab" role="tab" data-tab="all" aria-selected="true">All</button>
+          <button class="tab" role="tab" data-tab="fav" aria-selected="false">Starred</button>
+          <button class="tab" role="tab" data-tab="up" aria-selected="false">Gainers</button>
+          <button class="tab" role="tab" data-tab="down" aria-selected="false">Losers</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr">Star</span></th>
+              <th scope="col" aria-sort="none"><button type="button" data-sort="default">Coin</button></th>
+              <th scope="col" aria-sort="none"><button type="button" data-sort="price">Price</button></th>
+              <th scope="col" aria-sort="none"><button type="button" data-sort="change24h">24h</button></th>
+              <th scope="col" aria-sort="none" class="col-7d"><button type="button" data-sort="change7d">7d</button></th>
+              <th scope="col" aria-sort="none" class="col-cap"><button type="button" data-sort="marketCap">Market cap</button></th>
+              <th scope="col" class="col-spark"><span class="sr">Last 7 days</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <p class="empty" id="table-empty" hidden></p>
+      </div>
     </div>
-  </header>
+  </section>
 
-  <main>
-    <p id="message" class="message" hidden></p>
-    <ul id="grid" class="grid" aria-label="Coin prices"></ul>
-  </main>
+  <section id="alerts">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <h2>Latest alerts</h2>
+          <p>Every time a coin crosses its milestone, it lands here and in the channel.</p>
+        </div>
+      </div>
+      <div class="duo">
+        <div class="panel">
+          <ul class="alerts" id="alert-list" aria-live="polite"></ul>
+          <p class="empty" id="alert-empty" hidden>No alerts yet. They show up here as soon as a coin crosses a milestone.</p>
+        </div>
+        <div class="panel join">
+          <div class="banner-sample" id="sample" aria-hidden="true">
+            <div class="bs-row">
+              <div class="bs-logo" id="bs-logo"></div>
+              <div class="bs-text">
+                <div class="bs-sym"><span id="bs-sym">BTC</span><span class="bs-chip"><svg viewBox="0 0 12 11"><path d="M6 0l6 11H0z"/></svg></span></div>
+                <div class="bs-price" id="bs-price">/bin/bash</div>
+              </div>
+            </div>
+            <span class="bs-mark">{{CHANNEL_HANDLE}}</span>
+          </div>
+          <div>
+            <h3>Alerts that read at a glance</h3>
+            <p class="join-copy">Each one is a single banner with the coin, the price and the direction. No noise, no reading required.</p>
+          </div>
+          <div class="join-actions">
+            <a class="btn btn-accent" href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Join {{CHANNEL_HANDLE}}</a>
+            <a class="btn btn-ghost" href="/about">How alerts work</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <footer class="foot">Prices come from public market data and can lag by a few seconds.</footer>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><h2>Quick answers</h2></div>
+      <div class="faq">
+        <details><summary>Is {{BRAND}} free?</summary><p>Yes. The site and the Telegram channel are free to use.</p></details>
+        <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, a banner is posted to {{CHANNEL_HANDLE}}.</p></details>
+        <details><summary>Which coins are covered?</summary><p>21 leading coins, including Bitcoin, Ethereum, XRP, BNB, Solana and the USDT and USDC stablecoins. Every one is listed on this page.</p></details>
+      </div>
+      <p class="more"><a href="/about"><strong>Read the full FAQ</strong></a></p>
+    </div>
+  </section>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/home.js"></script>
 </body>
 </html>

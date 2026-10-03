@@ -17,6 +17,12 @@ export function createBot({ onChannelConnected }) {
 
   const bot = new Telegraf(CONFIG.botToken);
 
+  // One failing handler must never take the whole bot (and the alert loop) down.
+  // Telegraf's default is to rethrow, which ends polling and exits the process.
+  bot.catch((err, ctx) => {
+    console.error(`[bot] Error while handling update ${ctx?.update?.update_id}:`, err);
+  });
+
   // Owner-only guard: silently drop any update not from the configured
   // owner. This runs before every other handler.
   bot.use(async (ctx, next) => {

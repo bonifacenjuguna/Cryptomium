@@ -1,4 +1,4 @@
-# priceping
+# Cryptomium bot and API
 
 Owner-only Telegram bot that posts milestone crypto price alerts to a
 channel as branded image banners — one coin-colored card per coin, with
@@ -99,7 +99,9 @@ comments, is in `.env.example`.
 | `ALLOWED_ORIGIN` | `*` | Site(s) allowed to call the API (your Vercel address) |
 | `API_REFRESH_MS` | 5000 | Website refresh rate when the data source is Binance/Kraken first |
 | `API_SLOW_REFRESH_MS` | 30000 | Website refresh rate for Auto, CoinGecko only, CoinPaprika, Average |
-| `API_RATE_LIMIT_PER_MIN` | 120 | Requests per visitor per minute |
+| `API_RATE_LIMIT_PER_MIN` | 240 | Requests per visitor per minute |
+| `TRUSTED_PROXY_HOPS` | 1 | Reverse proxies in front of the API (Railway = 1) |
+| `WATERMARK_HANDLE` | @cryptomiumx | Handle printed on banners, charts and captions |
 
 Settings changed in Telegram (steps, modes, mutes, data source, logo style) are
 saved in the database and are separate from these.
@@ -117,7 +119,20 @@ download) uses to show live prices with logos on a Vercel site.
 3. Back in Railway, set `ALLOWED_ORIGIN` to your Vercel address so only your
    site can call the API.
 
-Endpoints: `/api/prices`, `/api/logos/<TICKER>.png`, `/health`.
+Endpoints (all read-only):
+
+| Endpoint | What it returns | Cached |
+|---|---|---|
+| `/api/prices` | live price + 24h change per coin | 5s / 30s (by data source) |
+| `/api/market` | market cap, volume, 24h range, 7d change, 7d sparkline | 5 min |
+| `/api/history/<TICKER>?range=24h\|7d\|30d\|90d\|1y` | price history for charts | 2 min to 6 h by range |
+| `/api/alerts?limit=20&ticker=BTC` | latest automatic alerts the bot posted | 15 s |
+| `/api/rates` | fiat exchange rates (currency switcher) | 1 h |
+| `/api/logos/<TICKER>.png` | coin logo | browser 24 h |
+| `/health` | `ok` | no |
+
+If a refresh fails, the last good reading is served (with `"stale": true`) and the
+failing source is not asked again for 30-60 seconds.
 
 The website uses the data source you pick in Telegram (🌐 Data source), with
 the same fallbacks as the bot. The default is **Binance first, CoinGecko as
@@ -144,7 +159,7 @@ bot (only `/start` is a slash command). The menu:
 - **📣 Post prices** — post the *current* price of one coin, or of all coins,
   to the channel. You confirm first. Each banner uses the live price, and the
   chip shows the 24h direction (green up / red down); the caption adds the 24h
-  change, e.g. `▲ BTC $81,385 · 24h +1.23% @priceping`. If the 24h change isn't
+  change, e.g. `▲ BTC $81,385 · 24h +1.23% @cryptomiumx`. If the 24h change isn't
   available the banner simply has no chip
 - **📊 Chart** (inside 📣 Post prices) — a price-history chart for one coin:
   pick the coin, a time range (24H/7D/30D/90D/1Y or a custom day count), then

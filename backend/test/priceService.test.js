@@ -496,3 +496,25 @@ test('Average price: a coin only one source has is still priced (range = a singl
   assert.equal(range.sources, 2);
 });
 
+
+test('untracked readings (website traffic) never move the source-health counters', async () => {
+  ps.setPreferredSource('binance');
+  installFakeNetwork();
+  script.binanceMain = () => json(451, {});
+  script.binanceVision = () => json(451, {});
+  for (let i = 0; i < 5; i++) await ps.fetchAllPrices({ track: false });
+  assert.equal(events.length, 0, 'no fallback/outage message from website refreshes');
+  assert.equal(ps.getSourceHealth().primaryFails, 0);
+  assert.equal(ps.isUsingBackup(), true);
+  for (let i = 0; i < 2; i++) await ps.fetchAllPrices(); // the bot's own ticks do count
+  assert.equal(events.at(-1)?.type, 'fallback');
+});
+
+test('a failing gap-fill source is not asked again on every fast refresh', async () => {
+  ps.setPreferredSource('binance');
+  const calls = installFakeNetwork();
+  script.coingecko = () => json(429, {});
+  for (let i = 0; i < 6; i++) await ps.fetchAllPrices({ track: false });
+  const geckoCalls = calls.filter(u => u.includes('coingecko.com')).length;
+  assert.equal(geckoCalls, 1, `CoinGecko was called ${geckoCalls} times`);
+});

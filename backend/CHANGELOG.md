@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.2.0
+
+**Rebrand: Cryptomium.** The default banner/caption watermark is now `@cryptomiumx`
+(set `WATERMARK_HANDLE` on Railway if you already override it, that value still wins).
+
+**New website (frontend/ is a full redesign).** Home page with a live tile board,
+sortable markets table, latest alerts and Telegram join section; a page per coin
+with a price chart, market stats and that coin's alerts; About and FAQ; search,
+starred coins, light/dark theme and a currency switcher (USD, EUR, GBP, KES, NGN,
+ZAR and more). The old "last refreshed" text, source label and red refresh flash
+are gone: prices just update quietly.
+
+**New API endpoints (read-only, cached):**
+- `GET /api/market`: market cap, volume, 24h range, 7d change and a 7-day sparkline
+  for every coin (one CoinGecko call, reused for 5 minutes).
+- `GET /api/history/<TICKER>?range=24h|7d|30d|90d|1y`: price history for charts.
+- `GET /api/alerts?limit=20&ticker=BTC`: the latest automatic alerts the bot posted
+  (manual "Post prices" sends are not included).
+- `GET /api/rates`: fiat exchange rates for the currency switcher.
+All of them share cached readings between visitors, remember failures for a short
+time so a struggling upstream is not hammered, and serve the last good reading
+(marked `stale`) when a refresh fails.
+
+**Fixes found while preparing the site:**
+- Website traffic no longer counts towards the "price source failing" alerts
+  (a busy site could have triggered false alarms within seconds).
+- A failing gap-fill source (usually CoinGecko, rate-limited) is no longer retried
+  on every fast refresh, and the site slows down while prices come from a backup.
+- The visitor's address for rate limiting now comes from the end of
+  `X-Forwarded-For` (the start can be faked). New `TRUSTED_PROXY_HOPS` (default 1).
+  Default `API_RATE_LIMIT_PER_MIN` raised from 120 to 240 because the site polls.
+- A failed snapshot rebuild is no longer retried on every request.
+- An error in any single bot handler no longer stops the whole bot (it is logged).
+- Clean shutdown: the process now exits on SIGTERM instead of hanging.
+- Chart captions use the configured watermark instead of a hard-coded handle.
+
+**Tests:** new `test/website.test.js` plus two price-service tests (111 -> 113 total).
+
 ## 2.1.3
 
 - **Dashboard hosting moved from Netlify to Vercel.** `frontend/` now has

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createCanvas } from '@napi-rs/canvas';
 
 // The logo folder is read from LOGOS_DIR when the module loads.
-const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'priceping-logos-'));
+const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cryptomium-logos-'));
 process.env.LOGOS_DIR = dir;
 const logos = await import('../src/logoService.js');
 const { COINS } = await import('../src/config.js');

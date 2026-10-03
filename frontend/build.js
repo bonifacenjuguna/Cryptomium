@@ -1,9 +1,16 @@
-// Build step (Vercel): copies src/ to dist/ and writes dist/config.js with the
-// backend address, so no code ever has to be edited.
+// Build step (Vercel): turns src/ into dist/.
 //
-// The address comes from the API_URL environment variable if it is set
+//  - fills in the brand, channel and site address (site.config.json)
+//  - inserts the shared header and footer into every page
+//  - writes one real page per coin (dist/coin/BTC.html ...) so search engines and
+//    link previews see the right title, plus a fallback coin page
+//  - writes config.js (the backend address, public by nature), sitemap.xml and a
+//    Content-Security-Policy that only allows this site and your backend
+//
+// The backend address comes from the API_URL environment variable if set
 // (Vercel > Project > Settings > Environment Variables), otherwise from
-// site.config.json. Either way it is public: browsers download it.
+// site.config.json. SITE_URL (optional) is the public address of this website,
+// used for sitemap and link previews; Vercel's own address is used if it is not set.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,23 +19,103 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const src = path.join(root, 'src');
 const dist = path.join(root, 'dist');
 
-function fromFile() {
+function readJson(file, fallback) {
   try {
-    return String(JSON.parse(fs.readFileSync(path.join(root, 'site.config.json'), 'utf8')).apiUrl || '');
+    return JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
   } catch {
-    return '';
+    return fallback;
   }
 }
 
-const apiUrl = (process.env.API_URL || fromFile()).trim().replace(/\/+$/, '');
+const site = readJson('site.config.json', {});
+const coins = readJson('coins.json', []);
+
+const apiUrl = String(process.env.API_URL || site.apiUrl || '').trim().replace(/\/+$/, '');
 if (!apiUrl) {
-  console.warn('[build] No API address found (API_URL or site.config.json). The site will build, but it will show a setup message instead of prices.');
+  console.warn('[build] No API address found (API_URL or site.config.json). The site will build, but will show a setup message instead of prices.');
 } else if (!/^https?:\/\//.test(apiUrl)) {
   console.error(`[build] The API address must start with https:// (got "${apiUrl}").`);
   process.exit(1);
 }
 
+const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '';
+const siteUrl = String(process.env.SITE_URL || site.siteUrl || (vercelHost ? `https://${vercelHost}` : ''))
+  .trim()
+  .replace(/\/+$/, '');
+
+const tokens = {
+  BRAND: site.brand || 'Cryptomium',
+  CHANNEL_HANDLE: site.channelHandle || '@cryptomiumx',
+  CHANNEL_URL: site.channelUrl || 'https://t.me/cryptomiumx',
+  BOT_HANDLE: site.botHandle || '@cryptomiumxbot',
+  SITE_URL: siteUrl,
+};
+
+const fill = (text, extra = {}) =>
+  text.replace(/\{\{([A-Z_]+)\}\}/g, (whole, key) => (key in extra ? extra[key] : key in tokens ? tokens[key] : whole));
+
+const header = fs.readFileSync(path.join(src, 'partials/header.html'), 'utf8');
+const footer = fs.readFileSync(path.join(src, 'partials/footer.html'), 'utf8');
+const compose = html => html.replace('<!--@header-->', header).replace('<!--@footer-->', footer);
+
+// Only this site, Google Fonts, and the backend may be used by the pages.
+const apiOrigin = apiUrl ? new URL(apiUrl).origin : '';
+const csp = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  `img-src 'self' data: ${apiOrigin}`.trim(),
+  `connect-src 'self' ${apiOrigin}`.trim(),
+  "base-uri 'self'",
+  "form-action 'none'",
+].join('; ');
+const withCsp = html => html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${csp}">`);
+
 fs.rmSync(dist, { recursive: true, force: true });
-fs.cpSync(src, dist, { recursive: true });
-fs.writeFileSync(path.join(dist, 'config.js'), `window.PRICEPING_API = ${JSON.stringify(apiUrl)};\n`);
-console.log(`[build] Done. Using API: ${apiUrl || '(not set)'}`);
+fs.mkdirSync(dist, { recursive: true });
+
+// Plain files first (css, js, icons, coins list).
+const pages = new Set(['index.html', 'about.html', 'coin.html', '404.html']);
+fs.cpSync(src, dist, {
+  recursive: true,
+  filter: file => !file.includes(`${path.sep}partials`) && !pages.has(path.basename(file)),
+});
+
+const write = (rel, text) => {
+  const file = path.join(dist, rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, text);
+};
+
+for (const name of ['index.html', 'about.html', '404.html']) {
+  write(name, withCsp(fill(compose(fs.readFileSync(path.join(src, name), 'utf8')))));
+}
+
+write('coins.json', JSON.stringify(coins));
+
+// Coin pages: one per coin, plus a generic fallback used for any other /coin/<x> address.
+const coinTemplate = withCsp(compose(fs.readFileSync(path.join(src, 'coin.html'), 'utf8')));
+write('coin.html', fill(coinTemplate, { COIN_NAME: 'Coin', COIN_TICKER: 'price' }).replace(`${siteUrl}/coin/price`, `${siteUrl}/`).replace(/ \(price\)/g, ''));
+for (const c of coins) {
+  write(`coin/${c.ticker}.html`, fill(coinTemplate, { COIN_NAME: c.name, COIN_TICKER: c.ticker }));
+}
+
+// Everything non-HTML that carries tokens.
+write('robots.txt', fill(fs.readFileSync(path.join(src, 'robots.txt'), 'utf8')).replace(/^Sitemap:.*\n?/m, siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''));
+if (siteUrl) {
+  const urls = ['/', '/about', ...coins.map(c => `/coin/${c.ticker}`)];
+  write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
+}
+
+write(
+  'config.js',
+  `window.CRYPTOMIUM = ${JSON.stringify({
+    apiUrl,
+    brand: tokens.BRAND,
+    channelUrl: tokens.CHANNEL_URL,
+    channelHandle: tokens.CHANNEL_HANDLE,
+  })};\n`
+);
+
+console.log(`[build] Done. API: ${apiUrl || '(not set)'} | site: ${siteUrl || '(not set)'} | ${coins.length} coin pages`);

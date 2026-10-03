@@ -33,7 +33,7 @@ test('rounding across a boundary stays consistent', () => {
 });
 
 test('buildCaption: alert, post-with-change, and post-without-direction', () => {
-  const wm = '@priceping';
+  const wm = '@cryptomiumx';
   assert.equal(buildCaption({ ticker: 'BTC', price: 81385, direction: 'up' }), `▲ BTC $81,385 ${wm}`);
   assert.equal(buildCaption({ ticker: 'ETH', price: 4021.45, direction: 'down', changePct: -1.234 }), `▼ ETH $4,021.45 · 24h -1.23% ${wm}`);
   assert.equal(buildCaption({ ticker: 'DOGE', price: 0.096, direction: 'up', changePct: 2 }), `▲ DOGE $0.096 · 24h +2.00% ${wm}`);
