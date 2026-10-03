@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.2.2
+
+**Website, proper phone navigation (frontend only; the backend is unchanged apart from the version).**
+- On phones the header is now just the logo, a search button and a menu button.
+  The menu opens a panel with Markets, Alerts, About, the currency picker, the
+  light/dark switch and the Join button. Desktop keeps the full header.
+- The header can no longer push the page sideways; checked at 320, 360, 412 and 768 px
+  with a deliberately wide font.
+- Redeploys now reach phones straight away: the stylesheet and scripts are no longer
+  cached for an hour, and every build stamps them with a version, so an older copy of
+  the site cannot linger on a phone after an update.
+- Phone search opens as a bar under the header instead of floating over the page.
+
 ## 2.2.1
 
 **Website, phone fixes (frontend only; the backend is unchanged apart from the version).**

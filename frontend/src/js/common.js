@@ -308,10 +308,35 @@ function initSearch(coins) {
   });
 }
 
+// ---------- Header: phone menu ----------
+function initMenu() {
+  const btn = document.getElementById('menu-toggle');
+  const menu = document.getElementById('menu');
+  if (!btn || !menu) return;
+  const set = open => {
+    menu.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  };
+  btn.addEventListener('click', () => {
+    const open = !menu.classList.contains('open');
+    if (open) document.getElementById('search')?.classList.remove('open');
+    set(open);
+  });
+  menu.querySelectorAll('.nav a').forEach(a => a.addEventListener('click', () => set(false)));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menu.classList.contains('open')) { set(false); btn.focus(); } });
+  document.addEventListener('click', e => {
+    if (menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) set(false);
+  });
+  matchMedia('(min-width: 821px)').addEventListener('change', e => { if (e.matches) set(false); });
+  document.getElementById('search-toggle')?.addEventListener('click', () => set(false));
+}
+
 // ---------- Header: current page highlight + boot ----------
 export async function initChrome() {
   initTheme();
   initCurrency();
+  initMenu();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
   let coins = [];

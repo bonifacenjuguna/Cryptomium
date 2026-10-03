@@ -82,10 +82,19 @@ fs.cpSync(src, dist, {
   filter: file => !file.includes(`${path.sep}partials`) && !pages.has(path.basename(file)),
 });
 
+// Version stamp for css/js so a redeploy always reaches phones immediately.
+import crypto from 'node:crypto';
+const stamp = crypto.createHash('sha1');
+for (const f of ['style.css', 'theme-init.js', 'js/common.js', 'js/home.js', 'js/coin.js', 'js/page.js']) {
+  try { stamp.update(fs.readFileSync(path.join(src, f))); } catch { /* optional */ }
+}
+const ver = stamp.digest('hex').slice(0, 8);
+const bust = html => html.replace(/(href|src)="\/(style\.css|theme-init\.js|config\.js|js\/[a-z]+\.js)"/g, `$1="/$2?v=${ver}"`);
+
 const write = (rel, text) => {
   const file = path.join(dist, rel);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, text);
+  fs.writeFileSync(file, rel.endsWith('.html') ? bust(text) : text);
 };
 
 for (const name of ['index.html', 'about.html', '404.html']) {
