@@ -49,9 +49,17 @@
             <button class="tab" role="tab" data-range="90d" aria-selected="false">90D</button>
             <button class="tab" role="tab" data-range="1y" aria-selected="false">1Y</button>
           </div>
-          <div class="readout num" id="c-readout"></div>
+          <div class="segs" id="chart-type" role="group" aria-label="Chart style">
+            <button class="seg" type="button" data-type="line" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-9"/></svg>Line
+            </button>
+            <button class="seg" type="button" data-type="candles" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M7 3v4M7 17v4M17 6v3M17 15v5"/><rect x="5" y="7" width="4" height="10" rx="1"/><rect x="15" y="9" width="4" height="6" rx="1"/></svg>Candles
+            </button>
+          </div>
         </div>
-        <div class="chart" id="chart" tabindex="0" role="img" aria-label="Price chart"></div>
+        <div class="readout num" id="c-readout"></div>
+        <div class="chart" id="chart" tabindex="0" role="img" aria-label="Price chart. Tap or click the chart to read a value; tap elsewhere to clear it."></div>
       </div>
 
       <dl class="stats" id="stats">
@@ -67,6 +75,15 @@
           </dd>
         </div>
       </dl>
+
+      <div class="panel converter">
+        <div class="cv-head"><h2>Converter</h2><span class="cv-note">Uses the live price</span></div>
+        <div class="cv-row">
+          <label class="cv-field"><span class="cv-label" id="cv-sym">{{COIN_TICKER}}</span><input id="cv-coin" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Amount of {{COIN_NAME}}"></label>
+          <span class="cv-eq" aria-hidden="true">=</span>
+          <label class="cv-field"><span class="cv-label" id="cv-code">USD</span><input id="cv-fiat" type="text" inputmode="decimal" autocomplete="off" aria-label="Value in your currency"></label>
+        </div>
+      </div>
     </div>
   </div>
 

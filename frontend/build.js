@@ -58,7 +58,8 @@ const fill = (text, extra = {}) =>
 
 const header = fs.readFileSync(path.join(src, 'partials/header.html'), 'utf8');
 const footer = fs.readFileSync(path.join(src, 'partials/footer.html'), 'utf8');
-const compose = html => html.replace('<!--@header-->', header).replace('<!--@footer-->', footer);
+const settingsNav = fs.readFileSync(path.join(src, 'partials/settings-nav.html'), 'utf8');
+const compose = html => html.replace('<!--@header-->', header).replace('<!--@footer-->', footer).replace('<!--@settings-nav-->', settingsNav);
 
 // Only this site, Google Fonts, and the backend may be used by the pages.
 const apiOrigin = apiUrl ? new URL(apiUrl).origin : '';
@@ -78,16 +79,24 @@ fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 
 // Plain files first (css, js, icons, coins list).
-const pages = new Set(['index.html', 'about.html', 'coin.html', '404.html']);
+// Every .html under src (except partials and the coin template) is a page of its own.
 fs.cpSync(src, dist, {
   recursive: true,
-  filter: file => !file.includes(`${path.sep}partials`) && !pages.has(path.basename(file)),
+  filter: file => !file.includes(`${path.sep}partials`) && !file.endsWith('.html'),
 });
+const pageFiles = [];
+(function walk(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) { if (entry.name !== 'partials') walk(full); }
+    else if (entry.name.endsWith('.html') && entry.name !== 'coin.html') pageFiles.push(path.relative(src, full));
+  }
+})(src);
 
 // Version stamp for css/js so a redeploy always reaches phones immediately.
 import crypto from 'node:crypto';
 const stamp = crypto.createHash('sha1');
-for (const f of ['style.css', 'theme-init.js', 'js/common.js', 'js/home.js', 'js/coin.js', 'js/page.js']) {
+for (const f of ['style.css', 'theme-init.js', ...fs.readdirSync(path.join(src, 'js')).sort().map(n => 'js/' + n)]) {
   try { stamp.update(fs.readFileSync(path.join(src, f))); } catch { /* optional */ }
 }
 const ver = stamp.digest('hex').slice(0, 8);
@@ -99,7 +108,7 @@ const write = (rel, text) => {
   fs.writeFileSync(file, rel.endsWith('.html') ? bust(text) : text);
 };
 
-for (const name of ['index.html', 'about.html', '404.html']) {
+for (const name of pageFiles) {
   write(name, withCsp(fill(compose(fs.readFileSync(path.join(src, name), 'utf8')))));
 }
 

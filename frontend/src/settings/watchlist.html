@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Watchlist | {{BRAND}}</title>
+  <meta name="description" content="Choose the coins you follow.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/watchlist">
+</head>
+<body data-page="watchlist">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Watchlist</h1><p class="lede">Star the coins you follow. They appear under Starred on the home page.</p></div>
+
+        <section class="s-card">
+          <div class="wl-top">
+            <label class="wl-search"><span class="sr">Filter coins</span><input id="wl-filter" type="search" placeholder="Filter coins" autocomplete="off"></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="wl-clear">Clear all</button>
+          </div>
+          <p class="s-hint" id="wl-count"></p>
+          <ul class="wl-list" id="wl-list"></ul>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

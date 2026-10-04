@@ -172,6 +172,10 @@ export const CONFIG = {
   // How often the website gets a fresh price reading while the bot's data
   // source is an exchange (Binance / Kraken first): they update in real time.
   apiRefreshMs: envNumber('API_REFRESH_MS', 5_000, { min: 3_000 }),
+  // How often the live feed re-reads an exchange while visitors are on the site.
+  apiLiveRefreshMs: envNumber('API_LIVE_REFRESH_MS', 2_000, { min: 1_000 }),
+  // Most simultaneous live-stream connections (each is one open browser tab).
+  apiMaxStreams: envNumber('API_MAX_STREAMS', 1_500, { min: 1 }),
   // Same, but when the data source is an aggregator (Auto, CoinGecko only,
   // CoinPaprika, Average). Those refresh about once a minute and have request
   // limits, so asking more often only repeats the same numbers.

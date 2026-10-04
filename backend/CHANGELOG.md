@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.3.0
+
+**Everything on the website is now live, plus a Settings area and candle charts.**
+- Live prices: the website now reads prices from an exchange every ~2 seconds
+  (Binance, then Kraken, then the normal source as a fallback), independent of the
+  bot's own price source. Prices, the price tape, sparklines and charts move as
+  they happen. The feed only runs while someone is on the site.
+- New `/api/stream` (Server-Sent Events) pushes updates to open pages; pages fall
+  back to polling automatically if streaming is unavailable.
+- `/api/history/<TICKER>?style=candles` returns candles (Binance, then CoinGecko).
+- New optional settings: `API_LIVE_REFRESH_MS` (default 2000) and
+  `API_MAX_STREAMS` (default 1500).
+- Website: Settings hub (Preferences, Watchlist, Price alerts, Data and privacy),
+  accent colours, density, line/candle toggle, crosshair that stays put until you
+  tap elsewhere or press Esc, price tape, currency converter on coin pages,
+  price alerts with browser notifications, backup/restore of your settings.
+
 ## 2.2.5
 
 **Website, home page and footer (frontend only; the backend is unchanged apart from the version).**

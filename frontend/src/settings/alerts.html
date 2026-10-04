@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Price alerts | {{BRAND}}</title>
+  <meta name="description" content="Get a message when a coin reaches your price.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/alerts">
+</head>
+<body data-page="alerts">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Price alerts</h1><p class="lede">Pick a coin and a price. You get a message the moment it gets there.</p></div>
+
+        <section class="s-card" aria-labelledby="h-new">
+          <h2 id="h-new">New price alert</h2>
+          <form class="al-form" id="al-form" autocomplete="off">
+            <label class="fld"><span>Coin</span><select id="al-coin"></select></label>
+            <label class="fld"><span>When the price</span>
+              <select id="al-dir"><option value="above">rises to or above</option><option value="below">falls to or below</option></select>
+            </label>
+            <label class="fld"><span>Price in <b id="al-code">USD</b></span><input id="al-price" type="text" inputmode="decimal" placeholder="0.00" required></label>
+            <button class="btn btn-accent" type="submit">Add alert</button>
+          </form>
+          <p class="s-hint" id="al-now">&nbsp;</p>
+          <p class="s-error" id="al-error" role="alert" hidden></p>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-act">
+          <h2 id="h-act">Your alerts</h2>
+          <ul class="al-list" id="al-list"></ul>
+          <p class="empty" id="al-empty" hidden>No alerts yet. Add one above and it will watch the price for you.</p>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-notif">
+          <h2 id="h-notif">Notifications</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Browser notifications</b><span id="notif-text">Get a notification when an alert is reached.</span></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="notif-btn">Allow</button>
+          </div>
+          <p class="s-hint">Alerts are checked on this device while {{BRAND}} is open in a browser tab, including a tab in the background. Close the tab and they pause until you open the site again. Nothing is sent to a server.</p>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

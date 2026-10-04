@@ -1,6 +1,6 @@
 import {
   API, initChrome, getJSON, pollPrices, setLive, currency, onCurrency, money, compactMoney, pct, ago,
-  isFav, toggleFav, onFavs, favCount, el, logoEl, DIR_SVG,
+  isFav, toggleFav, onFavs, favCount, el, logoEl, DIR_SVG, prefs, setNum,
 } from './common.js';
 
 const $ = id => document.getElementById(id);
@@ -11,7 +11,8 @@ const state = {
   market: {},           // ticker -> market details from /api/market
   tiles: new Map(),
   rows: new Map(),
-  tab: 'all',
+  tab: ['all', 'fav', 'up', 'down'].includes(prefs.get('homeTab')) ? prefs.get('homeTab') : 'all',
+  marketRef: {},        // price of each coin when its market details arrived, so market cap can follow the price
   sort: { key: 'default', dir: 1 },
   firstPaint: true,
   expanded: false,
@@ -50,12 +51,14 @@ function buildRows() {
     tdCoin.append(link);
 
     const tdPrice = el('td', 'price-cell num');
-    const td24 = el('td', 'chg num');
-    const td7 = el('td', 'chg num col-7d');
+    const td24 = el('td', 'num');
+    const td7 = el('td', 'num col-7d');
+    const s24 = el('span', 'pill flat'); td24.append(s24);
+    const s7 = el('span', 'pill flat'); td7.append(s7);
     const tdCap = el('td', 'num col-cap');
     const tdSpark = el('td', 'col-spark');
     tr.append(tdStar, tdCoin, tdPrice, td24, td7, tdCap, tdSpark);
-    state.rows.set(c.ticker, { tr, star, logoSlot, tdPrice, td24, td7, tdCap, tdSpark, logoDone: false });
+    state.rows.set(c.ticker, { tr, star, logoSlot, tdPrice, s24, s7, tdCap, tdSpark, logoDone: false });
   }
 }
 
@@ -67,10 +70,21 @@ function sparkSvg(values, up) {
   svg.setAttribute('aria-hidden', 'true');
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || 1;
-  const d = values.map((v, i) => `${i ? 'L' : 'M'}${((i / (values.length - 1)) * 112).toFixed(1)} ${(31 - ((v - min) / span) * 28).toFixed(1)}`).join('');
-  const path = document.createElementNS(ns, 'path');
-  path.setAttribute('d', d);
-  svg.append(path);
+  const xy = (v, i) => [(i / (values.length - 1)) * 111, 30 - ((v - min) / span) * 26];
+  const pts = values.map(xy);
+  const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('');
+  const area = document.createElementNS(ns, 'path');
+  area.setAttribute('d', `${d}L111 34L0 34Z`);
+  area.setAttribute('class', 'spark-area');
+  const line = document.createElementNS(ns, 'path');
+  line.setAttribute('d', d);
+  line.setAttribute('class', 'spark-line');
+  const dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('cx', pts.at(-1)[0].toFixed(1));
+  dot.setAttribute('cy', pts.at(-1)[1].toFixed(1));
+  dot.setAttribute('r', '2.6');
+  dot.setAttribute('class', 'spark-dot');
+  svg.append(area, line, dot);
   return svg;
 }
 
@@ -114,15 +128,23 @@ function paintTable() {
     const m = state.market[c.ticker];
     if (live && !r.logoDone) { r.logoSlot.replaceChildren(logoEl(live)); r.logoDone = true; }
     else if (!live && !r.logoDone) r.logoSlot.replaceChildren(logoEl({ ticker: c.ticker, logo: null }));
-    r.tdPrice.textContent = live ? money(live.price, { stable: live.stable }) : '–';
+    setNum(r.tdPrice, live ? money(live.price, { stable: live.stable }) : '–', live?.price);
     const c24 = pct(live?.change24h);
-    r.td24.textContent = c24.text; r.td24.className = 'chg num ' + c24.cls;
+    r.s24.textContent = c24.text; r.s24.className = 'pill ' + c24.cls;
     const c7 = pct(m?.change7d);
-    r.td7.textContent = c7.text; r.td7.className = 'chg num col-7d ' + c7.cls;
-    r.tdCap.textContent = m?.marketCap ? compactMoney(m.marketCap) : '–';
-    if (m?.spark?.length > 3 && r.sparkKey !== m.spark.join()) {
-      r.sparkKey = m.spark.join();
-      r.tdSpark.replaceChildren(sparkSvg(m.spark, m.spark.at(-1) >= m.spark[0]));
+    r.s7.textContent = c7.text; r.s7.className = 'pill ' + c7.cls;
+    const ref = state.marketRef[c.ticker];
+    const scale = live?.price && ref ? live.price / ref : 1; // market size follows the live price
+    r.tdCap.textContent = m?.marketCap ? compactMoney(m.marketCap * scale) : '–';
+    if (m?.spark?.length > 3) {
+      // The last point of the 7 day line is the live price, so the line moves with the market.
+      const spark = m.spark.slice();
+      if (live?.price) spark[spark.length - 1] = live.price;
+      const key = spark.length + ':' + spark[0] + ':' + spark.at(-1);
+      if (r.sparkKey !== key) {
+        r.sparkKey = key;
+        r.tdSpark.replaceChildren(sparkSvg(spark, spark.at(-1) >= spark[0]));
+      }
     }
     r.star.paint();
   }
@@ -152,6 +174,7 @@ function paintTable() {
 }
 
 function wireTable() {
+  document.querySelectorAll('#tabs .tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === state.tab)));
   $('tabs').addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
@@ -238,6 +261,7 @@ async function boot() {
   pollPrices(
     data => {
       state.live = new Map(data.coins.map(c => [c.ticker, c]));
+      for (const c of data.coins) if (c.price && state.market[c.ticker] && !state.marketRef[c.ticker]) state.marketRef[c.ticker] = c.price;
       paintTable();
       $('board-note').hidden = true;
     },
@@ -251,13 +275,17 @@ async function boot() {
   );
 
   const loadMarket = async () => {
-    try { state.market = (await getJSON('/api/market')).coins; paintTable(); } catch { /* optional detail */ }
+    try {
+      state.market = (await getJSON('/api/market')).coins;
+      for (const [t, c] of state.live) if (c.price) state.marketRef[t] = c.price;
+      paintTable();
+    } catch { /* optional detail */ }
   };
   loadMarket();
   setInterval(loadMarket, 5 * 60 * 1000);
 
   loadAlerts();
-  setInterval(() => { loadAlerts(); }, 60 * 1000);
+  setInterval(loadAlerts, 20 * 1000);
   setInterval(paintAlerts, 30 * 1000); // keeps "5 min ago" honest between fetches
 }
 

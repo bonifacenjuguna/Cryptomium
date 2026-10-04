@@ -1,5 +1,5 @@
-// Shared pieces: config, storage, theme, currency, favourites, price polling,
-// formatting, the header (search, currency, theme) and small DOM helpers.
+// Shared pieces: config, storage, preferences, currency, favourites, the live price
+// connection, formatting, the header (menu, search, price tape) and small DOM helpers.
 
 const CFG = window.CRYPTOMIUM || {};
 export const API = String(CFG.apiUrl || '').replace(/\/+$/, '');
@@ -25,30 +25,58 @@ export async function getCoinList() {
 }
 
 /**
- * Polls /api/prices on the server's own rhythm. Quiet by design: failures never
- * throw at the visitor, they just back off and keep the last prices on screen.
+ * Keeps prices live. Opens a stream (server-sent events) so the server pushes every
+ * new reading the moment it exists, about every two seconds. If the stream is blocked or
+ * goes quiet, a plain request fills the gap, so the page keeps moving either way.
+ * Quiet by design: failures never throw at the visitor, the last prices stay on screen.
+ * Every reading is also announced as a "cm:prices" event for anything else that listens
+ * (the price tape, price alerts).
  */
 export function pollPrices(onData, onState) {
-  let timer = null;
-  let backoff = 0;
-  let lastOk = 0;
-  const schedule = ms => { clearTimeout(timer); if (!document.hidden) timer = setTimeout(tick, ms); };
-  async function tick() {
-    try {
-      const data = await getJSON('/api/prices');
-      lastOk = Date.now();
-      backoff = 0;
-      onData(data);
-      onState('live');
-      schedule(Math.max(4000, Number(data.refreshMs) || 15000));
-    } catch {
-      backoff = Math.min(60000, (backoff || 4000) * 1.8);
-      onState(lastOk && Date.now() - lastOk < 180000 ? 'live' : lastOk ? 'reconnecting' : 'connecting');
-      schedule(backoff);
-    }
+  let es = null;
+  let watchdog = null;
+  let lastMsg = 0;
+  let everOk = 0;
+  let busy = false;
+
+  const deliver = data => {
+    if (!data || !Array.isArray(data.coins)) return;
+    lastMsg = Date.now();
+    everOk = lastMsg;
+    document.dispatchEvent(new CustomEvent('cm:prices', { detail: data }));
+    onData(data);
+    onState('live');
+  };
+  const closeStream = () => { if (es) { es.close(); es = null; } };
+  const openStream = () => {
+    closeStream();
+    if (!API || typeof EventSource === 'undefined') return;
+    es = new EventSource(API + '/api/stream');
+    es.onmessage = e => { try { deliver(JSON.parse(e.data)); } catch { /* ignore a bad frame */ } };
+    // EventSource reconnects by itself; the watchdog below covers the gap.
+  };
+  async function fetchOnce() {
+    if (busy) return;
+    busy = true;
+    try { deliver(await getJSON('/api/prices', { timeoutMs: 8000 })); } catch { /* the watchdog tries again */ } finally { busy = false; }
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
-  tick();
+  function check() {
+    if (document.hidden) return;
+    const quiet = Date.now() - lastMsg;
+    if (quiet > 7000) fetchOnce();
+    if (quiet > 7000 && es && es.readyState === 2) openStream();
+    if (quiet > 25000) onState(everOk ? 'reconnecting' : 'connecting');
+  }
+  const start = () => {
+    openStream();
+    clearInterval(watchdog);
+    watchdog = setInterval(check, 3000);
+    fetchOnce(); // the first numbers should not wait for the stream to open
+  };
+  const stop = () => { closeStream(); clearInterval(watchdog); };
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  window.addEventListener('online', () => { if (!document.hidden) start(); });
+  start();
 }
 
 export function setLive(el, state) {
@@ -57,24 +85,92 @@ export function setLive(el, state) {
   el.textContent = state === 'live' ? 'Live' : state === 'reconnecting' ? 'Reconnecting' : 'Connecting';
 }
 
-// ---------- Theme ----------
-export function initTheme() {
+// ---------- Preferences ----------
+export const PREF_DEFAULTS = {
+  theme: 'auto', // auto | light | dark
+  accent: 'citrine',
+  density: 'comfortable', // comfortable | compact
+  flash: true, // prices tint briefly when they tick
+  motion: true, // the price tape and other movement
+  chartType: 'line', // line | candles
+  chartRange: '7d',
+  homeTab: 'all',
+};
+let prefData = { ...PREF_DEFAULTS };
+try { Object.assign(prefData, JSON.parse(store.get('cm-prefs') || '{}')); } catch { /* start from defaults */ }
+if (!['auto', 'light', 'dark'].includes(prefData.theme)) prefData.theme = 'auto';
+{
+  const legacy = store.get('cm-theme');
+  if (!store.get('cm-prefs') && (legacy === 'light' || legacy === 'dark')) prefData.theme = legacy;
+}
+const prefListeners = new Set();
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+export function applyPrefs() {
   const root = document.documentElement;
-  const btn = document.getElementById('theme-toggle');
-  const paint = () => {
-    const dark = root.dataset.theme === 'dark';
-    btn?.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
-    btn?.querySelector('.i-sun')?.toggleAttribute('hidden', !dark);
-    btn?.querySelector('.i-moon')?.toggleAttribute('hidden', dark);
-  };
-  btn?.addEventListener('click', () => {
-    const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-    root.dataset.theme = next;
-    store.set('cm-theme', next);
-    paint();
-    document.dispatchEvent(new CustomEvent('themechange'));
-  });
-  paint();
+  const theme = prefData.theme === 'auto' ? (systemDark.matches ? 'dark' : 'light') : prefData.theme;
+  const changed = root.dataset.theme !== theme;
+  root.dataset.theme = theme;
+  root.dataset.accent = prefData.accent;
+  root.dataset.density = prefData.density;
+  if (prefData.motion === false) root.dataset.motion = 'off'; else delete root.dataset.motion;
+  if (changed) document.dispatchEvent(new CustomEvent('themechange'));
+}
+export const prefs = {
+  get: key => prefData[key],
+  all: () => ({ ...prefData }),
+  set(key, value) {
+    prefData[key] = value;
+    store.set('cm-prefs', JSON.stringify(prefData));
+    applyPrefs();
+    prefListeners.forEach(fn => fn(key, value));
+  },
+  replace(next) {
+    prefData = { ...PREF_DEFAULTS, ...next };
+    store.set('cm-prefs', JSON.stringify(prefData));
+    applyPrefs();
+    prefListeners.forEach(fn => fn('*', null));
+  },
+  reset() { this.replace({}); },
+  onChange: fn => prefListeners.add(fn),
+};
+export function initTheme() {
+  applyPrefs();
+  systemDark.addEventListener('change', () => { if (prefData.theme === 'auto') applyPrefs(); });
+}
+
+// ---------- Small messages (toasts) ----------
+export function toast(text, { kind = 'info', ms = 6000, href = '' } = {}) {
+  let host = document.getElementById('toasts');
+  if (!host) {
+    host = el('div', 'toasts');
+    host.id = 'toasts';
+    host.setAttribute('aria-live', 'polite');
+    document.body.append(host);
+  }
+  const t = href ? el('a', 'toast ' + kind) : el('div', 'toast ' + kind);
+  if (href) t.href = href;
+  t.append(el('span', 'toast-dot'), el('span', 'toast-text', text));
+  host.append(t);
+  requestAnimationFrame(() => t.classList.add('in'));
+  const done = () => { t.classList.remove('in'); setTimeout(() => t.remove(), 300); };
+  setTimeout(done, ms);
+  t.addEventListener('click', () => { if (!href) done(); });
+  while (host.children.length > 3) host.firstChild.remove();
+}
+
+/** Sets a number's text and, if it moved since last time, tints it briefly green or red. */
+export function setNum(node, text, value) {
+  if (!node) return;
+  const prev = node._v;
+  node._v = value;
+  if (node.textContent === text) return;
+  node.textContent = text;
+  if (prefData.flash && typeof prev === 'number' && typeof value === 'number' && value !== prev) {
+    node.classList.remove('tick-up', 'tick-down');
+    void node.offsetWidth; // restart the animation
+    node.classList.add(value > prev ? 'tick-up' : 'tick-down');
+  }
 }
 
 // ---------- Currency ----------
@@ -101,12 +197,19 @@ function applyCurrency() {
 }
 
 export function initCurrency() {
-  document.getElementById('currency')?.addEventListener('change', e => {
-    store.set('cm-currency', e.target.value);
-    applyCurrency();
-  });
+  document.getElementById('currency')?.addEventListener('change', e => setCurrency(e.target.value));
   applyCurrency();
 }
+export function setCurrency(code) {
+  store.set('cm-currency', code);
+  applyCurrency();
+}
+export const CURRENCY_NAMES = {
+  USD: 'US dollar', EUR: 'Euro', GBP: 'British pound', KES: 'Kenyan shilling', NGN: 'Nigerian naira', ZAR: 'South African rand',
+  GHS: 'Ghanaian cedi', UGX: 'Ugandan shilling', TZS: 'Tanzanian shilling', INR: 'Indian rupee', AED: 'UAE dirham',
+  CAD: 'Canadian dollar', AUD: 'Australian dollar', JPY: 'Japanese yen', BRL: 'Brazilian real',
+};
+export const currencySymbol = code => (SYMBOLS[code] || code + '\u00a0').trim();
 
 export function setRates(rates) {
   if (rates && rates.USD === 1) currency.rates = rates;
@@ -222,7 +325,7 @@ export function tileEl(coin, i = 0) {
 
 export function paintTile(t, coin) {
   const c = pct(coin.change24h);
-  t.price.textContent = money(coin.price, { stable: coin.stable });
+  setNum(t.price, money(coin.price, { stable: coin.stable }), coin.price);
   t.chg.textContent = c.text;
   t.a.classList.remove('up', 'down', 'flat', 'skeleton');
   t.a.classList.add(c.cls);
@@ -333,16 +436,58 @@ function initMenu() {
 }
 
 // ---------- Header: current page highlight + boot ----------
+// ---------- Price tape (a slim live strip under the header) ----------
+function initTape(coins) {
+  const host = document.getElementById('tape');
+  if (!host || !coins.length) return;
+  const cells = new Map(); // ticker -> [{ price, chg }]
+  const track = el('div', 'tape-track');
+  for (let copy = 0; copy < 2; copy++) {
+    const group = el('div', 'tape-group');
+    if (copy) group.setAttribute('aria-hidden', 'true');
+    for (const c of coins) {
+      const a = el('a', 'tape-item');
+      a.href = '/coin/' + c.ticker;
+      a.tabIndex = -1;
+      const price = el('span', 'tape-price num', '');
+      const chg = el('span', 'tape-chg num', '');
+      a.append(el('b', 'tape-sym', c.ticker), price, chg);
+      group.append(a);
+      if (!cells.has(c.ticker)) cells.set(c.ticker, []);
+      cells.get(c.ticker).push({ a, price, chg });
+    }
+    track.append(group);
+  }
+  host.replaceChildren(track);
+  document.addEventListener('cm:prices', e => {
+    for (const coin of e.detail.coins) {
+      const slots = cells.get(coin.ticker);
+      if (!slots || !coin.price) continue;
+      const ch = pct(coin.change24h);
+      for (const s of slots) {
+        setNum(s.price, money(coin.price, { stable: coin.stable }), coin.price);
+        s.chg.textContent = ch.text === '–' ? '' : ch.text;
+        s.chg.className = 'tape-chg num ' + ch.cls;
+      }
+    }
+    host.classList.add('ready');
+  });
+  onCurrency(() => { /* prices repaint on the next reading */ });
+}
+
 export async function initChrome() {
   initTheme();
   initCurrency();
   initMenu();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
+  if (path.startsWith('/settings')) document.querySelector('[data-nav="settings"]')?.setAttribute('aria-current', 'page');
   let coins = [];
   try { coins = await getCoinList(); } catch { /* search just stays empty */ }
   initSearch(coins);
-  // Exchange rates arrive quietly; the switcher fills in when they do.
+  initTape(coins);
+  // Exchange rates arrive quietly; the currency follows when they do.
   getJSON('/api/rates').then(r => setRates(r.rates)).catch(() => {});
+  import('./targets.js').then(m => m.start()).catch(() => {});
   return coins;
 }

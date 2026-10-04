@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Data and privacy | {{BRAND}}</title>
+  <meta name="description" content="Back up, move or clear what is stored on this device.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/data">
+</head>
+<body data-page="data">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Data and privacy</h1><p class="lede">See what is kept on this device, back it up, move it, or clear it.</p></div>
+
+        <section class="s-card" aria-labelledby="h-store">
+          <h2 id="h-store">What is stored</h2>
+          <p class="s-hint">{{BRAND}} has no accounts. These settings live only in this browser, and nothing here is sent to us.</p>
+          <ul class="store-list" id="store-list"></ul>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-back">
+          <h2 id="h-back">Back up and move</h2>
+          <p class="s-hint">Save your settings to a file, or load a file on another browser or device.</p>
+          <div class="s-actions">
+            <button type="button" class="btn btn-accent" id="export-btn">Download backup</button>
+            <label class="btn btn-ghost file-btn">Load a backup<input type="file" id="import-file" accept="application/json,.json"></label>
+            <span class="s-saved" id="data-msg" aria-live="polite"></span>
+          </div>
+        </section>
+
+        <section class="s-card danger" aria-labelledby="h-reset">
+          <h2 id="h-reset">Reset</h2>
+          <p class="s-hint">Clears your preferences, currency, starred coins and price alerts from this browser.</p>
+          <div class="s-actions"><button type="button" class="btn btn-danger" id="reset-all">Reset everything</button></div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

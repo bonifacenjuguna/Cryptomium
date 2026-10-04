@@ -474,6 +474,57 @@ export async function fetchAllPrices({ track = true } = {}) {
 }
 
 /**
+ * A fast, exchange-only reading for the website's live feed: Binance first, then
+ * Kraken, whatever the bot's own source setting is (the bot may prefer an
+ * aggregator that only updates once a minute). Never touches the shared cache or
+ * the health counters. Coins the exchange lacks (stablecoins on Binance) come from
+ * Kraken's cached reading. Throws only if both exchanges fail.
+ */
+export async function fetchExchangeReading() {
+  let result = null;
+  let usedKey = null;
+  let lastError = null;
+  for (const key of ['binance', 'kraken']) {
+    try {
+      result = await PROVIDERS[key].fetch();
+      usedKey = key;
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (!result) throw lastError ?? new Error('No exchange available');
+  const prices = new Map(result.prices);
+  if (usedKey !== 'kraken' && COINS.some(c => !prices.has(c.ticker))) {
+    try {
+      const extra = await fillReading('kraken');
+      for (const c of COINS) if (!prices.has(c.ticker) && extra.prices.has(c.ticker)) prices.set(c.ticker, extra.prices.get(c.ticker));
+    } catch { /* the reference reading fills any gap */ }
+  }
+  return { prices, source: PROVIDERS[usedKey].label, at: Date.now() };
+}
+
+/**
+ * Candles from Binance: [[timeMs, open, high, low, close], ...]. Tries each host.
+ * Throws if the coin is not on Binance or every host fails.
+ */
+export async function fetchBinanceKlines(symbol, interval, limit) {
+  let lastError = null;
+  for (const host of BINANCE_HOSTS) {
+    try {
+      const res = await fetch(`${host}/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`, { signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) throw new ProviderError(`Binance klines responded ${res.status}`, res.status);
+      const raw = await res.json();
+      if (!Array.isArray(raw) || raw.length === 0) throw new ProviderError('Binance returned no candles');
+      return raw.map(k => [Number(k[0]), Number(k[1]), Number(k[2]), Number(k[3]), Number(k[4])]);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Admin-side helper: returns { prices, changes, ranges, at, source, backup }
  * from the shared cache if it is fresh enough, otherwise fetches. `force`
  * bypasses the cache (but is still throttled to one real fetch per 2 seconds).

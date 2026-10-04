@@ -127,6 +127,7 @@ Endpoints (all read-only):
 | `/api/market` | market cap, volume, 24h range, 7d change, 7d sparkline | 5 min |
 | `/api/history/<TICKER>?range=24h\|7d\|30d\|90d\|1y` | price history for charts | 2 min to 6 h by range |
 | `/api/alerts?limit=20&ticker=BTC` | latest automatic alerts the bot posted | 15 s |
+| `/api/stream` | live price stream (Server-Sent Events) | ~2s |
 | `/api/rates` | fiat exchange rates (currency switcher) | 1 h |
 | `/api/logos/<TICKER>.png` | coin logo | browser 24 h |
 | `/health` | `ok` | no |
