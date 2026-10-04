@@ -25,32 +25,39 @@ export async function getCoinList() {
 }
 
 /**
- * Keeps prices live. Opens a stream (server-sent events) so the server pushes every
- * new reading the moment it exists, about every two seconds. If the stream is blocked or
- * goes quiet, a plain request fills the gap, so the page keeps moving either way.
- * Quiet by design: failures never throw at the visitor, the last prices stay on screen.
- * Every reading is also announced as a "cm:prices" event for anything else that listens
- * (the price tape, price alerts).
+ * Keeps prices live. One shared connection per page: it opens a stream (server-sent events)
+ * so the server pushes every new reading the moment it exists, about every two seconds.
+ * If the stream is blocked or goes quiet, a plain request fills the gap, so the page keeps
+ * moving either way. Quiet by design: failures never throw at the visitor, the last prices
+ * stay on screen. Every reading is also announced as a "cm:prices" event (price tape, footer,
+ * price alerts). Pages subscribe with pollPrices(); the header starts the connection so the
+ * tape is live on every page, not only the ones that show prices.
  */
-export function pollPrices(onData, onState) {
+const feed = { dataFns: new Set(), stateFns: new Set(), last: null, state: 'connecting', started: false };
+
+function ensureFeed() {
+  if (feed.started || !API) return;
+  feed.started = true;
   let es = null;
   let watchdog = null;
   let lastMsg = 0;
   let everOk = 0;
   let busy = false;
+  const setState = st => { feed.state = st; feed.stateFns.forEach(fn => fn(st)); };
 
   const deliver = data => {
     if (!data || !Array.isArray(data.coins)) return;
     lastMsg = Date.now();
     everOk = lastMsg;
+    feed.last = data;
     document.dispatchEvent(new CustomEvent('cm:prices', { detail: data }));
-    onData(data);
-    onState('live');
+    feed.dataFns.forEach(fn => fn(data));
+    setState('live');
   };
   const closeStream = () => { if (es) { es.close(); es = null; } };
   const openStream = () => {
     closeStream();
-    if (!API || typeof EventSource === 'undefined') return;
+    if (typeof EventSource === 'undefined') return;
     es = new EventSource(API + '/api/stream');
     es.onmessage = e => { try { deliver(JSON.parse(e.data)); } catch { /* ignore a bad frame */ } };
     // EventSource reconnects by itself; the watchdog below covers the gap.
@@ -65,7 +72,7 @@ export function pollPrices(onData, onState) {
     const quiet = Date.now() - lastMsg;
     if (quiet > 7000) fetchOnce();
     if (quiet > 7000 && es && es.readyState === 2) openStream();
-    if (quiet > 25000) onState(everOk ? 'reconnecting' : 'connecting');
+    if (quiet > 25000) setState(everOk ? 'reconnecting' : 'connecting');
   }
   const start = () => {
     openStream();
@@ -79,6 +86,14 @@ export function pollPrices(onData, onState) {
   start();
 }
 
+export function pollPrices(onData, onState = () => {}) {
+  feed.dataFns.add(onData);
+  feed.stateFns.add(onState);
+  ensureFeed();
+  if (feed.last) onData(feed.last);
+  onState(feed.state);
+}
+
 export function setLive(el, state) {
   if (!el) return;
   el.dataset.state = state;
@@ -89,8 +104,8 @@ export function setLive(el, state) {
 export const PREF_DEFAULTS = {
   theme: 'auto', // auto | light | dark
   accent: 'citrine',
-  density: 'comfortable', // comfortable | compact
-  flash: true, // prices tint briefly when they tick
+  density: 'auto', // auto (compact on phones) | comfortable | compact
+  flash: false, // prices tint briefly green or red when they tick (off unless the visitor turns it on)
   motion: true, // the price tape and other movement
   chartType: 'line', // line | candles
   chartRange: '7d',
@@ -103,7 +118,17 @@ if (!['auto', 'light', 'dark'].includes(prefData.theme)) prefData.theme = 'auto'
   const legacy = store.get('cm-theme');
   if (!store.get('cm-prefs') && (legacy === 'light' || legacy === 'dark')) prefData.theme = legacy;
 }
+// Version 2.4 changed two defaults (rows are compact on phones, no price flash). Older saved
+// choices for those two are reset once so the new defaults reach everyone.
+if (store.get('cm-prefs') && store.get('cm-prefs-v') !== '2') {
+  prefData.density = 'auto';
+  prefData.flash = false;
+  store.set('cm-prefs', JSON.stringify(prefData));
+}
+store.set('cm-prefs-v', '2');
+if (!['auto', 'comfortable', 'compact'].includes(prefData.density)) prefData.density = 'auto';
 const prefListeners = new Set();
+const phoneQuery = window.matchMedia('(max-width: 820px)');
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
 
 export function applyPrefs() {
@@ -112,7 +137,7 @@ export function applyPrefs() {
   const changed = root.dataset.theme !== theme;
   root.dataset.theme = theme;
   root.dataset.accent = prefData.accent;
-  root.dataset.density = prefData.density;
+  root.dataset.density = prefData.density === 'auto' ? (phoneQuery.matches ? 'compact' : 'comfortable') : prefData.density;
   if (prefData.motion === false) root.dataset.motion = 'off'; else delete root.dataset.motion;
   if (changed) document.dispatchEvent(new CustomEvent('themechange'));
 }
@@ -137,6 +162,7 @@ export const prefs = {
 export function initTheme() {
   applyPrefs();
   systemDark.addEventListener('change', () => { if (prefData.theme === 'auto') applyPrefs(); });
+  phoneQuery.addEventListener('change', () => { if (prefData.density === 'auto') applyPrefs(); });
 }
 
 // ---------- Small messages (toasts) ----------
@@ -279,6 +305,20 @@ export function toggleFav(ticker) {
   favListeners.forEach(fn => fn(ticker));
 }
 
+// ---------- Portfolio holdings (saved on this device) ----------
+export const holdings = {
+  load() {
+    try {
+      const list = JSON.parse(store.get('cm-portfolio') || '[]');
+      return Array.isArray(list) ? list.filter(h => h && typeof h.ticker === 'string' && h.amount > 0).slice(0, 60) : [];
+    } catch { return []; }
+  },
+  save(list) {
+    store.set('cm-portfolio', JSON.stringify(list.slice(0, 60)));
+    document.dispatchEvent(new CustomEvent('cm:holdings'));
+  },
+};
+
 // ---------- DOM helpers ----------
 export function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -353,7 +393,11 @@ function initSearch(coins) {
     input.setAttribute('aria-expanded', 'false');
     active = -1;
   };
-  const go = c => { location.href = '/coin/' + c.ticker; };
+  const recents = () => { try { return JSON.parse(store.get('cm-recent') || '[]').filter(t => coins.some(c => c.ticker === t)); } catch { return []; } };
+  const go = c => {
+    store.set('cm-recent', JSON.stringify([c.ticker, ...recents().filter(t => t !== c.ticker)].slice(0, 5)));
+    location.href = '/coin/' + c.ticker;
+  };
   const paint = () => {
     list.replaceChildren();
     results.forEach((c, i) => {
@@ -366,7 +410,8 @@ function initSearch(coins) {
       list.append(li);
     });
     if (!results.length && input.value.trim()) list.append(el('li', 'search-empty', 'No coin matches that.'));
-    list.hidden = !input.value.trim();
+    list.hidden = !(results.length || input.value.trim());
+    if (!input.value.trim() && results.length) list.prepend(Object.assign(el('li', 'search-head', 'Recent'), { role: 'presentation' }));
     input.setAttribute('aria-expanded', String(!list.hidden));
     if (active >= 0) input.setAttribute('aria-activedescendant', 'sr-' + active); else input.removeAttribute('aria-activedescendant');
   };
@@ -383,7 +428,7 @@ function initSearch(coins) {
           .sort((a, b) => a.score - b.score)
           .slice(0, 6)
           .map(x => x.c)
-      : [];
+      : recents().map(t => coins.find(c => c.ticker === t)).filter(Boolean);
     active = results.length ? 0 : -1;
     paint();
   };
@@ -459,6 +504,15 @@ function initTape(coins) {
     track.append(group);
   }
   host.replaceChildren(track);
+  // The strip stops only while it is held (finger down, or the cursor over it) and moves again the
+  // moment it is let go. It never stays stuck.
+  const hold = on => host.classList.toggle('held', on);
+  host.addEventListener('pointerdown', () => hold(true));
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture']) host.addEventListener(ev, () => hold(false));
+  host.addEventListener('touchend', () => hold(false), { passive: true });
+  host.addEventListener('touchcancel', () => hold(false), { passive: true });
+  window.addEventListener('blur', () => hold(false));
+  document.addEventListener('scroll', () => hold(false), { passive: true });
   document.addEventListener('cm:prices', e => {
     for (const coin of e.detail.coins) {
       const slots = cells.get(coin.ticker);
@@ -475,6 +529,91 @@ function initTape(coins) {
   onCurrency(() => { /* prices repaint on the next reading */ });
 }
 
+// ---------- Back to top (a round button that appears once you have scrolled) ----------
+function initToTop() {
+  if (document.getElementById('to-top')) return;
+  const C = 2 * Math.PI * 19;
+  const b = el('button', 'to-top');
+  b.id = 'to-top';
+  b.type = 'button';
+  b.setAttribute('aria-label', 'Back to top');
+  b.innerHTML = '<svg class="tt-ring" viewBox="0 0 44 44" aria-hidden="true"><circle class="tt-track" cx="22" cy="22" r="19"/><circle class="tt-bar" cx="22" cy="22" r="19" transform="rotate(-90 22 22)"/></svg>'
+    + '<svg class="tt-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>';
+  const bar = b.querySelector('.tt-bar');
+  bar.setAttribute('stroke-dasharray', C.toFixed(2));
+  document.body.append(b);
+  let queued = false;
+  const paint = () => {
+    queued = false;
+    const y = window.scrollY;
+    const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    b.classList.toggle('show', y > 520);
+    bar.setAttribute('stroke-dashoffset', (C * (1 - Math.min(1, y / max))).toFixed(2));
+  };
+  window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(paint); } }, { passive: true });
+  window.addEventListener('resize', paint);
+  b.addEventListener('click', () => {
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: calm ? 'auto' : 'smooth' });
+  });
+  paint();
+}
+
+// ---------- Footer: the biggest moves right now ----------
+function initFooterMovers(coins) {
+  const host = document.getElementById('foot-live');
+  if (!host) return;
+  const stable = new Set(coins.filter(c => c.stable).map(c => c.ticker));
+  stable.add('USDT'); stable.add('USDC');
+  const rows = new Map();
+  let order = '';
+  let sortedAt = 0;
+  document.addEventListener('cm:prices', e => {
+    const list = e.detail.coins.filter(c => c.price && typeof c.change24h === 'number' && !stable.has(c.ticker));
+    const now = Date.now();
+    if (now - sortedAt > 30000 || !order) {
+      sortedAt = now;
+      const pick = list.slice().sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h)).slice(0, 3);
+      const key = pick.map(c => c.ticker).join();
+      if (key !== order) {
+        order = key;
+        rows.clear();
+        host.replaceChildren(...pick.map(c => {
+          const li = el('li');
+          const a = el('a', 'fm-item');
+          a.href = '/coin/' + c.ticker;
+          const price = el('span', 'fm-price num');
+          const chg = el('span', 'fm-chg num');
+          a.append(el('b', 'fm-sym', c.ticker), price, chg);
+          li.append(a);
+          rows.set(c.ticker, { price, chg });
+          return li;
+        }));
+      }
+    }
+    for (const c of list) {
+      const r = rows.get(c.ticker);
+      if (!r) continue;
+      const ch = pct(c.change24h);
+      r.price.textContent = money(c.price, { stable: c.stable });
+      r.chg.textContent = ch.text;
+      r.chg.className = 'fm-chg num ' + ch.cls;
+    }
+  });
+}
+
+export async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through */ }
+  try {
+    const t = el('textarea');
+    t.value = text; t.setAttribute('readonly', ''); t.className = 'sr';
+    document.body.append(t); t.select();
+    const ok = document.execCommand('copy');
+    t.remove();
+    return ok;
+  } catch { return false; }
+}
+
 export async function initChrome() {
   initTheme();
   initCurrency();
@@ -486,6 +625,10 @@ export async function initChrome() {
   try { coins = await getCoinList(); } catch { /* search just stays empty */ }
   initSearch(coins);
   initTape(coins);
+  initToTop();
+  initFooterMovers(coins);
+  if (path === '/portfolio') document.querySelector('[data-nav="portfolio"]')?.setAttribute('aria-current', 'page');
+  pollPrices(() => {}); // starts the shared live connection on every page
   // Exchange rates arrive quietly; the currency follows when they do.
   getJSON('/api/rates').then(r => setRates(r.rates)).catch(() => {});
   import('./targets.js').then(m => m.start()).catch(() => {});

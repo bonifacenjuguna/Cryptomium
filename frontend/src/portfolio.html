@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Portfolio | {{BRAND}}</title>
+  <meta name="description" content="Track what you hold and see its live value.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/portfolio">
+</head>
+<body data-page="portfolio">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top">
+      <h1>Portfolio</h1>
+      <p class="lede">Add what you hold and watch its value move with the market. It is saved on this device only, and nothing needs an account.</p>
+    </div>
+
+    <div class="pf-grid">
+      <section class="panel pf-sum" aria-label="Portfolio value">
+        <span class="pf-label">Total value</span>
+        <b class="pf-total num" id="pf-total">–</b>
+        <span class="pf-chg num chg flat" id="pf-chg">&nbsp;</span>
+        <div class="alloc" id="alloc" aria-hidden="true"></div>
+        <ul class="alloc-legend" id="alloc-legend"></ul>
+        <p class="pf-empty" id="pf-intro">Your total, daily change and a breakdown of what you hold appear here once you add a coin.</p>
+      </section>
+
+      <section class="panel pf-add" aria-labelledby="pf-add-h">
+        <h2 id="pf-add-h">Add a holding</h2>
+        <form id="pf-form" class="pf-form" autocomplete="off">
+          <label class="fld"><span>Coin</span><select id="pf-coin"></select></label>
+          <label class="fld"><span>Amount</span><input id="pf-amount" type="text" inputmode="decimal" placeholder="0.00" aria-label="Amount you hold"></label>
+          <button class="btn btn-accent" type="submit">Add</button>
+        </form>
+        <p class="s-error" id="pf-error" role="alert" hidden></p>
+        <p class="s-hint">Adding a coin you already hold increases that amount.</p>
+      </section>
+    </div>
+
+    <section class="pf-holdings">
+      <div class="sec-head"><h2>Your holdings</h2></div>
+      <div class="panel feed">
+        <ul class="pf-list" id="pf-list"></ul>
+        <p class="empty" id="pf-none">Nothing here yet. Add your first coin above.</p>
+      </div>
+    </section>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/portfolio.js"></script>
+</body>
+</html>

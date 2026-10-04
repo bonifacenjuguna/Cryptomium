@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>Preferences | {{BRAND}}</title>
@@ -38,18 +38,19 @@
           <div class="s-row">
             <div class="s-label"><b>Accent colour</b><span>Used for buttons and highlights.</span></div>
             <div class="swatches" role="radiogroup" aria-label="Accent colour" data-pref="accent">
-              <button type="button" role="radio" class="swatch" data-value="citrine" style="--sw:#f2b01e" aria-label="Citrine"></button>
-              <button type="button" role="radio" class="swatch" data-value="azure" style="--sw:#3b82f6" aria-label="Azure"></button>
-              <button type="button" role="radio" class="swatch" data-value="emerald" style="--sw:#10b981" aria-label="Emerald"></button>
-              <button type="button" role="radio" class="swatch" data-value="violet" style="--sw:#8b5cf6" aria-label="Violet"></button>
-              <button type="button" role="radio" class="swatch" data-value="rose" style="--sw:#f43f5e" aria-label="Rose"></button>
-              <button type="button" role="radio" class="swatch" data-value="graphite" style="--sw:#64748b" aria-label="Graphite"></button>
+              <button type="button" role="radio" class="swatch" data-value="citrine" aria-label="Gold"><i></i><span>Gold</span></button>
+              <button type="button" role="radio" class="swatch" data-value="azure" aria-label="Blue"><i></i><span>Blue</span></button>
+              <button type="button" role="radio" class="swatch" data-value="emerald" aria-label="Green"><i></i><span>Green</span></button>
+              <button type="button" role="radio" class="swatch" data-value="violet" aria-label="Violet"><i></i><span>Violet</span></button>
+              <button type="button" role="radio" class="swatch" data-value="rose" aria-label="Rose"><i></i><span>Rose</span></button>
+              <button type="button" role="radio" class="swatch" data-value="graphite" aria-label="Slate"><i></i><span>Slate</span></button>
             </div>
           </div>
           <div class="s-row">
-            <div class="s-label"><b>Density</b><span>Compact fits more rows on screen.</span></div>
+            <div class="s-label"><b>Density</b><span>Auto is compact on phones and roomy on larger screens.</span></div>
             <div class="segs" role="radiogroup" aria-label="Density" data-pref="density">
-              <button type="button" role="radio" class="seg" data-value="comfortable">Comfortable</button>
+              <button type="button" role="radio" class="seg" data-value="auto">Auto</button>
+              <button type="button" role="radio" class="seg" data-value="comfortable">Roomy</button>
               <button type="button" role="radio" class="seg" data-value="compact">Compact</button>
             </div>
           </div>
@@ -58,7 +59,11 @@
         <section class="s-card" aria-labelledby="h-cur">
           <h2 id="h-cur">Currency</h2>
           <p class="s-hint">Every price on the site is shown in the currency you pick.</p>
-          <div class="cur-grid" id="cur-grid" role="radiogroup" aria-label="Currency"></div>
+          <button type="button" class="cur-pick" id="cur-pick" aria-haspopup="dialog" aria-expanded="false">
+            <span class="cc-sym" id="cp-sym">$</span>
+            <span class="cp-text"><b id="cp-code">USD</b><span id="cp-name">US dollar</span></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
           <div class="cur-preview"><span class="cp-label">Bitcoin right now</span><b class="num" id="cur-preview">–</b></div>
         </section>
 
@@ -95,7 +100,7 @@
         <section class="s-card" aria-labelledby="h-live">
           <h2 id="h-live">Live motion</h2>
           <div class="s-row">
-            <div class="s-label"><b>Price flash</b><span>A price turns green or red for a moment when it ticks.</span></div>
+            <div class="s-label"><b>Price flash</b><span>A price tints green or red for a moment when it ticks. Off by default.</span></div>
             <button type="button" class="switch" role="switch" data-toggle="flash" aria-checked="false"><span></span></button>
           </div>
           <div class="s-row">

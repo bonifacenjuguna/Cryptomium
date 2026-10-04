@@ -1,40 +1,58 @@
 <footer class="site-footer">
   <div class="wrap">
-    <div class="foot">
+    <div class="foot-top">
       <div class="foot-brand">
         <a class="brand" href="/" aria-label="{{BRAND}} home">
           <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
           <span>{{BRAND}}</span>
         </a>
-        <p class="foot-about">Real-time prices, charts and milestone alerts, kept simple.</p>
-        <a class="social" href="{{CHANNEL_URL}}" target="_blank" rel="noopener" aria-label="{{BRAND}} on Telegram ({{CHANNEL_HANDLE}})" title="Telegram">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.9 4.3c.3-1.1-.8-2-1.8-1.6L2.7 9.4c-1.2.5-1.1 2.2.1 2.6l4.4 1.4 1.7 5.3c.3.9 1.4 1.2 2.1.6l2.4-2 4.5 3.3c.9.6 2.1.2 2.3-.9zM9 13.6l8.9-5.5c.2-.1.4.2.2.3l-7.1 6.5-.3 3z"/></svg>
-        </a>
+        <p class="foot-about">Live prices, clear charts and milestone alerts for the coins that matter.</p>
+        <ul class="socials" aria-label="Follow {{BRAND}}">
+          <li><a class="social s-tg" href="{{CHANNEL_URL}}" target="_blank" rel="noopener" aria-label="Telegram" title="Telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm4.962 7.224c.1-.002.321.023.465.14a.5.5 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024q-.159.037-5.061 3.345-.72.495-1.302.48c-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789q.04-.324.893-.663 5.247-2.286 6.998-3.014c3.332-1.386 4.025-1.627 4.476-1.635"/></svg></a></li>
+          <li><a class="social s-x" href="{{X_URL}}" target="_blank" rel="noopener" aria-label="X" title="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z"/></svg></a></li>
+          <li><a class="social s-ig" href="{{INSTAGRAM_URL}}" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.03.084c-1.277.06-2.149.264-2.91.563a5.9 5.9 0 0 0-2.124 1.388 5.9 5.9 0 0 0-1.38 2.127C.321 4.926.12 5.8.064 7.076s-.069 1.688-.063 4.947.021 3.667.083 4.947c.061 1.277.264 2.149.563 2.911.308.789.72 1.457 1.388 2.123a5.9 5.9 0 0 0 2.129 1.38c.763.295 1.636.496 2.913.552 1.278.056 1.689.069 4.947.063s3.668-.021 4.947-.082c1.28-.06 2.147-.265 2.91-.563a5.9 5.9 0 0 0 2.123-1.388 5.9 5.9 0 0 0 1.38-2.129c.295-.763.496-1.636.551-2.912.056-1.28.07-1.69.063-4.948-.006-3.258-.02-3.667-.081-4.947-.06-1.28-.264-2.148-.564-2.911a5.9 5.9 0 0 0-1.387-2.123 5.86 5.86 0 0 0-2.128-1.38C19.074.322 18.202.12 16.924.066 15.647.009 15.236-.006 11.977 0S8.31.021 7.03.084m.14 21.693c-1.17-.05-1.805-.245-2.228-.408a3.7 3.7 0 0 1-1.382-.895 3.7 3.7 0 0 1-.9-1.378c-.165-.423-.363-1.058-.417-2.228-.06-1.264-.072-1.644-.08-4.848-.006-3.204.006-3.583.061-4.848.05-1.169.246-1.805.408-2.228.216-.561.477-.96.895-1.382a3.7 3.7 0 0 1 1.379-.9c.423-.165 1.057-.361 2.227-.417 1.265-.06 1.644-.072 4.848-.08 3.203-.006 3.583.006 4.85.062 1.168.05 1.804.244 2.227.408.56.216.96.475 1.382.895s.681.817.9 1.378c.165.422.362 1.056.417 2.227.06 1.265.074 1.645.08 4.848.005 3.203-.006 3.583-.061 4.848-.051 1.17-.245 1.805-.408 2.23-.216.56-.477.96-.896 1.38a3.7 3.7 0 0 1-1.378.9c-.422.165-1.058.362-2.226.418-1.266.06-1.645.072-4.85.079s-3.582-.006-4.848-.06m9.783-16.192a1.44 1.44 0 1 0 1.437-1.442 1.44 1.44 0 0 0-1.437 1.442M5.839 12.012a6.161 6.161 0 1 0 12.323-.024 6.162 6.162 0 0 0-12.323.024M8 12.008A4 4 0 1 1 12.008 16 4 4 0 0 1 8 12.008"/></svg></a></li>
+          <li><a class="social s-yt" href="{{YOUTUBE_URL}}" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.02 3.02 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.02 3.02 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.02 3.02 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.02 3.02 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814M9.545 15.568V8.432L15.818 12z"/></svg></a></li>
+          <li><a class="social s-tt" href="{{TIKTOK_URL}}" target="_blank" rel="noopener" aria-label="TikTok" title="TikTok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07"/></svg></a></li>
+        </ul>
       </div>
-      <nav class="foot-col" aria-label="Popular coins">
-        <h3>Popular</h3>
+      <div class="foot-live" aria-label="Biggest moves right now">
+        <h3>Moving now</h3>
+        <ul id="foot-live" class="foot-movers"></ul>
+      </div>
+    </div>
+
+    <div class="foot-cols">
+      <nav class="foot-col" aria-label="Markets">
+        <h3>Markets</h3>
         <ul>
-          <li><a href="/coin/BTC">Bitcoin</a></li>
-          <li><a href="/coin/ETH">Ethereum</a></li>
-          <li><a href="/coin/SOL">Solana</a></li>
-          <li><a href="/coin/XRP">XRP</a></li>
-          <li><a href="/coin/BNB">BNB</a></li>
+          <li><a href="/#markets">All markets</a></li>
+          <li><a href="/?tab=up#markets">Top gainers</a></li>
+          <li><a href="/?tab=down#markets">Top losers</a></li>
+          <li><a href="/?tab=fav#markets">Starred</a></li>
         </ul>
       </nav>
-      <nav class="foot-col" aria-label="Explore">
-        <h3>Explore</h3>
+      <nav class="foot-col" aria-label="Tools">
+        <h3>Tools</h3>
         <ul>
-          <li><a href="/#markets">Markets</a></li>
-          <li><a href="/#alerts">Latest alerts</a></li>
+          <li><a href="/portfolio">Portfolio</a></li>
+          <li><a href="/settings/alerts">Price alerts</a></li>
+          <li><a href="/coin/BTC#converter">Converter</a></li>
+          <li><a href="/settings/preferences">Preferences</a></li>
+        </ul>
+      </nav>
+      <nav class="foot-col" aria-label="Company">
+        <h3>{{BRAND}}</h3>
+        <ul>
           <li><a href="/about">About</a></li>
           <li><a href="/about#faq">FAQ</a></li>
+          <li><a href="/settings/data">Data and privacy</a></li>
         </ul>
       </nav>
     </div>
+
     <div class="foot-bottom">
       <span>&copy; {{YEAR}} {{BRAND}}</span>
       <span class="foot-note">Market information only, not financial advice. Prices can differ between exchanges.</span>
-      <a class="to-top" href="#main">Back to top <span aria-hidden="true">&uarr;</span></a>
     </div>
   </div>
   <div class="foot-mark" aria-hidden="true">{{BRAND}}</div>

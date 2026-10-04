@@ -13,7 +13,7 @@ const round6 = v => Number(v.toPrecision(6));
 export async function fetchMarket({ get = coingeckoFetch } = {}) {
   const ids = COINS.map(c => c.coingeckoId).join(',');
   const { res } = await get(
-    `/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=7d`,
+    `/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=1h,24h,7d,30d,1y`,
     { timeoutMs: 20_000 }
   );
   if (!res.ok) throw new ProviderError(`CoinGecko markets responded ${res.status}`, res.status);
@@ -35,6 +35,15 @@ export async function fetchMarket({ get = coingeckoFetch } = {}) {
       high24h: num(item.high_24h),
       low24h: num(item.low_24h),
       change7d: num(item.price_change_percentage_7d_in_currency),
+      change1h: num(item.price_change_percentage_1h_in_currency),
+      change30d: num(item.price_change_percentage_30d_in_currency),
+      change1y: num(item.price_change_percentage_1y_in_currency),
+      rank: num(item.market_cap_rank),
+      ath: num(item.ath),
+      athDate: typeof item.ath_date === 'string' ? item.ath_date : null,
+      circulating: num(item.circulating_supply),
+      totalSupply: num(item.total_supply),
+      maxSupply: num(item.max_supply),
       spark,
     };
   }

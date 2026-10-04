@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.4.0
+
+**A deeper website: clearer charts, a portfolio, a market map, and a tidier look. Redeploy both the backend and the frontend.**
+- Backend: `/api/market` now also returns each coin's rank, circulating / total / max supply,
+  all-time high (and its date) and the 1 hour, 30 day and 1 year price changes. Nothing else changes.
+- Charts: values appear in a line above the chart instead of a card on top of it. The chart runs
+  edge to edge and taller on phones, has a full screen mode, and can overlay a second coin.
+- Markets: the whole row opens the coin page, with an arrow and a hint so it is clear. Rows start
+  with the best-known coins (stablecoins last), "Show more coins" adds ten at a time, and rows are
+  compact on phones. Prices no longer flash unless turned on in Settings.
+- Home: market snapshot, top movers, market map, and "Latest moves" that only shows fresh alerts
+  and live movers.
+- New Portfolio page, coin pages with performance, supply, all-time high and an About section,
+  copy-price and share buttons, recent searches.
+- Settings: compact rows on phones, accent colours with names (fixes the empty circles), a currency
+  picker with search, density Auto / Roomy / Compact, equal-width toggles, and the price tape
+  now shows prices on every page and pauses only while held.
+- New footer with the real Telegram, X, Instagram, YouTube and TikTok logos, a live "Moving now"
+  list, a round back-to-top button, and Inter Tight for headings and numbers (Syne stays for the
+  Cryptomium name).
+
 ## 2.3.0
 
 **Everything on the website is now live, plus a Settings area and candle charts.**

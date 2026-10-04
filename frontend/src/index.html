@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>{{BRAND}}: live crypto prices</title>
@@ -33,6 +33,32 @@
       </a>
       <p class="board-note" id="board-note" hidden></p>
     </div>
+
+    <div class="snap" id="snap" aria-label="Market snapshot">
+      <div class="snap-tile">
+        <span class="snap-l">Market cap</span>
+        <b class="snap-v num" id="sn-cap">–</b>
+        <span class="snap-c num chg flat" id="sn-cap-chg">&nbsp;</span>
+        <span class="snap-spark" id="sn-spark" aria-hidden="true"></span>
+      </div>
+      <div class="snap-tile">
+        <span class="snap-l">24h volume</span>
+        <b class="snap-v num" id="sn-vol">–</b>
+        <span class="snap-c">Last 24 hours</span>
+      </div>
+      <div class="snap-tile">
+        <span class="snap-l">Bitcoin share</span>
+        <b class="snap-v num" id="sn-dom">–</b>
+        <span class="snap-bar" aria-hidden="true"><i id="sn-dom-bar"></i></span>
+        <span class="snap-c">Of the leading coins' value</span>
+      </div>
+      <div class="snap-tile">
+        <span class="snap-l">Market mood</span>
+        <b class="snap-v" id="sn-mood">–</b>
+        <span class="snap-bar mood" aria-hidden="true"><i class="m-up" id="sn-up"></i><i class="m-down" id="sn-down"></i></span>
+        <span class="snap-c" id="sn-mood-sub">&nbsp;</span>
+      </div>
+    </div>
   </div>
 
   <section id="markets">
@@ -41,6 +67,7 @@
         <div>
           <h2>Markets</h2>
           <p>Prices, 24 hour and 7 day moves, and market size. <span class="live" id="live" data-state="connecting">Connecting</span></p>
+          <p class="tap-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-9"/></svg>Tap any coin to open its live chart and details.</p>
         </div>
         <div class="tabs" role="tablist" aria-label="Filter coins" id="tabs">
           <button class="tab" role="tab" data-tab="all" aria-selected="true">All</button>
@@ -60,13 +87,31 @@
               <th scope="col" aria-sort="none" class="col-7d"><button type="button" data-sort="change7d">7d</button></th>
               <th scope="col" aria-sort="none" class="col-cap"><button type="button" data-sort="marketCap">Market cap</button></th>
               <th scope="col" class="col-spark"><span class="sr">Last 7 days</span></th>
+              <th scope="col" class="go"><span class="sr">Open</span></th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
         <p class="empty" id="table-empty" hidden></p>
       </div>
-      <button class="btn btn-ghost more-rows" id="more-rows" type="button" hidden>Show all coins</button>
+      <button class="btn btn-ghost more-rows" id="more-rows" type="button" hidden>Show more coins</button>
+    </div>
+  </section>
+
+  <section id="movers" hidden>
+    <div class="wrap">
+      <div class="sec-head"><div><h2>Top movers</h2><p>The biggest moves in the last 24 hours.</p></div></div>
+      <div class="movers">
+        <div class="panel mv-col"><h3 class="mv-h up">Gainers</h3><ul class="mv-list" id="mv-up"></ul></div>
+        <div class="panel mv-col"><h3 class="mv-h down">Losers</h3><ul class="mv-list" id="mv-down"></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="heat" hidden>
+    <div class="wrap">
+      <div class="sec-head"><div><h2>Market map</h2><p>Bigger tiles are bigger coins. Green is up and red is down over 24 hours.</p></div></div>
+      <div class="heatmap" id="heatmap"></div>
     </div>
   </section>
 
@@ -74,13 +119,13 @@
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <h2>Latest alerts</h2>
-          <p>Every time a coin crosses a milestone, it shows up here.</p>
+          <h2>Latest moves</h2>
+          <p>Fresh milestones and the biggest movers, updated live.</p>
         </div>
       </div>
       <div class="panel feed">
         <ul class="alerts" id="alert-list" aria-live="polite"></ul>
-        <p class="empty" id="alert-empty" hidden>No alerts yet. They show up here as soon as a coin crosses a milestone.</p>
+        <p class="empty" id="alert-empty" hidden>Waiting for the market to wake up.</p>
       </div>
     </div>
   </section>
@@ -94,7 +139,7 @@
       </div>
       <div class="faq">
         <details><summary>Is {{BRAND}} free?</summary><p>Yes. Everything on the site is free, and there is nothing to sign up for.</p></details>
-        <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, the alert appears in Latest alerts.</p></details>
+        <details><summary>What triggers an alert?</summary><p>Each coin has a step, either a dollar amount or a percentage. When the price crosses the next step in either direction, the alert appears under Latest moves.</p></details>
         <details><summary>Which coins are covered?</summary><p>The leading coins by market size, including Bitcoin, Ethereum, XRP, BNB, Solana and the USDT and USDC stablecoins. Every one is listed in Markets on this page.</p></details>
       </div>
     </div>

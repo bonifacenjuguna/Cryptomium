@@ -7,7 +7,7 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>{{COIN_NAME}} ({{COIN_TICKER}}) price, chart and alerts | {{BRAND}}</title>
@@ -28,20 +28,42 @@
           <div class="logo lg" id="c-logo"></div>
           <div>
             <h1 id="c-name">{{COIN_NAME}}</h1>
-            <span class="sym" id="c-sym">{{COIN_TICKER}}</span>
+            <span class="sym" id="c-sym">{{COIN_TICKER}}</span><span class="rank-chip" id="c-rank" hidden></span>
           </div>
-          <button class="fav" id="c-fav" type="button" aria-pressed="false" aria-label="Star {{COIN_NAME}}">
-            <svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>
-          </button>
+          <div class="coin-actions">
+            <button class="fav" id="c-fav" type="button" aria-pressed="false" aria-label="Star {{COIN_NAME}}">
+              <svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>
+            </button>
+            <button class="fav" id="c-share" type="button" aria-label="Share {{COIN_NAME}}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>
+            </button>
+          </div>
         </div>
         <div class="coin-price">
-          <div class="big num" id="c-price">–</div>
+          <button class="big num" id="c-price" type="button" title="Tap to copy the price">–</button>
           <div class="chg flat num" id="c-chg">&nbsp;</div>
         </div>
       </div>
 
-      <div class="panel chart-card">
-        <div class="chart-top">
+      <div class="panel chart-card" id="chart-card">
+        <div class="chart-bar">
+          <div class="legend" id="c-legend" aria-live="off"></div>
+          <div class="chart-tools">
+            <div class="segs icon-segs" id="chart-type" role="group" aria-label="Chart style">
+              <button class="seg" type="button" data-type="line" aria-pressed="true" aria-label="Line chart" title="Line">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-9"/></svg><span>Line</span>
+              </button>
+              <button class="seg" type="button" data-type="candles" aria-pressed="false" aria-label="Candlestick chart" title="Candles">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M7 3v4M7 17v4M17 6v3M17 15v5"/><rect x="5" y="7" width="4" height="10" rx="1"/><rect x="15" y="9" width="4" height="6" rx="1"/></svg><span>Candles</span>
+              </button>
+            </div>
+            <button class="icon-btn" id="chart-full" type="button" aria-label="Full screen chart" title="Full screen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="chart" id="chart" tabindex="0" role="img" aria-label="Price chart. Tap or click the chart to read a value; tap elsewhere to clear it."></div>
+        <div class="chart-foot">
           <div class="tabs" role="tablist" aria-label="Chart range" id="ranges">
             <button class="tab" role="tab" data-range="24h" aria-selected="false">24H</button>
             <button class="tab" role="tab" data-range="7d" aria-selected="true">7D</button>
@@ -49,24 +71,27 @@
             <button class="tab" role="tab" data-range="90d" aria-selected="false">90D</button>
             <button class="tab" role="tab" data-range="1y" aria-selected="false">1Y</button>
           </div>
-          <div class="segs" id="chart-type" role="group" aria-label="Chart style">
-            <button class="seg" type="button" data-type="line" aria-pressed="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-9"/></svg>Line
-            </button>
-            <button class="seg" type="button" data-type="candles" aria-pressed="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M7 3v4M7 17v4M17 6v3M17 15v5"/><rect x="5" y="7" width="4" height="10" rx="1"/><rect x="15" y="9" width="4" height="6" rx="1"/></svg>Candles
-            </button>
-          </div>
+          <label class="cmp-pick"><span class="sr">Compare with another coin</span>
+            <select id="cmp-select" aria-label="Compare with another coin"><option value="">Compare with…</option></select>
+          </label>
         </div>
-        <div class="readout num" id="c-readout"></div>
-        <div class="chart" id="chart" tabindex="0" role="img" aria-label="Price chart. Tap or click the chart to read a value; tap elsewhere to clear it."></div>
+      </div>
+
+      <div class="panel perf" id="perf" aria-label="Price change by period">
+        <div class="perf-cell"><span>1 hour</span><b class="num chg flat" id="p-1h">–</b></div>
+        <div class="perf-cell"><span>24 hours</span><b class="num chg flat" id="p-24h">–</b></div>
+        <div class="perf-cell"><span>7 days</span><b class="num chg flat" id="p-7d">–</b></div>
+        <div class="perf-cell"><span>30 days</span><b class="num chg flat" id="p-30d">–</b></div>
+        <div class="perf-cell"><span>1 year</span><b class="num chg flat" id="p-1y">–</b></div>
       </div>
 
       <dl class="stats" id="stats">
         <div class="stat"><dt>Market cap</dt><dd class="num" id="s-cap">–</dd></div>
         <div class="stat"><dt>24h volume</dt><dd class="num" id="s-vol">–</dd></div>
-        <div class="stat"><dt>7 day change</dt><dd class="num" id="s-7d">–</dd></div>
-        <div class="stat"><dt>24h change</dt><dd class="num" id="s-24h">–</dd></div>
+        <div class="stat"><dt>Circulating supply</dt><dd class="num" id="s-circ">–</dd></div>
+        <div class="stat"><dt>Max supply</dt><dd class="num" id="s-max">–</dd></div>
+        <div class="stat"><dt>All-time high</dt><dd class="num" id="s-ath">–</dd><div class="stat-sub" id="s-ath-sub">&nbsp;</div></div>
+        <div class="stat"><dt>Volume vs market cap</dt><dd class="num" id="s-turn">–</dd><div class="stat-sub">Share of the coin traded in 24 hours</div></div>
         <div class="stat range-bar">
           <dt>24 hour range</dt>
           <dd>
@@ -76,13 +101,19 @@
         </div>
       </dl>
 
-      <div class="panel converter">
+      <div class="panel about-card" id="about-card">
+        <h2>About {{COIN_NAME}}</h2>
+        <p id="about-text">&nbsp;</p>
+      </div>
+
+      <div class="panel converter" id="converter">
         <div class="cv-head"><h2>Converter</h2><span class="cv-note">Uses the live price</span></div>
         <div class="cv-row">
           <label class="cv-field"><span class="cv-label" id="cv-sym">{{COIN_TICKER}}</span><input id="cv-coin" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Amount of {{COIN_NAME}}"></label>
           <span class="cv-eq" aria-hidden="true">=</span>
           <label class="cv-field"><span class="cv-label" id="cv-code">USD</span><input id="cv-fiat" type="text" inputmode="decimal" autocomplete="off" aria-label="Value in your currency"></label>
         </div>
+        <a class="cv-link" id="cv-alert" href="/settings/alerts">Set a price alert for {{COIN_NAME}}</a>
       </div>
     </div>
   </div>
@@ -99,7 +130,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-head"><h2>More coins</h2></div>
+      <div class="sec-head"><h2>Explore more coins</h2></div>
       <ul class="others" id="others"></ul>
     </div>
   </section>

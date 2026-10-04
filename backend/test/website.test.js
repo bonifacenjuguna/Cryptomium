@@ -173,3 +173,18 @@ test('the new routes stay 404 when their data source is not wired up', async () 
     for (const p of ['/api/market', '/api/rates', '/api/alerts', '/api/history/BTC']) assert.equal((await fetch(base + p)).status, 404);
   });
 });
+
+test('fetchMarket also returns rank, supply, all-time high and the longer price changes', async () => {
+  const m = await fetchMarket({ get: okJson([
+    { id: 'bitcoin', market_cap: 1.6e12, market_cap_rank: 1, circulating_supply: 19.9e6, total_supply: 19.9e6, max_supply: 21e6, ath: 126000, ath_date: '2025-10-06T00:00:00.000Z',
+      price_change_percentage_1h_in_currency: 0.1, price_change_percentage_30d_in_currency: -3, price_change_percentage_1y_in_currency: 40, sparkline_in_7d: { price: [1, 2, 3] } },
+  ]) });
+  const b = m.coins.BTC;
+  assert.equal(b.rank, 1);
+  assert.equal(b.maxSupply, 21e6);
+  assert.equal(b.ath, 126000);
+  assert.equal(b.change1h, 0.1);
+  assert.equal(b.change30d, -3);
+  assert.equal(b.change1y, 40);
+  assert.equal(b.athDate, '2025-10-06T00:00:00.000Z');
+});

@@ -1,9 +1,10 @@
-// The price chart: a line or candlesticks, drawn as SVG, updated live.
+// The price chart: a line, candlesticks, or two coins compared, drawn as SVG, updated live.
 //
 // Selecting a moment: moving the mouse over the chart or touching it puts a dotted
-// crosshair on that moment, with a readout. The crosshair STAYS where it was left, even
-// after the finger or cursor leaves; it only goes away when the visitor clicks or taps
-// somewhere else on the page, or presses Escape. While it is shown it keeps its place
+// crosshair on that moment. What it says is shown in a legend line ABOVE the chart (never in
+// a card on top of the data), the way trading platforms do it. The crosshair STAYS where it
+// was left, even after the finger or cursor leaves; it only goes away when the visitor clicks
+// or taps somewhere else on the page, or presses Escape. While it is shown it keeps its place
 // as live prices arrive.
 import { el, money, currency, pct } from './common.js';
 
@@ -16,6 +17,7 @@ const svg = (tag, attrs = {}) => {
 const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 export const RANGE_MS = { '24h': 864e5, '7d': 7 * 864e5, '30d': 30 * 864e5, '90d': 90 * 864e5, '1y': 365 * 864e5 };
+const RANGE_LABEL = { '24h': '24H', '7d': '7D', '30d': '30D', '90d': '90D', '1y': '1Y' };
 const MAX_TAIL = 600;
 
 function niceTicks(min, max, n = 4) {
@@ -39,14 +41,16 @@ function tipTime(ms, range) {
   if (range === '24h' || range === '7d') return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
 }
+const signed = v => pct(v);
 
-export function createChart(host, { stable = false, onChange = () => {} } = {}) {
+export function createChart(host, { stable = false, legend = null, onChange = () => {} } = {}) {
   const st = {
-    type: 'line',
+    type: 'line', // line | candles | compare
     range: '7d',
     base: null, // [[t, usd]] from the server
     tail: [], // live points added since
     candles: null, // [[t, o, h, l, c]] in usd
+    series: null, // compare: [{ label, points: [[t, usd]] }]
     message: 'Loading chart',
     sel: null, // selected moment (ms) or null
   };
@@ -56,21 +60,22 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
   // ---------------------------------------------------------------- data
   const lineSeries = () => (st.base ? st.base.concat(st.tail) : null);
 
-  function setData({ type, range, points = null, candles = null, message = '' }) {
+  function setData({ type, range, points = null, candles = null, series = null, message = '' }) {
     st.type = type;
     st.range = range;
     st.base = points;
     st.tail = [];
     st.candles = candles;
+    st.series = series;
     st.message = message;
     st.sel = null;
     draw();
   }
-  function setMessage(message) { st.message = message; st.base = null; st.candles = null; draw(); }
+  function setMessage(message) { st.message = message; st.base = null; st.candles = null; st.series = null; draw(); }
 
   /** A new live price. Extends the line (or the newest candle) and redraws. */
   function tick(priceUsd, now = Date.now()) {
-    if (!(priceUsd > 0)) return;
+    if (!(priceUsd > 0) || st.type === 'compare') return;
     if (st.type === 'candles') {
       const c = st.candles;
       if (!c || c.length < 2) return;
@@ -101,28 +106,100 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
     draw();
   }
 
+  // ---------------------------------------------------------------- legend (above the chart)
+  function legendItem(label, value, cls = '') {
+    const s = el('span', 'lg-item ' + cls);
+    s.append(el('i', '', label), el('em', 'num', value));
+    return s;
+  }
+  function paintLegend(sel) {
+    if (!legend || !view) return;
+    const v = view;
+    const title = el('div', 'lg-title');
+    const vals = el('div', 'lg-vals');
+    if (v.mode === 'compare') {
+      const i = sel == null ? v.n - 1 : sel;
+      title.append(el('span', 'lg-time', sel == null ? 'Past ' + RANGE_LABEL[st.range] : tipTime(v.times[i], st.range)));
+      v.cmp.forEach((s, k) => {
+        const idx = sel == null ? s.pts.length - 1 : s.nearest(v.times[i]);
+        const ch = signed(s.pts[idx][1]);
+        const item = legendItem(s.label, ch.text, 'chg ' + ch.cls);
+        item.classList.add('lg-s' + k);
+        vals.append(item);
+      });
+    } else if (sel == null) {
+      const { data, isC } = v;
+      const first = data[0][1];
+      const lastV = isC ? data.at(-1)[4] : data.at(-1)[1];
+      const ch = signed(((lastV - first) / first) * 100);
+      title.append(el('span', 'lg-time', 'Past ' + RANGE_LABEL[st.range]), Object.assign(el('b', 'chg num ' + ch.cls), { textContent: ch.text }));
+      if (isC) {
+        const c = data.at(-1);
+        for (const [l, x] of [['O', c[1]], ['H', c[2]], ['L', c[3]], ['C', c[4]]]) vals.append(legendItem(l, money(x, { stable })));
+      } else {
+        const ys = data.map(p => p[1]);
+        vals.append(legendItem('High', money(Math.max(...ys), { stable })), legendItem('Low', money(Math.min(...ys), { stable })), legendItem('Last', money(lastV, { stable })));
+      }
+    } else {
+      const d = v.data[sel];
+      const startVal = v.data[0][1];
+      title.append(el('span', 'lg-time', tipTime(d[0], st.range)));
+      if (v.isC) {
+        const body = signed(((d[4] - d[1]) / d[1]) * 100);
+        title.append(Object.assign(el('b', 'chg num ' + body.cls), { textContent: body.text }));
+        for (const [l, x] of [['O', d[1]], ['H', d[2]], ['L', d[3]], ['C', d[4]]]) vals.append(legendItem(l, money(x, { stable })));
+      } else {
+        const ch = signed(((d[1] - startVal) / startVal) * 100);
+        title.append(Object.assign(el('b', 'chg num ' + ch.cls), { textContent: ch.text }));
+        vals.append(legendItem('Price', money(d[1], { stable })));
+      }
+    }
+    legend.classList.toggle('is-sel', sel != null);
+    legend.replaceChildren(title, vals);
+  }
+
   // ---------------------------------------------------------------- drawing
   function draw() {
     host.replaceChildren();
     view = null;
-    const isC = st.type === 'candles';
-    const data = isC ? st.candles : lineSeries();
+    const mode = st.type;
+    const isC = mode === 'candles';
+    const isCmp = mode === 'compare';
+    const data = isCmp ? st.series?.[0]?.points : isC ? st.candles : lineSeries();
     if (!data || data.length < 2) {
       host.append(el('div', 'chart-msg', st.message || 'Loading chart'));
+      if (legend) legend.replaceChildren();
       return;
     }
     const rate = currency.rate;
     const W = host.clientWidth || 640;
     const H = host.clientHeight || 320;
-    const padL = 4, padT = 14, padB = 26;
+    const inside = W < 560; // phones: the price scale sits over the chart so the data gets the full width
+    const padL = 4, padT = 12, padB = 26;
 
-    const vals = isC ? data.flatMap(c => [c[2] * rate, c[3] * rate]) : data.map(p => p[1] * rate);
+    // Compare mode works in percent change from the start, so two very different prices share one scale.
+    let cmp = null;
+    if (isCmp) {
+      cmp = st.series.map(s => {
+        const pts = s.points.map(p => [p[0], (p[1] / s.points[0][1] - 1) * 100]);
+        const times = pts.map(p => p[0]);
+        const nearest = t => {
+          let lo = 0, hi = times.length - 1;
+          while (hi - lo > 1) { const m = (lo + hi) >> 1; if (times[m] < t) lo = m; else hi = m; }
+          return Math.abs(times[lo] - t) <= Math.abs(times[hi] - t) ? lo : hi;
+        };
+        return { label: s.label, pts, nearest };
+      });
+    }
+
+    const vals = isCmp ? cmp.flatMap(s => s.pts.map(p => p[1])) : isC ? data.flatMap(c => [c[2] * rate, c[3] * rate]) : data.map(p => p[1] * rate);
     let lo = Math.min(...vals), hi = Math.max(...vals);
-    const pad = (hi - lo) * 0.08 || hi * 0.01;
+    const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.01 || 1;
     lo -= pad; hi += pad;
     const tickValues = niceTicks(lo, hi);
-    const longest = Math.max(0, ...tickValues.map(v => money(v / rate, { stable }).length));
-    const padR = Math.min(W * 0.42, Math.max(62, longest * 6.8 + 16));
+    const fmtAxis = isCmp ? v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + '%' : v => money(v / rate, { stable });
+    const longest = Math.max(0, ...tickValues.map(v => fmtAxis(v).length));
+    const padR = inside ? 6 : Math.min(W * 0.42, Math.max(62, longest * 6.8 + 16));
     const iw = W - padL - padR, ih = H - padT - padB;
     const y = v => padT + (1 - (v - lo) / (hi - lo)) * ih;
 
@@ -130,11 +207,13 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
     const n = data.length;
     const band = iw / n;
     const x = isC ? i => padL + band * (i + 0.5) : i => padL + ((data[i][0] - t0) / (t1 - t0 || 1)) * iw;
+    const xt = t => padL + ((t - t0) / (t1 - t0 || 1)) * iw;
 
-    const first = isC ? data[0][1] : data[0][1];
-    const lastV = isC ? data.at(-1)[4] : data.at(-1)[1];
-    const up = lastV >= first;
-    const color = cssVar(up ? '--up' : '--down');
+    const first = isCmp ? 0 : data[0][1];
+    const lastV = isCmp ? cmp[0].pts.at(-1)[1] : isC ? data.at(-1)[4] : data.at(-1)[1];
+    const up = isCmp ? lastV >= 0 : lastV >= first;
+    const color = isCmp ? cssVar('--accent') : cssVar(up ? '--up' : '--down');
+    const color2 = cssVar('--focus');
     const upFill = cssVar('--up-fill'), downFill = cssVar('--down-fill');
 
     const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, 'aria-hidden': 'true' });
@@ -147,19 +226,31 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
     for (const v of tickValues) {
       const yy = y(v);
       root.append(svg('line', { class: 'grid-line', x1: padL, x2: W - padR, y1: yy, y2: yy }));
-      const t = svg('text', { class: 'axis-t', x: W - padR + 8, y: yy + 4 });
-      t.textContent = money(v / rate, { stable });
+      const t = svg('text', inside
+        ? { class: 'axis-t axis-in', x: W - 6, y: yy - 5, 'text-anchor': 'end' }
+        : { class: 'axis-t', x: W - padR + 8, y: yy + 4 });
+      t.textContent = fmtAxis(v);
       root.append(t);
+    }
+    if (isCmp) {
+      const zy = y(0);
+      if (zy > padT && zy < padT + ih) root.append(svg('line', { class: 'zero-line', x1: padL, x2: W - padR, y1: zy, y2: zy }));
     }
     const ticks = W < 520 ? 2 : 4;
     for (let k = 0; k <= ticks; k++) {
       const i = Math.round((k / ticks) * (n - 1));
-      const t = svg('text', { class: 'axis-t', x: x(i), y: H - 6, 'text-anchor': k === 0 ? 'start' : k === ticks ? 'end' : 'middle' });
+      const tx = isC ? x(i) : xt(data[i][0]);
+      const t = svg('text', { class: 'axis-t', x: tx, y: H - 6, 'text-anchor': k === 0 ? 'start' : k === ticks ? 'end' : 'middle' });
       t.textContent = timeLabel(data[i][0], st.range);
       root.append(t);
     }
 
-    if (isC) {
+    if (isCmp) {
+      cmp.forEach((s, k) => {
+        const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
+        root.append(svg('path', { class: 'line', d, stroke: k ? color2 : color }));
+      });
+    } else if (isC) {
       const bodyW = Math.max(1.6, Math.min(16, band * 0.62));
       data.forEach((c, i) => {
         const [, o, h, l, cl] = c;
@@ -169,7 +260,6 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
         const top = y(Math.max(o, cl) * rate), bot = y(Math.min(o, cl) * rate);
         root.append(svg('rect', { class: 'candle', x: cx - bodyW / 2, y: top, width: bodyW, height: Math.max(1.5, bot - top), fill: col, rx: Math.min(1.5, bodyW / 3) }));
       });
-      // The live price as a thin line across the chart.
       const ly = y(lastV * rate);
       root.append(svg('line', { class: 'last-line', x1: padL, x2: W - padR, y1: ly, y2: ly, stroke: color }));
     } else {
@@ -179,39 +269,40 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
     }
 
     // The live end of the chart: a price tag on the axis and, for the line, a pulsing dot.
-    const ey = y(lastV * rate);
-    const tagW = padR - 6;
-    const tag = svg('g', { class: 'end-tag' });
-    tag.append(svg('rect', { x: W - padR + 3, y: ey - 9, width: tagW, height: 18, rx: 5, fill: color }));
-    const tagT = svg('text', { x: W - padR + 3 + tagW / 2, y: ey + 4, 'text-anchor': 'middle', class: 'tag-t' });
-    tagT.textContent = money(lastV, { stable });
-    tag.append(tagT);
-    root.append(tag);
-    if (!isC) {
-      const phase = -(Date.now() % 2200);
-      root.append(svg('circle', { class: 'live-ring', cx: x(n - 1), cy: ey, r: 5, fill: color, style: `animation-delay:${phase}ms` }));
-      root.append(svg('circle', { class: 'live-dot', cx: x(n - 1), cy: ey, r: 3.6, fill: color }));
+    const tagText = isCmp ? '' : money(lastV, { stable });
+    const tagW = isCmp ? 0 : Math.max(52, tagText.length * 6.9 + 14);
+    const tagX = inside ? W - tagW - 2 : W - padR + 3;
+    const ey = isCmp ? 0 : y(lastV * rate);
+    if (!isCmp) {
+      const tag = svg('g', { class: 'end-tag' });
+      tag.append(svg('rect', { x: tagX, y: ey - 9, width: tagW, height: 18, rx: 5, fill: color }));
+      const tagT = svg('text', { x: tagX + tagW / 2, y: ey + 4, 'text-anchor': 'middle', class: 'tag-t' });
+      tagT.textContent = tagText;
+      tag.append(tagT);
+      root.append(tag);
+    }
+    if (!isC && !isCmp) {
+      const ring = svg('circle', { class: 'live-ring', cx: x(n - 1), cy: ey, r: 5, fill: color });
+      ring.style.animationDelay = `${-(Date.now() % 2200)}ms`;
+      root.append(ring, svg('circle', { class: 'live-dot', cx: x(n - 1), cy: ey, r: 3.6, fill: color }));
     }
 
     // Crosshair (hidden until a moment is selected).
     const vline = svg('line', { class: 'cursor', y1: padT, y2: padT + ih, visibility: 'hidden' });
     const hline = svg('line', { class: 'cursor', x1: padL, x2: W - padR, visibility: 'hidden' });
     const dot = svg('circle', { class: 'sel-dot', r: 5, fill: color, visibility: 'hidden' });
+    const dot2 = svg('circle', { class: 'sel-dot', r: 5, fill: color2, visibility: 'hidden' });
     const pill = svg('g', { class: 'cross-pill', visibility: 'hidden' });
-    const pillR = svg('rect', { width: tagW, height: 18, rx: 5 });
+    const pillR = svg('rect', { width: tagW || 56, height: 18, rx: 5 });
     const pillT = svg('text', { 'text-anchor': 'middle', class: 'pill-t' });
     pill.append(pillR, pillT);
-    root.append(vline, hline, dot, pill);
+    root.append(vline, hline, dot, dot2, pill);
     host.append(root);
 
-    const tip = el('div', 'chart-tip num');
-    tip.hidden = true;
-    host.append(tip);
+    view = { mode, data, isC, isCmp, cmp, x, xt, y, n, W, H, padL, padR, padT, ih, iw, rate, vline, hline, dot, dot2, pill, pillR, pillT, tagW, tagX, color, band, t0, t1, times: isCmp ? cmp[0].pts.map(p => p[0]) : null };
 
-    view = { data, isC, x, y, n, W, H, padL, padR, padT, ih, iw, rate, vline, hline, dot, pill, pillR, pillT, tip, tagW, color, band, t0, t1 };
-
-    const pctChange = ((lastV - first) / first) * 100;
-    onChange(pct(pctChange), st.range);
+    if (isCmp) onChange(null, st.range);
+    else onChange(signed(((lastV - first) / first) * 100), st.range);
     renderSelection();
   }
 
@@ -228,7 +319,7 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
   function indexFromClientX(clientX) {
     const r = host.getBoundingClientRect();
     const px = clientX - r.left;
-    const { isC, n, band, padL, iw, t0, t1, data } = view;
+    const { isC, n, band, padL, iw, t0, t1 } = view;
     if (isC) return Math.max(0, Math.min(n - 1, Math.floor((px - padL) / band)));
     const t = t0 + ((px - padL) / iw) * (t1 - t0);
     return indexOfTime(t);
@@ -238,47 +329,41 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
     if (!view) return;
     const v = view;
     if (st.sel == null) {
-      for (const n of [v.vline, v.hline, v.dot, v.pill]) n.setAttribute('visibility', 'hidden');
-      v.tip.hidden = true;
+      for (const n of [v.vline, v.hline, v.dot, v.dot2, v.pill]) n.setAttribute('visibility', 'hidden');
       host.classList.remove('has-sel');
+      paintLegend(null);
       return;
     }
     host.classList.add('has-sel');
     const i = indexOfTime(st.sel);
     const d = v.data[i];
-    const px = v.x(i);
+    const px = v.isC ? v.x(i) : v.xt(d[0]);
+    v.vline.setAttribute('x1', px); v.vline.setAttribute('x2', px); v.vline.setAttribute('visibility', 'visible');
+
+    if (v.isCmp) {
+      v.hline.setAttribute('visibility', 'hidden');
+      v.pill.setAttribute('visibility', 'hidden');
+      [v.dot, v.dot2].forEach((dt, k) => {
+        const s = v.cmp[k];
+        const p = s.pts[s.nearest(d[0])];
+        dt.setAttribute('cx', v.xt(p[0])); dt.setAttribute('cy', v.y(p[1])); dt.setAttribute('visibility', 'visible');
+      });
+      paintLegend(i);
+      return;
+    }
     const price = v.isC ? d[4] : d[1];
     const py = v.y(price * v.rate);
-    v.vline.setAttribute('x1', px); v.vline.setAttribute('x2', px); v.vline.setAttribute('visibility', 'visible');
     v.hline.setAttribute('y1', py); v.hline.setAttribute('y2', py); v.hline.setAttribute('visibility', 'visible');
     if (!v.isC) { v.dot.setAttribute('cx', px); v.dot.setAttribute('cy', py); v.dot.setAttribute('visibility', 'visible'); } else v.dot.setAttribute('visibility', 'hidden');
-    v.pillR.setAttribute('x', v.W - v.padR + 3); v.pillR.setAttribute('y', py - 9);
-    v.pillT.setAttribute('x', v.W - v.padR + 3 + v.tagW / 2); v.pillT.setAttribute('y', py + 4);
-    v.pillT.textContent = money(price, { stable });
+    const text = money(price, { stable });
+    const pw = Math.max(52, text.length * 6.9 + 14);
+    const pxl = v.padR === 6 ? v.W - pw - 2 : v.W - v.padR + 3;
+    v.pillR.setAttribute('width', pw);
+    v.pillR.setAttribute('x', pxl); v.pillR.setAttribute('y', py - 9);
+    v.pillT.setAttribute('x', pxl + pw / 2); v.pillT.setAttribute('y', py + 4);
+    v.pillT.textContent = text;
     v.pill.setAttribute('visibility', 'visible');
-
-    const startVal = v.isC ? v.data[0][1] : v.data[0][1];
-    const delta = pct(((price - startVal) / startVal) * 100);
-    const tip = v.tip;
-    tip.hidden = false;
-    tip.replaceChildren();
-    tip.append(el('b', 'tip-price', money(price, { stable })), el('span', 'tip-time', tipTime(d[0], st.range)));
-    if (v.isC) {
-      const grid = el('span', 'tip-ohlc');
-      for (const [label, val] of [['O', d[1]], ['H', d[2]], ['L', d[3]], ['C', d[4]]]) {
-        grid.append(el('i', '', label), el('em', '', money(val, { stable })));
-      }
-      tip.append(grid);
-      const body = pct(((d[4] - d[1]) / d[1]) * 100);
-      tip.append(Object.assign(el('span', 'tip-delta chg ' + body.cls), { textContent: body.text + ' this candle' }));
-    } else {
-      tip.append(Object.assign(el('span', 'tip-delta chg ' + delta.cls), { textContent: delta.text + ' since the start' }));
-    }
-    const w = tip.offsetWidth, h = tip.offsetHeight;
-    const topY = v.isC ? v.y(d[2] * v.rate) : py;
-    let ty = topY - h - 14;
-    if (ty < 0) ty = Math.min(v.H - h - 4, topY + 18);
-    tip.style.transform = `translate(${Math.max(0, Math.min(v.W - w, px - w / 2))}px, ${ty}px)`;
+    paintLegend(i);
   }
 
   function select(i) {
@@ -306,8 +391,12 @@ export function createChart(host, { stable = false, onChange = () => {} } = {}) 
   const endDrag = () => { dragging = false; };
   host.addEventListener('pointerup', endDrag);
   host.addEventListener('pointercancel', endDrag);
-  // Clicking or tapping anywhere else on the page is what clears the crosshair.
-  document.addEventListener('pointerdown', e => { if (!host.contains(e.target)) clear(); }, true);
+  // Clicking or tapping anywhere else on the page is what clears the crosshair. The legend,
+  // the controls around the chart, and the chart itself keep it.
+  document.addEventListener('pointerdown', e => {
+    if (host.contains(e.target) || (legend && legend.contains(e.target))) return;
+    clear();
+  }, true);
   host.addEventListener('keydown', e => {
     if (!view) return;
     const cur = st.sel == null ? null : indexOfTime(st.sel);

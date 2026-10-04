@@ -1,7 +1,7 @@
 // Settings: the hub, Preferences, Watchlist, Price alerts, Data and privacy.
 import {
   API, initChrome, pollPrices, store, prefs, PREF_DEFAULTS, currency, onCurrency, setCurrency, currencySymbol, CURRENCY_NAMES,
-  money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum,
+  money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings,
 } from './common.js';
 import { loadTargets, addTarget, removeTarget, clearReached, rearm } from './targets.js';
 
@@ -38,27 +38,81 @@ function paintPrefs() {
   document.querySelectorAll('[data-toggle]').forEach(b => b.setAttribute('aria-checked', String(prefs.get(b.dataset.toggle) !== false)));
 }
 
-function buildCurrencies() {
-  const grid = $('cur-grid');
-  const rates = currency.rates;
-  const known = Object.keys(rates).length > 1;
-  const codes = Object.keys(CURRENCY_NAMES);
-  grid.replaceChildren(...codes.map(code => {
-    const b = el('button', 'cur-chip');
-    b.type = 'button';
-    b.setAttribute('role', 'radio');
-    b.dataset.code = code;
-    b.append(el('span', 'cc-sym', currencySymbol(code).slice(0, 4)), el('span', 'cc-code', code), el('span', 'cc-name', CURRENCY_NAMES[code]));
-    if (known && !rates[code]) { b.disabled = true; b.title = 'Not available right now'; }
-    b.addEventListener('click', () => { setCurrency(code); flashSaved(); });
-    return b;
-  }));
-  paintCurrencies();
-}
 function paintCurrencies() {
-  document.querySelectorAll('.cur-chip').forEach(b => b.setAttribute('aria-checked', String(b.dataset.code === currency.code)));
+  $('cp-sym').textContent = currencySymbol(currency.code).slice(0, 4);
+  $('cp-code').textContent = currency.code;
+  $('cp-name').textContent = CURRENCY_NAMES[currency.code] || '';
   const btc = live.get('BTC');
   setNum($('cur-preview'), btc ? money(btc.price) : '–', btc?.price);
+}
+
+// A sheet that slides up on phones and drops in on larger screens, with search and the common currencies first.
+const COMMON = ['USD', 'EUR', 'GBP', 'KES', 'NGN', 'ZAR'];
+function openCurrencySheet() {
+  const trigger = $('cur-pick');
+  const known = Object.keys(currency.rates).length > 1;
+  const back = el('div', 'sheet-back');
+  const sheet = el('div', 'sheet');
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  sheet.setAttribute('aria-label', 'Choose a currency');
+  const head = el('div', 'sheet-head');
+  head.append(el('h2', '', 'Choose a currency'));
+  const close = el('button', 'icon-btn');
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close');
+  close.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  head.append(close);
+  const search = el('input', 'sheet-search');
+  search.type = 'search';
+  search.placeholder = 'Search currencies';
+  search.setAttribute('aria-label', 'Search currencies');
+  search.autocomplete = 'off';
+  const ul = el('ul', 'sheet-list');
+  ul.setAttribute('role', 'listbox');
+  sheet.append(head, search, ul);
+  back.append(sheet);
+  document.body.append(back);
+  document.body.classList.add('sheet-open');
+  trigger.setAttribute('aria-expanded', 'true');
+
+  const all = Object.keys(CURRENCY_NAMES);
+  const paint = () => {
+    const q = search.value.trim().toLowerCase();
+    const codes = q
+      ? all.filter(c => c.toLowerCase().includes(q) || CURRENCY_NAMES[c].toLowerCase().includes(q))
+      : [...COMMON.filter(c => all.includes(c)), ...all.filter(c => !COMMON.includes(c))];
+    ul.replaceChildren(...codes.map((code, i) => {
+      const li = el('li');
+      const b = el('button', 'sheet-item');
+      b.type = 'button';
+      b.setAttribute('role', 'option');
+      b.setAttribute('aria-selected', String(code === currency.code));
+      const off = known && !currency.rates[code];
+      b.disabled = off;
+      b.append(el('span', 'cc-sym', currencySymbol(code).slice(0, 4)), Object.assign(el('span', 'si-t'), {}), el('span', 'si-check'));
+      b.children[1].append(el('b', '', code), el('span', '', CURRENCY_NAMES[code] + (off ? ' (not available right now)' : '')));
+      b.addEventListener('click', () => { setCurrency(code); flashSaved(); done(); });
+      li.append(b);
+      if (!q && i === COMMON.length - 1) li.classList.add('after-common');
+      return li;
+    }));
+    if (!codes.length) ul.append(el('li', 'sheet-none', 'No currency matches that.'));
+  };
+  const done = () => {
+    back.remove();
+    document.body.classList.remove('sheet-open');
+    trigger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('keydown', onKey);
+    trigger.focus();
+  };
+  const onKey = e => { if (e.key === 'Escape') done(); };
+  document.addEventListener('keydown', onKey);
+  back.addEventListener('pointerdown', e => { if (e.target === back) done(); });
+  close.addEventListener('click', done);
+  search.addEventListener('input', paint);
+  paint();
+  if (matchMedia('(min-width: 821px)').matches) search.focus();
 }
 
 function initPreferences() {
@@ -79,8 +133,9 @@ function initPreferences() {
       flashSaved();
     });
   });
-  buildCurrencies();
-  onCurrency(() => { buildCurrencies(); });
+  paintCurrencies();
+  $('cur-pick').addEventListener('click', openCurrencySheet);
+  onCurrency(paintCurrencies);
   $('reset-prefs').addEventListener('click', () => { prefs.reset(); paintPrefs(); flashSaved('Back to the defaults'); });
 }
 
@@ -248,6 +303,7 @@ function renderStore() {
     ['Currency', `Showing ${currency.code}`, store.get('cm-currency')],
     ['Starred coins', favCount() === 1 ? '1 coin' : `${favCount()} coins`, store.get(FAV_KEY)],
     ['Price alerts', `${loadTargets().length} saved`, store.get('cm-targets')],
+    ['Portfolio', `${holdings.load().length} holdings`, store.get('cm-portfolio')],
   ];
   $('store-list').replaceChildren(...rows.map(([name, note, raw]) => {
     const li = el('li', 'store-row');
@@ -265,6 +321,7 @@ function exportData() {
     currency: currency.code,
     favs: (() => { try { return JSON.parse(store.get(FAV_KEY) || '[]'); } catch { return []; } })(),
     targets: loadTargets(),
+    portfolio: holdings.load(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = el('a');
@@ -292,6 +349,11 @@ async function importData(file) {
         .map(t => ({ id: String(t.id || Math.random().toString(36).slice(2)).slice(0, 20), ticker: t.ticker, dir: t.dir, price: Number(t.price), created: Number(t.created) || Date.now(), firedAt: t.firedAt ? Number(t.firedAt) : undefined, firedPrice: t.firedPrice ? Number(t.firedPrice) : undefined }));
       store.set('cm-targets', JSON.stringify(ok));
     }
+    if (Array.isArray(data.portfolio)) {
+      const ok = data.portfolio.filter(h => h && tickers.has(h.ticker) && Number(h.amount) > 0).slice(0, 40)
+        .map(h => ({ id: String(h.id || Math.random().toString(36).slice(2)).slice(0, 20), ticker: h.ticker, amount: Number(h.amount) }));
+      store.set('cm-portfolio', JSON.stringify(ok));
+    }
     flashSaved('Backup loaded');
     setTimeout(() => location.reload(), 700);
   } catch {
@@ -302,6 +364,7 @@ function initData() {
   renderStore();
   onCurrency(renderStore);
   document.addEventListener('cm:targets', renderStore);
+  document.addEventListener('cm:holdings', renderStore);
   onFavs(renderStore);
   $('export-btn').addEventListener('click', exportData);
   $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
@@ -318,6 +381,7 @@ function initData() {
     store.set('cm-currency', 'USD');
     store.set(FAV_KEY, '[]');
     store.set('cm-targets', '[]');
+    store.set('cm-portfolio', '[]');
     store.set('cm-theme', 'auto');
     flashSaved('Everything was cleared');
     setTimeout(() => location.reload(), 600);
