@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Data sources | {{BRAND}}</title>
+  <meta name="description" content="Where every number on the site comes from, and how fresh it is right now.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/sources">
+</head>
+<body data-page="sources">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Data sources</h1><p class="lede">Where every number on the site comes from, and how fresh it is right now.</p></div>
+        <section class="s-card" aria-labelledby="h-now">
+          <h2 id="h-now">Right now</h2>
+          <div class="src-live">
+            <div class="src-stat"><small>Connection</small><b id="src-state">Checking…</b></div>
+            <div class="src-stat"><small>Price source</small><b id="src-name">–</b></div>
+            <div class="src-stat"><small>Last update</small><b id="src-time">–</b></div>
+            <div class="src-stat"><small>Response time</small><b id="src-ping">–</b></div>
+          </div>
+          <div class="s-actions"><button type="button" class="btn btn-ghost btn-sm" id="src-test">Test connection</button><span class="s-saved" id="src-msg" aria-live="polite"></span></div>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-where">
+          <h2 id="h-where">Where it comes from</h2>
+          <div class="src-list">
+          <div class="src-row"><div><b>Live prices</b><span>Read straight from the major exchanges, with a backup source if one is busy. They refresh about every two seconds.</span></div><i class="src-tag">Live</i></div>
+          <div class="src-row"><div><b>Charts and history</b><span>Price history and candles for every range come from CoinGecko, and the newest points are added from the live feed as they arrive.</span></div><i class="src-tag">CoinGecko</i></div>
+          <div class="src-row"><div><b>Market size</b><span>Market cap, supply, rank, all-time highs and the 1 hour to 1 year changes come from CoinGecko, refreshed every few minutes.</span></div><i class="src-tag">CoinGecko</i></div>
+          <div class="src-row"><div><b>Exchange rates</b><span>Your currency is converted using exchange rates from CoinGecko, refreshed every hour.</span></div><i class="src-tag">CoinGecko</i></div>
+          <div class="src-row"><div><b>Fear and Greed</b><span>The whole-market reading is the public Fear and Greed Index from alternative.me. The reading for each coin is calculated by us from its recent moves, its place in the day range, and how busy trading is.</span></div><i class="src-tag">alternative.me</i></div>
+          </div>
+          <p class="s-hint">Prices can differ slightly between exchanges and between sources. Market information only, not financial advice.</p>
+        </section>
+
+
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

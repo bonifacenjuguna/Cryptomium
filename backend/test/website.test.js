@@ -188,3 +188,30 @@ test('fetchMarket also returns rank, supply, all-time high and the longer price 
   assert.equal(b.change1y, 40);
   assert.equal(b.athDate, '2025-10-06T00:00:00.000Z');
 });
+
+// ---- Fear & Greed ------------------------------------------------------------
+import { fetchOverall, coinScore, labelFor, buildSentiment } from '../src/sentiment.js';
+
+test('sentiment: overall reading comes from alternative.me with its history and the source name', async () => {
+  const rows = Array.from({ length: 31 }, (_, i) => ({ value: String(70 - i), timestamp: String(1_700_000_000 - i * 86400) }));
+  const o = await fetchOverall({ fetchFn: async () => ({ ok: true, json: async () => ({ data: rows }) }) });
+  assert.equal(o.value, 70); assert.equal(o.label, 'Greed');
+  assert.equal(o.yesterday, 69); assert.equal(o.lastWeek, 63); assert.equal(o.lastMonth, 40);
+  assert.equal(o.source, 'alternative.me');
+});
+
+test('sentiment: a coin that is surging reads as greed and one that is sliding reads as fear', () => {
+  const up = coinScore({ change24h: 8, change7d: 20, change30d: 40, high24h: 110, low24h: 100, marketCap: 1e9, volume24h: 2e8 }, 109);
+  const down = coinScore({ change24h: -8, change7d: -20, change30d: -40, high24h: 110, low24h: 100, marketCap: 1e9, volume24h: 2e8 }, 101);
+  assert.ok(up.value >= 75, 'up ' + up.value);
+  assert.ok(down.value <= 25, 'down ' + down.value);
+  assert.equal(labelFor(50), 'Neutral');
+  assert.equal(coinScore({}, 1), null);
+});
+
+test('sentiment: per-coin readings still work when the overall index is unavailable', async () => {
+  const market = { coins: { BTC: { change24h: 1, change7d: 2, change30d: 3, high24h: 2, low24h: 1, marketCap: 10, volume24h: 1 } } };
+  const s = await buildSentiment({ market, prices: { BTC: 1.5 }, fetchOverallFn: async () => { throw new Error('down'); } });
+  assert.equal(s.overall, null);
+  assert.ok(s.coins.BTC.value > 40 && s.coins.BTC.value < 80);
+});

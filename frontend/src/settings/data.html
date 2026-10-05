@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>Data and privacy | {{BRAND}}</title>
-  <meta name="description" content="Back up, move or clear what is stored on this device.">
+  <meta name="description" content="See what is kept on this device, back it up, move it, or clear it.">
   <meta name="robots" content="noindex">
   <link rel="canonical" href="{{SITE_URL}}/settings/data">
 </head>
@@ -24,7 +24,6 @@
       <!--@settings-nav-->
       <div class="settings-body">
         <div class="s-head"><h1>Data and privacy</h1><p class="lede">See what is kept on this device, back it up, move it, or clear it.</p></div>
-
         <section class="s-card" aria-labelledby="h-store">
           <h2 id="h-store">What is stored</h2>
           <p class="s-hint">{{BRAND}} has no accounts. These settings live only in this browser, and nothing here is sent to us.</p>
@@ -43,10 +42,11 @@
 
         <section class="s-card danger" aria-labelledby="h-reset">
           <h2 id="h-reset">Reset</h2>
-          <p class="s-hint">Clears your preferences, currency, starred coins and price alerts from this browser.</p>
+          <p class="s-hint">Clears your preferences, currency, starred coins, price alerts and portfolio from this browser.</p>
           <div class="s-actions"><button type="button" class="btn btn-danger" id="reset-all">Reset everything</button></div>
         </section>
 
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>
     </div>
   </div>

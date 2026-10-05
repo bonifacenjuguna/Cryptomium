@@ -2,6 +2,7 @@
 //
 //   GET /api/prices            live prices + 24h change for every coin
 //   GET /api/market            market cap, volume, 24h range, 7d change, 7d sparkline
+//   GET /api/sentiment         Fear & Greed: overall market (alternative.me) and a reading per coin
 //   GET /api/stream            the same prices, pushed every couple of seconds (server-sent events)
 //   GET /api/history/BTC?range=7d   price history for one coin (24h|7d|30d|90d|1y);
 //                              add &style=candles for open/high/low/close candles
@@ -22,6 +23,7 @@ import { createLiveFeed } from './liveFeed.js';
 import { fetchChartData } from './chartData.js';
 import { fetchMarket, fetchRates } from './marketData.js';
 import { createLoader, createKeyedLoader, downsample } from './cache.js';
+import { buildSentiment } from './sentiment.js';
 
 // History ranges offered to the website, with how long each reading is reused.
 // Longer ranges change slowly, so they are cached much longer.
@@ -170,6 +172,7 @@ export function createApiHandler({
   allow = () => true,
   getMarket = null,
   getRates = null,
+  getSentiment = null,
   getHistory = null, // (ticker, rangeKey) -> { value, stale }
   getAlerts = null, //  ({ limit, ticker }) -> rows
   proxyHops = 1,
@@ -295,6 +298,10 @@ export function createApiHandler({
       return cached(getMarket, (v, stale) => ({ ...v, stale }), 'public, max-age=60');
     }
 
+    if (url.pathname === '/api/sentiment' && getSentiment) {
+      return cached(getSentiment, (v, stale) => ({ ...v, stale }), 'public, max-age=300');
+    }
+
     if (url.pathname === '/api/rates' && getRates) {
       return cached(getRates, (v, stale) => ({ ...v, stale }), 'public, max-age=600');
     }
@@ -340,7 +347,7 @@ export function createApiHandler({
       if (!tickerSet.has(ticker)) return json(res, 404, { error: 'Unknown coin.' });
       try {
         const file = await fs.readFile(path.join(logosDir, `${ticker}.png`));
-        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', 'Cross-Origin-Resource-Policy': 'cross-origin' });
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', 'Cross-Origin-Resource-Policy': 'cross-origin', 'Access-Control-Allow-Origin': '*' });
         return res.end(file);
       } catch {
         return json(res, 404, { error: 'No logo for this coin yet.' });
@@ -453,6 +460,16 @@ export function startApi({ recentAlerts }) {
     ttlMs: () => (liveFeed.isLive() ? 1_000 : CONFIG.apiSlowRefreshMs),
   });
   const market = createLoader({ load: fetchMarket, ttlMs: 5 * 60_000, failTtlMs: 60_000 });
+  const sentiment = createLoader({
+    load: async () => {
+      const mk = (await market()).value;
+      let prices = {};
+      try { prices = Object.fromEntries((await getSnapshot()).coins.map(c => [c.ticker, c.price])); } catch { /* fine */ }
+      return buildSentiment({ market: mk, prices });
+    },
+    ttlMs: 10 * 60_000,
+    failTtlMs: 60_000,
+  });
   const rates = createLoader({ load: fetchRates, ttlMs: 60 * 60_000, failTtlMs: 5 * 60_000 });
   const history = createKeyedLoader({
     load: key => {
@@ -482,6 +499,7 @@ export function startApi({ recentAlerts }) {
     proxyHops: CONFIG.trustedProxyHops,
     getMarket: market,
     getRates: rates,
+    getSentiment: sentiment,
     getHistory: (ticker, rangeKey, style) => history(`${ticker}:${rangeKey}:${style}`),
     maxStreams: CONFIG.apiMaxStreams,
     getAlerts: async ({ ticker, limit }) => (await alerts(`${ticker ?? '*'}:${limit}`)).value,

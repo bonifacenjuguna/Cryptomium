@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>Preferences | {{BRAND}}</title>
-  <meta name="description" content="Theme, accent colour, currency and chart defaults.">
+  <meta name="description" content="Currency and the defaults the site opens with. Changes apply straight away.">
   <meta name="robots" content="noindex">
   <link rel="canonical" href="{{SITE_URL}}/settings/preferences">
 </head>
@@ -20,42 +20,10 @@
 <main id="main">
   <div class="wrap">
     <a class="crumb" href="/settings">Settings</a>
-    <div class="settings-layout">
+    <div class="settings-layout has-aside">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Preferences</h1><p class="lede">Theme, accent, currency and the defaults the site opens with. Changes apply straight away.</p></div>
-
-        <section class="s-card" aria-labelledby="h-look">
-          <h2 id="h-look">Appearance</h2>
-          <div class="s-row">
-            <div class="s-label"><b>Theme</b><span>Follow your device, or pick one.</span></div>
-            <div class="theme-cards" role="radiogroup" aria-label="Theme" data-pref="theme">
-              <button type="button" role="radio" class="theme-card" data-value="auto"><span class="tc-prev tc-auto"><i></i><i></i></span><span class="tc-name">Auto</span></button>
-              <button type="button" role="radio" class="theme-card" data-value="light"><span class="tc-prev tc-light"><i></i><i></i></span><span class="tc-name">Light</span></button>
-              <button type="button" role="radio" class="theme-card" data-value="dark"><span class="tc-prev tc-dark"><i></i><i></i></span><span class="tc-name">Dark</span></button>
-            </div>
-          </div>
-          <div class="s-row">
-            <div class="s-label"><b>Accent colour</b><span>Used for buttons and highlights.</span></div>
-            <div class="swatches" role="radiogroup" aria-label="Accent colour" data-pref="accent">
-              <button type="button" role="radio" class="swatch" data-value="citrine" aria-label="Gold"><i></i><span>Gold</span></button>
-              <button type="button" role="radio" class="swatch" data-value="azure" aria-label="Blue"><i></i><span>Blue</span></button>
-              <button type="button" role="radio" class="swatch" data-value="emerald" aria-label="Green"><i></i><span>Green</span></button>
-              <button type="button" role="radio" class="swatch" data-value="violet" aria-label="Violet"><i></i><span>Violet</span></button>
-              <button type="button" role="radio" class="swatch" data-value="rose" aria-label="Rose"><i></i><span>Rose</span></button>
-              <button type="button" role="radio" class="swatch" data-value="graphite" aria-label="Slate"><i></i><span>Slate</span></button>
-            </div>
-          </div>
-          <div class="s-row">
-            <div class="s-label"><b>Density</b><span>Auto is compact on phones and roomy on larger screens.</span></div>
-            <div class="segs" role="radiogroup" aria-label="Density" data-pref="density">
-              <button type="button" role="radio" class="seg" data-value="auto">Auto</button>
-              <button type="button" role="radio" class="seg" data-value="comfortable">Roomy</button>
-              <button type="button" role="radio" class="seg" data-value="compact">Compact</button>
-            </div>
-          </div>
-        </section>
-
+        <div class="s-head"><h1>Preferences</h1><p class="lede">Currency and the defaults the site opens with. Changes apply straight away.</p></div>
         <section class="s-card" aria-labelledby="h-cur">
           <h2 id="h-cur">Currency</h2>
           <p class="s-hint">Every price on the site is shown in the currency you pick.</p>
@@ -71,47 +39,51 @@
           <h2 id="h-chart">Charts and markets</h2>
           <div class="s-row">
             <div class="s-label"><b>Chart style</b><span>What a coin page opens with.</span></div>
-            <div class="segs" role="radiogroup" aria-label="Chart style" data-pref="chartType">
-              <button type="button" role="radio" class="seg" data-value="line">Line</button>
-              <button type="button" role="radio" class="seg" data-value="candles">Candles</button>
-            </div>
+            <div class="segs" role="radiogroup" aria-label="Chart style" data-pref="chartType"><button type="button" role="radio" class="seg" data-value="line">Line</button><button type="button" role="radio" class="seg" data-value="candles">Candles</button></div>
           </div>
           <div class="s-row">
             <div class="s-label"><b>Chart range</b><span>The period shown first.</span></div>
-            <div class="segs" role="radiogroup" aria-label="Chart range" data-pref="chartRange">
-              <button type="button" role="radio" class="seg" data-value="24h">24H</button>
-              <button type="button" role="radio" class="seg" data-value="7d">7D</button>
-              <button type="button" role="radio" class="seg" data-value="30d">30D</button>
-              <button type="button" role="radio" class="seg" data-value="90d">90D</button>
-              <button type="button" role="radio" class="seg" data-value="1y">1Y</button>
-            </div>
+            <div class="segs" role="radiogroup" aria-label="Chart range" data-pref="chartRange"><button type="button" role="radio" class="seg" data-value="24h">24H</button><button type="button" role="radio" class="seg" data-value="7d">7D</button><button type="button" role="radio" class="seg" data-value="30d">30D</button><button type="button" role="radio" class="seg" data-value="90d">90D</button><button type="button" role="radio" class="seg" data-value="1y">1Y</button></div>
           </div>
           <div class="s-row">
             <div class="s-label"><b>Markets view</b><span>Which list the home page opens on.</span></div>
-            <div class="segs" role="radiogroup" aria-label="Markets view" data-pref="homeTab">
-              <button type="button" role="radio" class="seg" data-value="all">All</button>
-              <button type="button" role="radio" class="seg" data-value="fav">Starred</button>
-              <button type="button" role="radio" class="seg" data-value="up">Gainers</button>
-              <button type="button" role="radio" class="seg" data-value="down">Losers</button>
-            </div>
+            <div class="segs" role="radiogroup" aria-label="Markets view" data-pref="homeTab"><button type="button" role="radio" class="seg" data-value="all">All</button><button type="button" role="radio" class="seg" data-value="fav">Starred</button><button type="button" role="radio" class="seg" data-value="up">Gainers</button><button type="button" role="radio" class="seg" data-value="down">Losers</button></div>
           </div>
         </section>
 
-        <section class="s-card" aria-labelledby="h-live">
-          <h2 id="h-live">Live motion</h2>
+        <section class="s-card" aria-labelledby="h-num">
+          <h2 id="h-num">Numbers</h2>
           <div class="s-row">
-            <div class="s-label"><b>Price flash</b><span>A price tints green or red for a moment when it ticks. Off by default.</span></div>
-            <button type="button" class="switch" role="switch" data-toggle="flash" aria-checked="false"><span></span></button>
+            <div class="s-label"><b>Number detail</b><span>Show prices with one more decimal place.</span></div>
+            <div class="segs" role="radiogroup" aria-label="Number detail" data-pref="precision"><button type="button" role="radio" class="seg" data-value="auto">Standard</button><button type="button" role="radio" class="seg" data-value="extra">More detail</button></div>
           </div>
           <div class="s-row">
-            <div class="s-label"><b>Scrolling price tape</b><span>Turn off to keep the page still.</span></div>
-            <button type="button" class="switch" role="switch" data-toggle="motion" aria-checked="false"><span></span></button>
+            <div class="s-label"><b>Price in the tab</b><span>Show the live price in the browser tab while you are on a coin page.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="tabPrice" aria-checked="false" aria-label="Price in the tab"><span></span></button>
           </div>
         </section>
 
-        <div class="s-actions"><button type="button" class="btn btn-ghost" id="reset-prefs">Reset preferences</button><span class="s-saved" id="saved" aria-live="polite"></span></div>
+        <div class="s-actions"><button type="button" class="btn btn-ghost" id="reset-prefs">Reset preferences</button></div>
 
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>
+      <aside class="s-aside" aria-label="Live preview">
+        <div class="pv">
+          <div class="pv-label"><span class="pv-dot"></span>Live preview</div>
+          <div class="pv-card">
+            <div class="pv-tape" id="pv-tape" aria-hidden="true"></div>
+            <div class="pv-head">
+              <span class="pv-logo" id="pv-logo"></span>
+              <span class="pv-name"><b>BTC</b><span>Bitcoin</span></span>
+              <span class="pv-price"><b class="num" id="pv-price">–</b><span class="chg num flat" id="pv-chg">&nbsp;</span></span>
+            </div>
+            <div class="chart pv-chart" id="pv-chart"></div>
+            <div class="pv-tabs" id="pv-tabs" aria-hidden="true"><span data-r="24h">24H</span><span data-r="7d">7D</span><span data-r="30d">30D</span><span data-r="90d">90D</span><span data-r="1y">1Y</span></div>
+            <div class="pv-btns"><span class="btn btn-accent btn-sm">Set alert</span><span class="btn btn-ghost btn-sm">Compare</span></div>
+          </div>
+          <p class="pv-note">This is a small copy of the site. It changes as you change your settings.</p>
+        </div>
+      </aside>
     </div>
   </div>
 </main>

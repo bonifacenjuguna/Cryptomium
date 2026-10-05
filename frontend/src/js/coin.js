@@ -3,6 +3,9 @@ import {
   isFav, toggleFav, onFavs, el, logoEl, tileEl, paintTile, DIR_SVG, prefs, setNum, copyText, toast,
 } from './common.js';
 import { createChart } from './chart.js';
+import { coinPicker } from './ui.js';
+import { createGauge, moodClass } from './gauge.js';
+import { loadTargets, addTarget, removeTarget } from './targets.js';
 import { ABOUT } from './about-coins.js';
 
 const $ = id => document.getElementById(id);
@@ -19,6 +22,8 @@ const state = {
 const compactNum = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 });
 let chart = null;
 let convertFrom = 'coin';
+let cmpPick = null;
+let acDir = 'above';
 
 // ------------------------------------------------------------------ header block
 function setChg(node, change) {
@@ -31,7 +36,7 @@ function paintHead() {
   const c = state.coin;
   if (!c) return;
   setNum($('c-price'), money(c.price, { stable: c.stable }), c.price);
-  document.title = `${money(c.price, { stable: c.stable })} ${c.name} (${ticker}) | ${window.CRYPTOMIUM?.brand || 'Cryptomium'}`;
+  if (prefs.get('tabPrice') !== false) document.title = `${money(c.price, { stable: c.stable })} ${c.name} (${ticker}) | ${window.CRYPTOMIUM?.brand || 'Cryptomium'}`;
   const ch = pct(c.change24h);
   $('c-chg').textContent = ch.text === '–' ? '' : ch.text + ' in 24 hours';
   $('c-chg').className = 'chg num ' + ch.cls;
@@ -113,7 +118,8 @@ async function loadChart() {
 function paintToolbar() {
   $('ranges').querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.range === state.range)));
   $('chart-type').querySelectorAll('.seg').forEach(t => t.setAttribute('aria-pressed', String(!state.cmp && t.dataset.type === state.type)));
-  $('cmp-select').value = state.cmp;
+  cmpPick?.set(state.cmp);
+  $('cmp-clear').hidden = !state.cmp;
   $('chart-card').classList.toggle('is-compare', Boolean(state.cmp));
 }
 
@@ -197,6 +203,106 @@ function paintOtherValues() {
   }
 }
 
+// ------------------------------------------------------------------ price alert card
+const parseNum = text => Number(String(text).replace(/,/g, '').trim());
+const QUICK = { above: [5, 10, 25, 50], below: [-5, -10, -25, -50] };
+
+function paintAlertCard(rebuild = false) {
+  const c = state.coin;
+  if (!c?.price) return;
+  $('ac-code').textContent = currency.code;
+  $('ac-now').textContent = money(c.price, { stable: c.stable });
+  const chips = $('ac-chips');
+  if (rebuild || !chips.children.length || chips.dataset.dir !== acDir) {
+    chips.dataset.dir = acDir;
+    chips.replaceChildren(...QUICK[acDir].map(p => {
+      const b = el('button', 'ac-chip', (p > 0 ? '+' : '−') + Math.abs(p) + '%');
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        const target = state.coin.price * currency.rate * (1 + p / 100);
+        $('ac-price').value = target.toLocaleString('en-US', { maximumFractionDigits: target < 1 ? 6 : 2, useGrouping: false });
+        setHint('');
+      });
+      return b;
+    }));
+  }
+  const input = $('ac-price');
+  if (!input.value) input.placeholder = money(c.price, { stable: c.stable }).replace(/[^\d.,]/g, '');
+  paintAlertList();
+}
+
+function setHint(text, bad = false) {
+  const h = $('ac-hint');
+  h.textContent = text || 'We will tell you here, and with a notification, while Cryptomium is open.';
+  h.classList.toggle('bad', bad);
+}
+
+function paintAlertList() {
+  const mine = loadTargets().filter(t => t.ticker === ticker);
+  $('ac-list').replaceChildren(...mine.map(t => {
+    const li = el('li', 'ac-item' + (t.firedAt ? ' reached' : ''));
+    const text = el('span', 'ac-item-t');
+    text.append(el('b', 'num', money(t.price, { stable: state.coin?.stable })), el('span', '', t.firedAt ? 'Reached ' + ago(new Date(t.firedAt).toISOString()) : (t.dir === 'above' ? 'Rises to' : 'Falls to')));
+    const del = el('button', 'icon-btn');
+    del.type = 'button';
+    del.setAttribute('aria-label', 'Delete this alert');
+    del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    del.addEventListener('click', () => removeTarget(t.id));
+    li.append(text, del);
+    return li;
+  }));
+}
+
+function wireAlertCard() {
+  setHint('');
+  $('ac-form').querySelectorAll('[data-dir]').forEach(b => b.addEventListener('click', () => {
+    acDir = b.dataset.dir;
+    $('ac-form').querySelectorAll('[data-dir]').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    paintAlertCard(true);
+    setHint('');
+  }));
+  $('ac-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const shown = parseNum($('ac-price').value);
+    if (!(shown > 0)) { setHint('Enter the price you are waiting for.', true); return; }
+    const usd = shown / currency.rate;
+    const now = state.coin?.price;
+    if (now) {
+      if (acDir === 'above' && now >= usd) { setHint(`${ticker} is already above that. Pick a higher price.`, true); return; }
+      if (acDir === 'below' && now <= usd) { setHint(`${ticker} is already below that. Pick a lower price.`, true); return; }
+    }
+    addTarget({ ticker, dir: acDir, price: usd });
+    $('ac-price').value = '';
+    setHint(`Done. We will tell you when ${ticker} ${acDir === 'above' ? 'reaches' : 'drops to'} ${money(usd, { stable: state.coin?.stable })}.`);
+    if ('Notification' in window && Notification.permission === 'default') {
+      try { Notification.requestPermission(); } catch { /* optional */ }
+    }
+  });
+  document.addEventListener('cm:targets', paintAlertList);
+  setInterval(paintAlertList, 30000);
+  paintAlertList();
+}
+
+// ------------------------------------------------------------------ fear and greed for this coin
+const moodGauge = { g: null };
+async function loadSentiment() {
+  try {
+    const data = await getJSON('/api/sentiment');
+    const mine = data.coins?.[ticker];
+    if (!mine) return;
+    if (!moodGauge.g) { moodGauge.g = createGauge({ label: ticker + ' fear and greed' }); $('cm-dial').prepend(moodGauge.g.svg); }
+    moodGauge.g.set(mine.value);
+    moodGauge.g.svg.dataset.band = moodClass(mine.value);
+    $('cm-val').textContent = String(mine.value);
+    $('cm-label').textContent = mine.value < 25 ? 'Extreme fear' : mine.value < 45 ? 'Fear' : mine.value <= 55 ? 'Neutral' : mine.value < 75 ? 'Greed' : 'Extreme greed';
+    $('cm-read').className = 'mood-read ' + moodClass(mine.value);
+    const o = data.overall;
+    $('cm-overall').textContent = o ? `${o.value} · ${o.label}` : '–';
+    $('cm-overall').closest('.mc-row').hidden = !o;
+    $('coin-mood').hidden = false;
+  } catch { /* optional */ }
+}
+
 // ------------------------------------------------------------------ boot
 async function boot() {
   state.coins = await initChrome();
@@ -209,7 +315,7 @@ async function boot() {
     document.title = 'Coin not found | ' + (window.CRYPTOMIUM?.brand || 'Cryptomium');
     return;
   }
-  $('c-logo').replaceChildren(logoEl({ ticker, logo: null }));
+  $('c-logo').replaceChildren(logoEl({ ticker, logo: known.logo || null }, 'xl'));
   $('c-fav').addEventListener('click', () => toggleFav(ticker));
   onFavs(paintFav);
   paintFav();
@@ -218,8 +324,11 @@ async function boot() {
   chart = createChart($('chart'), { stable: known.stable, legend: $('c-legend') });
   $('about-text').textContent = ABOUT[ticker] || '';
   $('about-card').hidden = !ABOUT[ticker];
-  $('cmp-select').append(...state.coins.filter(c => c.ticker !== ticker).map(c => new Option(`${c.name} (${c.ticker})`, c.ticker)));
-  $('cmp-select').addEventListener('change', e => { state.cmp = e.target.value; paintToolbar(); loadChart(); });
+  cmpPick = coinPicker($('cmp-btn'), {
+    coins: state.coins, live: state.live, exclude: ticker, placeholder: 'Compare with…', none: 'No comparison',
+    onChange: v => { state.cmp = v; paintToolbar(); loadChart(); },
+  });
+  $('cmp-clear').addEventListener('click', () => { state.cmp = ''; paintToolbar(); loadChart(); });
   $('chart-full').addEventListener('click', () => setFull(!$('chart-card').classList.contains('is-full')));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('chart-card').classList.contains('is-full')) setFull(false); });
   $('c-price').addEventListener('click', async () => {
@@ -232,7 +341,9 @@ async function boot() {
     if (navigator.share) { try { await navigator.share({ title: `${known.name} price`, url }); return; } catch { return; } }
     if (await copyText(url)) toast('Link copied', { ms: 2200 });
   });
-  $('cv-alert').href = '/settings/alerts?coin=' + ticker;
+  wireAlertCard();
+  loadSentiment();
+  setInterval(loadSentiment, 10 * 60 * 1000);
   paintToolbar();
   wireConverter();
   $('ranges').addEventListener('click', e => {
@@ -253,7 +364,7 @@ async function boot() {
   document.addEventListener('themechange', () => chart.redraw());
   let resizeTimer;
   new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => chart.redraw(), 120); }).observe($('chart'));
-  onCurrency(() => { paintHead(); paintStats(); paintAlerts(); paintOtherValues(); chart.redraw(); paintConverter(true); });
+  onCurrency(() => { paintHead(); paintStats(); paintAlerts(); paintOtherValues(); chart.redraw(); paintConverter(true); paintAlertCard(true); });
 
   if (!API) return;
   loadChart();
@@ -263,10 +374,10 @@ async function boot() {
       state.live = new Map(data.coins.map(c => [c.ticker, c]));
       const coin = state.live.get(ticker);
       if (coin) {
-        if (!state.coin) $('c-logo').replaceChildren(logoEl(coin, ''));
+        if (!state.coin) $('c-logo').replaceChildren(logoEl(coin, 'xl'));
         state.coin = coin;
         if (state.market && state.marketRef == null) state.marketRef = coin.price;
-        paintHead(); paintStats(); paintFav(); paintConverter();
+        paintHead(); paintStats(); paintFav(); paintConverter(); paintAlertCard();
         chart.tick(coin.price);
         if (state.alerts.length) paintAlerts();
       }

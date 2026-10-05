@@ -6,7 +6,13 @@
 // was left, even after the finger or cursor leaves; it only goes away when the visitor clicks
 // or taps somewhere else on the page, or presses Escape. While it is shown it keeps its place
 // as live prices arrive.
-import { el, money, currency, pct } from './common.js';
+//
+// Zoom: two fingers pinch the time axis (the moment under the fingers stays under them, and moving
+// both fingers pans). On a computer the wheel with Ctrl or Cmd, or a trackpad pinch, zooms around the
+// cursor; dragging pans while zoomed; a double tap/click, 0, or the Reset chip returns to the whole
+// range. One finger always means one crosshair. While a moment is selected the price scale is held
+// still so the chart does not shake as the finger moves.
+import { el, money, currency, pct, prefs } from './common.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const svg = (tag, attrs = {}) => {
@@ -53,9 +59,15 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     series: null, // compare: [{ label, points: [[t, usd]] }]
     message: 'Loading chart',
     sel: null, // selected moment (ms) or null
+    win: null, // zoom window { a, b, pinned } in ms, or null for the whole range
+    frozen: null, // price scale held while a moment is selected
+    dom: null, // { T0, T1 } of the whole data
   };
   let view = null; // geometry of the last draw
   let dragging = false;
+  let pinching = false;
+  let panning = null;
+  const MIN_SPAN_MS = 60 * 1000;
 
   // ---------------------------------------------------------------- data
   const lineSeries = () => (st.base ? st.base.concat(st.tail) : null);
@@ -69,6 +81,8 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     st.series = series;
     st.message = message;
     st.sel = null;
+    st.win = null;
+    st.frozen = null;
     draw();
   }
   function setMessage(message) { st.message = message; st.base = null; st.candles = null; st.series = null; draw(); }
@@ -106,6 +120,63 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     draw();
   }
 
+  // ---------------------------------------------------------------- zoom window
+  const fullData = () => (st.type === 'compare' ? null : st.type === 'candles' ? st.candles : lineSeries());
+  function resolveWin(arr) {
+    const T0 = arr[0][0], T1 = arr.at(-1)[0];
+    const total = Math.max(1, T1 - T0);
+    if (!st.win) return { a: T0, b: T1, T0, T1, total, zoomed: false };
+    let { a, b } = st.win;
+    const span = Math.min(total, Math.max(minSpan(arr), b - a));
+    if (st.win.pinned) { b = T1; a = T1 - span; } else { b = a + span; }
+    if (a < T0) { a = T0; b = a + span; }
+    if (b > T1) { b = T1; a = b - span; }
+    return { a, b, T0, T1, total, zoomed: span < total * 0.995 };
+  }
+  function minSpan(arr) {
+    const T0 = arr[0][0], T1 = arr.at(-1)[0];
+    return Math.max(MIN_SPAN_MS, ((T1 - T0) * 14) / Math.max(14, arr.length));
+  }
+  function slice(arr, w, pad) {
+    if (!w.zoomed) return arr;
+    let lo = 0, hi = arr.length - 1;
+    while (lo < arr.length - 1 && arr[lo][0] < w.a) lo++;
+    while (hi > 0 && arr[hi][0] > w.b) hi--;
+    if (pad) { lo = Math.max(0, lo - 1); hi = Math.min(arr.length - 1, hi + 1); }
+    if (hi - lo < 1) { lo = Math.max(0, Math.min(lo, arr.length - 2)); hi = lo + 1; }
+    return arr.slice(lo, hi + 1);
+  }
+  function setWin(a, b, pinned = false) {
+    const arr = fullData();
+    if (!arr || arr.length < 3) return;
+    const T0 = arr[0][0], T1 = arr.at(-1)[0];
+    const total = T1 - T0;
+    const span = Math.min(total, Math.max(minSpan(arr), b - a));
+    if (span >= total * 0.995) st.win = null;
+    else {
+      let na = Math.max(T0, Math.min(T1 - span, a));
+      st.win = { a: na, b: na + span, pinned: pinned || na + span >= T1 - total * 0.004 };
+    }
+    st.frozen = null;
+    draw();
+  }
+  /** Zoom by `factor` (>1 zooms in) keeping the moment at fraction `frac` (0..1) of the plot in place. */
+  function zoomAt(factor, frac) {
+    const arr = fullData();
+    if (!arr || arr.length < 3) return;
+    const w = resolveWin(arr);
+    const span = w.b - w.a;
+    const next = Math.min(w.total, Math.max(minSpan(arr), span / factor));
+    const anchor = w.a + frac * span;
+    setWin(anchor - frac * next, anchor + (1 - frac) * next, false);
+  }
+  function resetZoom() { if (st.win) { st.win = null; st.frozen = null; draw(); } }
+  const plotFrac = clientX => {
+    const r = host.getBoundingClientRect();
+    const padL = view ? view.padL : 0, iw = view ? view.iw : r.width;
+    return Math.max(0, Math.min(1, (clientX - r.left - padL) / (iw || 1)));
+  };
+
   // ---------------------------------------------------------------- legend (above the chart)
   function legendItem(label, value, cls = '') {
     const s = el('span', 'lg-item ' + cls);
@@ -119,7 +190,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const vals = el('div', 'lg-vals');
     if (v.mode === 'compare') {
       const i = sel == null ? v.n - 1 : sel;
-      title.append(el('span', 'lg-time', sel == null ? 'Past ' + RANGE_LABEL[st.range] : tipTime(v.times[i], st.range)));
+      title.append(el('span', 'lg-time', sel == null ? 'Past ' + RANGE_LABEL[st.range] : tipTime(v.times[i], st.lr || st.range)));
       v.cmp.forEach((s, k) => {
         const idx = sel == null ? s.pts.length - 1 : s.nearest(v.times[i]);
         const ch = signed(s.pts[idx][1]);
@@ -132,7 +203,8 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       const first = data[0][1];
       const lastV = isC ? data.at(-1)[4] : data.at(-1)[1];
       const ch = signed(((lastV - first) / first) * 100);
-      title.append(el('span', 'lg-time', 'Past ' + RANGE_LABEL[st.range]), Object.assign(el('b', 'chg num ' + ch.cls), { textContent: ch.text }));
+      const zoomLabel = v.zoomed ? timeLabel(v.t0, st.lr || st.range) + ' – ' + timeLabel(v.t1, st.lr || st.range) : 'Past ' + RANGE_LABEL[st.range];
+      title.append(el('span', 'lg-time', zoomLabel), Object.assign(el('b', 'chg num ' + ch.cls), { textContent: ch.text }));
       if (isC) {
         const c = data.at(-1);
         for (const [l, x] of [['O', c[1]], ['H', c[2]], ['L', c[3]], ['C', c[4]]]) vals.append(legendItem(l, money(x, { stable })));
@@ -143,7 +215,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     } else {
       const d = v.data[sel];
       const startVal = v.data[0][1];
-      title.append(el('span', 'lg-time', tipTime(d[0], st.range)));
+      title.append(el('span', 'lg-time', tipTime(d[0], st.lr || st.range)));
       if (v.isC) {
         const body = signed(((d[4] - d[1]) / d[1]) * 100);
         title.append(Object.assign(el('b', 'chg num ' + body.cls), { textContent: body.text }));
@@ -165,12 +237,16 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const mode = st.type;
     const isC = mode === 'candles';
     const isCmp = mode === 'compare';
-    const data = isCmp ? st.series?.[0]?.points : isC ? st.candles : lineSeries();
-    if (!data || data.length < 2) {
+    const whole = isCmp ? st.series?.[0]?.points : isC ? st.candles : lineSeries();
+    if (!whole || whole.length < 2) {
       host.append(el('div', 'chart-msg', st.message || 'Loading chart'));
       if (legend) legend.replaceChildren();
       return;
     }
+    if (isCmp) st.win = null; // comparing coins always shows the whole range
+    const win = whole.length > 2 ? resolveWin(whole) : { a: whole[0][0], b: whole.at(-1)[0], T0: whole[0][0], T1: whole.at(-1)[0], total: 1, zoomed: false };
+    st.dom = { T0: win.T0, T1: win.T1 };
+    const data = isCmp ? whole : slice(whole, win, !isC);
     const rate = currency.rate;
     const W = host.clientWidth || 640;
     const H = host.clientHeight || 320;
@@ -196,14 +272,18 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     let lo = Math.min(...vals), hi = Math.max(...vals);
     const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.01 || 1;
     lo -= pad; hi += pad;
+    if (st.sel != null && st.frozen) { lo = Math.min(lo, st.frozen.lo); hi = Math.max(hi, st.frozen.hi); }
     const tickValues = niceTicks(lo, hi);
     const fmtAxis = isCmp ? v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + '%' : v => money(v / rate, { stable });
     const longest = Math.max(0, ...tickValues.map(v => fmtAxis(v).length));
-    const padR = inside ? 6 : Math.min(W * 0.42, Math.max(62, longest * 6.8 + 16));
+    let padR = inside ? 6 : Math.min(W * 0.42, Math.max(62, longest * 6.8 + 16));
+    if (st.sel != null && st.frozen && !inside) padR = Math.max(padR, st.frozen.padR);
+    st.frozen = st.sel != null ? { lo, hi, padR } : null;
     const iw = W - padL - padR, ih = H - padT - padB;
     const y = v => padT + (1 - (v - lo) / (hi - lo)) * ih;
 
-    const t0 = data[0][0], t1 = data.at(-1)[0];
+    const t0 = isC || isCmp ? data[0][0] : win.a, t1 = isC || isCmp ? data.at(-1)[0] : win.b;
+    st.lr = t1 - t0 <= 3 * 864e5 && st.range !== '24h' ? '24h' : null; // a zoomed-in view shows clock times
     const n = data.length;
     const band = iw / n;
     const x = isC ? i => padL + band * (i + 0.5) : i => padL + ((data[i][0] - t0) / (t1 - t0 || 1)) * iw;
@@ -221,6 +301,9 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const grad = svg('linearGradient', { id: 'cg', x1: 0, y1: 0, x2: 0, y2: 1 });
     grad.append(svg('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': '.26' }), svg('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': '0' }));
     defs.append(grad);
+    const clip = svg('clipPath', { id: 'cclip' });
+    clip.append(svg('rect', { x: padL, y: 0, width: Math.max(1, iw), height: H }));
+    defs.append(clip);
     root.append(defs);
 
     for (const v of tickValues) {
@@ -239,9 +322,10 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const ticks = W < 520 ? 2 : 4;
     for (let k = 0; k <= ticks; k++) {
       const i = Math.round((k / ticks) * (n - 1));
-      const tx = isC ? x(i) : xt(data[i][0]);
+      const tt = isC || isCmp ? data[i][0] : t0 + (k / ticks) * (t1 - t0);
+      const tx = isC ? x(i) : xt(tt);
       const t = svg('text', { class: 'axis-t', x: tx, y: H - 6, 'text-anchor': k === 0 ? 'start' : k === ticks ? 'end' : 'middle' });
-      t.textContent = timeLabel(data[i][0], st.range);
+      t.textContent = timeLabel(tt, st.lr || st.range);
       root.append(t);
     }
 
@@ -264,16 +348,18 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       root.append(svg('line', { class: 'last-line', x1: padL, x2: W - padR, y1: ly, y2: ly, stroke: color }));
     } else {
       const d = data.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[1] * rate).toFixed(1)}`).join('');
-      root.append(svg('path', { d: `${d}L${x(n - 1).toFixed(1)} ${padT + ih}L${x(0).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }));
-      root.append(svg('path', { class: 'line', d, stroke: color }));
+      const g = svg('g', { 'clip-path': 'url(#cclip)' });
+      g.append(svg('path', { d: `${d}L${x(n - 1).toFixed(1)} ${padT + ih}L${x(0).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }), svg('path', { class: 'line', d, stroke: color }));
+      root.append(g);
     }
 
     // The live end of the chart: a price tag on the axis and, for the line, a pulsing dot.
+    const atEdge = !win.zoomed || win.b >= win.T1 - win.total * 0.004;
     const tagText = isCmp ? '' : money(lastV, { stable });
     const tagW = isCmp ? 0 : Math.max(52, tagText.length * 6.9 + 14);
     const tagX = inside ? W - tagW - 2 : W - padR + 3;
     const ey = isCmp ? 0 : y(lastV * rate);
-    if (!isCmp) {
+    if (!isCmp && atEdge) {
       const tag = svg('g', { class: 'end-tag' });
       tag.append(svg('rect', { x: tagX, y: ey - 9, width: tagW, height: 18, rx: 5, fill: color }));
       const tagT = svg('text', { x: tagX + tagW / 2, y: ey + 4, 'text-anchor': 'middle', class: 'tag-t' });
@@ -281,7 +367,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       tag.append(tagT);
       root.append(tag);
     }
-    if (!isC && !isCmp) {
+    if (!isC && !isCmp && !win.zoomed || (!isC && !isCmp && win.b >= win.T1 - win.total * 0.004)) {
       const ring = svg('circle', { class: 'live-ring', cx: x(n - 1), cy: ey, r: 5, fill: color });
       ring.style.animationDelay = `${-(Date.now() % 2200)}ms`;
       root.append(ring, svg('circle', { class: 'live-dot', cx: x(n - 1), cy: ey, r: 3.6, fill: color }));
@@ -298,8 +384,16 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     pill.append(pillR, pillT);
     root.append(vline, hline, dot, dot2, pill);
     host.append(root);
+    host.classList.toggle('is-zoomed', win.zoomed);
+    if (win.zoomed) {
+      const chip = el('button', 'zoom-reset', 'Reset zoom');
+      chip.type = 'button';
+      chip.addEventListener('pointerdown', e => e.stopPropagation());
+      chip.addEventListener('click', resetZoom);
+      host.append(chip);
+    }
 
-    view = { mode, data, isC, isCmp, cmp, x, xt, y, n, W, H, padL, padR, padT, ih, iw, rate, vline, hline, dot, dot2, pill, pillR, pillT, tagW, tagX, color, band, t0, t1, times: isCmp ? cmp[0].pts.map(p => p[0]) : null };
+    view = { zoomed: win.zoomed, lo, hi, mode, data, isC, isCmp, cmp, x, xt, y, n, W, H, padL, padR, padT, ih, iw, rate, vline, hline, dot, dot2, pill, pillR, pillT, tagW, tagX, color, band, t0, t1, times: isCmp ? cmp[0].pts.map(p => p[0]) : null };
 
     if (isCmp) onChange(null, st.range);
     else onChange(signed(((lastV - first) / first) * 100), st.range);
@@ -366,9 +460,11 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     paintLegend(i);
   }
 
+  let lastIdx = -1;
   function select(i) {
     if (!view) return;
     const idx = Math.max(0, Math.min(view.n - 1, i));
+    if (idx !== lastIdx) { lastIdx = idx; if (prefs.get('haptics') && navigator.vibrate) { try { navigator.vibrate(3); } catch { /* optional */ } } }
     st.sel = view.data[idx][0];
     renderSelection();
   }
@@ -380,17 +476,87 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
 
   // ---------------------------------------------------------------- input
   const place = e => { if (view) select(indexFromClientX(e.clientX)); };
+  const canZoom = () => view && !view.isCmp && st.type !== 'compare';
   host.addEventListener('pointerdown', e => {
-    if (e.button > 0) return;
+    if (e.button > 0 || !e.isPrimary || pinching) return; // a second finger is never a second line
+    if (e.pointerType === 'mouse' && canZoom() && view.zoomed) {
+      panning = { x: e.clientX, a: st.win ? st.win.a : view.t0, b: st.win ? st.win.b : view.t1, moved: false };
+      try { host.setPointerCapture(e.pointerId); } catch { /* fine */ }
+      host.classList.add('is-panning');
+      return;
+    }
     dragging = true;
     place(e);
   });
   host.addEventListener('pointermove', e => {
+    if (pinching || !e.isPrimary) return;
+    if (panning) {
+      const dx = e.clientX - panning.x;
+      if (Math.abs(dx) > 2) panning.moved = true;
+      const span = panning.b - panning.a;
+      const dt = -(dx / (view.iw || 1)) * span;
+      setWin(panning.a + dt, panning.b + dt, false);
+      return;
+    }
     if (e.pointerType === 'mouse' || dragging) place(e);
   });
-  const endDrag = () => { dragging = false; };
+  const endDrag = () => { dragging = false; if (panning) { panning = null; host.classList.remove('is-panning'); } };
   host.addEventListener('pointerup', endDrag);
   host.addEventListener('pointercancel', endDrag);
+
+  // Two fingers: pinch to zoom, move both to pan. The moment under the fingers stays under them.
+  let pinch = null;
+  const touchInfo = e => {
+    const [p, q] = [e.touches[0], e.touches[1]];
+    return { dist: Math.max(20, Math.hypot(p.clientX - q.clientX, p.clientY - q.clientY)), cx: (p.clientX + q.clientX) / 2 };
+  };
+  host.addEventListener('touchstart', e => {
+    if (e.touches.length !== 2 || !canZoom()) return;
+    e.preventDefault();
+    pinching = true;
+    dragging = false;
+    clear(); // the first finger's crosshair gives way to the pinch
+    const arr = fullData();
+    const w = resolveWin(arr);
+    const info = touchInfo(e);
+    pinch = { dist: info.dist, a: w.a, b: w.b, total: w.total, anchorT: w.a + plotFrac(info.cx) * (w.b - w.a), minSpan: minSpan(arr) };
+  }, { passive: false });
+  host.addEventListener('touchmove', e => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const info = touchInfo(e);
+    const span0 = pinch.b - pinch.a;
+    const span = Math.min(pinch.total, Math.max(pinch.minSpan, span0 * (pinch.dist / info.dist)));
+    const frac = plotFrac(info.cx);
+    setWin(pinch.anchorT - frac * span, pinch.anchorT + (1 - frac) * span, false);
+  }, { passive: false });
+  const endPinch = e => { if (pinch && (!e.touches || e.touches.length < 2)) { pinch = null; setTimeout(() => { pinching = false; }, 60); } };
+  host.addEventListener('touchend', endPinch, { passive: true });
+  host.addEventListener('touchcancel', endPinch, { passive: true });
+
+  // Mouse wheel with Ctrl or Cmd (a trackpad pinch arrives the same way) zooms around the cursor.
+  // Plain scrolling is left alone so the page still scrolls; sideways scrolling pans while zoomed.
+  host.addEventListener('wheel', e => {
+    if (!canZoom()) return;
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? 0.03 : 0.0042)), plotFrac(e.clientX));
+    } else if (view.zoomed && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault();
+      const w = resolveWin(fullData());
+      const dt = (e.deltaX / (view.iw || 1)) * (w.b - w.a);
+      setWin(w.a + dt, w.b + dt, false);
+    }
+  }, { passive: false });
+  host.addEventListener('dblclick', () => resetZoom());
+  let lastTap = 0;
+  host.addEventListener('pointerup', e => {
+    if (e.pointerType !== 'touch' || pinching) return;
+    const now = Date.now();
+    if (now - lastTap < 320) resetZoom();
+    lastTap = now;
+  });
+
   // Clicking or tapping anywhere else on the page is what clears the crosshair. The legend,
   // the controls around the chart, and the chart itself keep it.
   document.addEventListener('pointerdown', e => {
@@ -403,8 +569,11 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     if (e.key === 'ArrowLeft') { e.preventDefault(); select(cur == null ? view.n - 1 : cur - 1); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); select(cur == null ? 0 : cur + 1); }
     else if (e.key === 'Escape') clear();
+    else if ((e.key === '+' || e.key === '=') && canZoom()) { e.preventDefault(); zoomAt(1.5, 0.5); }
+    else if ((e.key === '-' || e.key === '_') && canZoom()) { e.preventDefault(); zoomAt(1 / 1.5, 0.5); }
+    else if (e.key === '0') { e.preventDefault(); resetZoom(); }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') clear(); });
 
-  return { setData, setMessage, tick, redraw: draw, clear, get type() { return st.type; }, get range() { return st.range; } };
+  return { setData, setMessage, tick, redraw: draw, clear, resetZoom, zoomAt, get type() { return st.type; }, get range() { return st.range; } };
 }

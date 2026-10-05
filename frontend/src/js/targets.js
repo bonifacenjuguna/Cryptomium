@@ -1,7 +1,7 @@
 // Price targets that live on this device. While Cryptomium is open in a browser tab,
 // every price reading is checked against them; a target that is reached shows a message
 // and, if the visitor allowed it, a browser notification. They are never sent anywhere.
-import { store, money, toast } from './common.js';
+import { store, money, toast, prefs } from './common.js';
 
 const KEY = 'cm-targets';
 
@@ -32,7 +32,26 @@ export function rearm(id) {
   save(loadTargets().map(t => (t.id === id ? { ...t, firedAt: undefined, firedPrice: undefined } : t)));
 }
 
+export function chime() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    [[880, 0], [1320, 0.14]].forEach(([f, at]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + at);
+      g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.4);
+      o.connect(g).connect(ctx.destination);
+      o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + 0.45);
+    });
+    setTimeout(() => ctx.close(), 1200);
+  } catch { /* sound is optional */ }
+}
+
 function announce(t, coin) {
+  if (prefs.get('sound')) chime();
   const word = t.dir === 'above' ? 'is above' : 'is below';
   const text = `${t.ticker} ${word} ${money(t.price, { stable: coin.stable })}. Now ${money(coin.price, { stable: coin.stable })}.`;
   toast(text, { kind: t.dir === 'above' ? 'up' : 'down', ms: 12000, href: '/coin/' + t.ticker });

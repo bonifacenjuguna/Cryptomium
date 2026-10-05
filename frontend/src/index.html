@@ -59,6 +59,16 @@
         <span class="snap-c" id="sn-mood-sub">&nbsp;</span>
       </div>
     </div>
+
+    <div class="panel mood-panel" id="fng" hidden>
+      <div class="mood-dial" id="fng-dial"><div class="mood-read" id="fng-read"><b id="fng-val">–</b><span id="fng-label">&nbsp;</span></div></div>
+      <div class="mood-copy">
+        <h2>Fear &amp; Greed</h2>
+        <p>How nervous or excited the crypto market feels right now. Fear can mean good prices; too much greed can mean a pullback is near.</p>
+        <div class="mood-hist" id="fng-hist"></div>
+        <p class="mood-src" id="fng-src" hidden>Source: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></p>
+      </div>
+    </div>
   </div>
 
   <section id="markets">
@@ -110,8 +120,15 @@
 
   <section id="heat" hidden>
     <div class="wrap">
-      <div class="sec-head"><div><h2>Market map</h2><p>Bigger tiles are bigger coins. Green is up and red is down over 24 hours.</p></div></div>
+      <div class="sec-head">
+        <div><h2>Market map</h2><p>Bigger tiles are bigger coins. Greener is up, redder is down.</p></div>
+        <div class="tabs" role="tablist" aria-label="Map period" id="hm-tabs">
+          <button class="tab" role="tab" data-hm="24h" aria-selected="true">24H</button>
+          <button class="tab" role="tab" data-hm="7d" aria-selected="false">7D</button>
+        </div>
+      </div>
       <div class="heatmap" id="heatmap"></div>
+      <div class="hm-key" id="hm-key" aria-hidden="true"></div>
     </div>
   </section>
 

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.5.0
+
+**Zoomable charts, Fear & Greed, a rebuilt Settings area and a round of polish. Redeploy both the backend and the frontend.**
+- Backend: new `GET /api/sentiment`. The whole-market Fear & Greed Index comes from alternative.me
+  (free, no key; the response names the source) and each coin gets its own 0-100 reading that we
+  calculate from price momentum, the day range and trading activity. `/api/market` now includes
+  `change24h`. Logo images are served with a CORS header so the site can size them to fit.
+- Charts: pinch with two fingers (or Ctrl/Cmd + wheel, or a trackpad pinch) to zoom, drag to pan,
+  double tap / double click, 0 or "Reset zoom" to return. One finger is always one crosshair, so
+  the ghost second line is gone. The price scale is held still while a moment is selected, which
+  stops the chart shaking as you drag.
+- Fear & Greed: a dial on the home page (with a small "Source: alternative.me") and a reading on
+  every coin page.
+- Coin page: redesigned header card with a properly fitted logo, a real price-alert card (rises to /
+  falls to, quick +/- percentages, your alerts for the coin), and a coin picker sheet in place of
+  the plain dropdown for Compare, Portfolio and Price alerts.
+- Logos: every logo is measured once and scaled so it fills its round tile the same way everywhere.
+- Market map: stepped colours, white labels, a colour key, a 24H / 7D switch and a "More coins" tile.
+- Footer: the Cryptomium wordmark now fits the page width exactly on every screen; the back-to-top
+  button lives in the footer instead of floating over the page.
+- Live market bar: can be hidden completely (Settings > Appearance).
+- Snapshot: the market cap sparkline no longer sits over the text. The currency / coin search field
+  no longer gets squashed.
+- Settings rebuilt into Appearance, Preferences, Home and coin pages, Watchlist, Price alerts,
+  Learn crypto, Data sources, Data and privacy, Advanced and Experimental, with a live preview on
+  desktop. New options: text size, clear (colour-blind friendly) up/down colours, hide any home
+  or coin page section, markets list length, data saver, number detail, keyboard shortcuts, price
+  in the tab title, alert chime and touch feedback.
+
 ## 2.4.0
 
 **A deeper website: clearer charts, a portfolio, a market map, and a tidier look. Redeploy both the backend and the frontend.**

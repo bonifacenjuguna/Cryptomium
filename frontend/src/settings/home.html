@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Home and coin pages | {{BRAND}}</title>
+  <meta name="description" content="Pick the sections you want to see, and hide the rest.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/home">
+</head>
+<body data-page="home">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout has-aside">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Home and coin pages</h1><p class="lede">Pick the sections you want to see, and hide the rest.</p></div>
+        <section class="s-card" aria-labelledby="h-home">
+          <h2 id="h-home">Home page</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Market snapshot</b><span>Total market size, volume and Bitcoin share.</span></div>
+            <button type="button" class="switch" role="switch" data-show="snap" aria-checked="false" aria-label="Market snapshot"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Fear and Greed</b><span>How nervous or excited the market feels.</span></div>
+            <button type="button" class="switch" role="switch" data-show="mood" aria-checked="false" aria-label="Fear and Greed"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Top movers</b><span>The biggest gainers and losers today.</span></div>
+            <button type="button" class="switch" role="switch" data-show="movers" aria-checked="false" aria-label="Top movers"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Market map</b><span>Every coin as a tile, sized by value.</span></div>
+            <button type="button" class="switch" role="switch" data-show="map" aria-checked="false" aria-label="Market map"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Latest moves</b><span>Fresh milestones and the biggest movers.</span></div>
+            <button type="button" class="switch" role="switch" data-show="moves" aria-checked="false" aria-label="Latest moves"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Quick answers</b><span>A few short answers at the bottom of the page.</span></div>
+            <button type="button" class="switch" role="switch" data-show="faq" aria-checked="false" aria-label="Quick answers"><span></span></button>
+          </div>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-list">
+          <h2 id="h-list">Markets list</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Coins shown first</b><span>How many rows the markets list shows before "Show more coins".</span></div>
+            <div class="segs" role="radiogroup" aria-label="Coins shown first" data-pref="pageSize"><button type="button" role="radio" class="seg" data-value="10">10</button><button type="button" role="radio" class="seg" data-value="20">20</button><button type="button" role="radio" class="seg" data-value="50">50</button></div>
+          </div>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-coin">
+          <h2 id="h-coin">Coin pages</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Key numbers</b><span>Market size, supply, all-time high and the day range.</span></div>
+            <button type="button" class="switch" role="switch" data-show="stats" aria-checked="false" aria-label="Key numbers"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Fear and Greed</b><span>The mood reading for each coin.</span></div>
+            <button type="button" class="switch" role="switch" data-show="coinmood" aria-checked="false" aria-label="Fear and Greed"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>About text</b><span>A short description of the coin.</span></div>
+            <button type="button" class="switch" role="switch" data-show="about" aria-checked="false" aria-label="About text"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Converter</b><span>Turn a coin amount into your currency and back.</span></div>
+            <button type="button" class="switch" role="switch" data-show="converter" aria-checked="false" aria-label="Converter"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Price alert</b><span>Set a price alert right on the coin page.</span></div>
+            <button type="button" class="switch" role="switch" data-show="alertcard" aria-checked="false" aria-label="Price alert"><span></span></button>
+          </div>
+        </section>
+
+        <div class="s-actions"><button type="button" class="btn btn-ghost" id="reset-layout">Show everything again</button></div>
+
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+      <aside class="s-aside" aria-label="Live preview">
+        <div class="pv">
+          <div class="pv-label"><span class="pv-dot"></span>Live preview</div>
+          <div class="pv-card">
+            <div class="pv-tape" id="pv-tape" aria-hidden="true"></div>
+            <div class="pv-head">
+              <span class="pv-logo" id="pv-logo"></span>
+              <span class="pv-name"><b>BTC</b><span>Bitcoin</span></span>
+              <span class="pv-price"><b class="num" id="pv-price">–</b><span class="chg num flat" id="pv-chg">&nbsp;</span></span>
+            </div>
+            <div class="chart pv-chart" id="pv-chart"></div>
+            <div class="pv-tabs" id="pv-tabs" aria-hidden="true"><span data-r="24h">24H</span><span data-r="7d">7D</span><span data-r="30d">30D</span><span data-r="90d">90D</span><span data-r="1y">1Y</span></div>
+            <div class="pv-btns"><span class="btn btn-accent btn-sm">Set alert</span><span class="btn btn-ghost btn-sm">Compare</span></div>
+          </div>
+          <p class="pv-note">This is a small copy of the site. It changes as you change your settings.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

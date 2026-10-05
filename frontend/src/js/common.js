@@ -74,9 +74,16 @@ function ensureFeed() {
     if (quiet > 7000 && es && es.readyState === 2) openStream();
     if (quiet > 25000) setState(everOk ? 'reconnecting' : 'connecting');
   }
+  const saver = prefData.liveMode === 'saver';
   const start = () => {
-    openStream();
     clearInterval(watchdog);
+    if (saver) {
+      // Data saver: no always-open connection, one plain request every fifteen seconds.
+      watchdog = setInterval(() => { if (!document.hidden) fetchOnce(); }, 15000);
+      fetchOnce();
+      return;
+    }
+    openStream();
     watchdog = setInterval(check, 3000);
     fetchOnce(); // the first numbers should not wait for the stream to open
   };
@@ -106,10 +113,21 @@ export const PREF_DEFAULTS = {
   accent: 'citrine',
   density: 'auto', // auto (compact on phones) | comfortable | compact
   flash: false, // prices tint briefly green or red when they tick (off unless the visitor turns it on)
-  motion: true, // the price tape and other movement
+  motion: true, // animations and movement across the site
+  tape: true, // the live market bar under the header
   chartType: 'line', // line | candles
   chartRange: '7d',
   homeTab: 'all',
+  textSize: 'default', // default | large | larger
+  palette: 'classic', // classic (green/red) | clear (blue/orange, easier for colour-blind readers)
+  hide: [], // home and coin page sections the visitor turned off
+  pageSize: 10, // coins shown at first in the markets list
+  tabPrice: true, // the live price in the browser tab title on a coin page
+  liveMode: 'auto', // auto | saver (fewer updates, less data)
+  precision: 'auto', // auto | extra (one more decimal)
+  shortcuts: true, // the / key opens search
+  sound: false, // a soft chime when a price alert is reached
+  haptics: false, // a light tap on phones while moving across a chart
 };
 let prefData = { ...PREF_DEFAULTS };
 try { Object.assign(prefData, JSON.parse(store.get('cm-prefs') || '{}')); } catch { /* start from defaults */ }
@@ -139,6 +157,12 @@ export function applyPrefs() {
   root.dataset.accent = prefData.accent;
   root.dataset.density = prefData.density === 'auto' ? (phoneQuery.matches ? 'compact' : 'comfortable') : prefData.density;
   if (prefData.motion === false) root.dataset.motion = 'off'; else delete root.dataset.motion;
+  if (prefData.tape === false) root.dataset.tape = 'off'; else delete root.dataset.tape;
+  for (const [attr, key, def] of [['size', 'textSize', 'default'], ['palette', 'palette', 'classic']]) {
+    if (prefData[key] && prefData[key] !== def) root.dataset[attr] = prefData[key]; else delete root.dataset[attr];
+  }
+  const hidden = Array.isArray(prefData.hide) ? prefData.hide.filter(x => /^[a-z]+$/.test(x)) : [];
+  if (hidden.length) root.dataset.hide = hidden.join(' '); else delete root.dataset.hide;
   if (changed) document.dispatchEvent(new CustomEvent('themechange'));
 }
 export const prefs = {
@@ -244,11 +268,12 @@ export function setRates(rates) {
 
 // ---------- Formatting (one precision rule everywhere, like the Telegram banners) ----------
 function decimalsFor(v, stable) {
-  if (stable) return 3;
-  if (v >= 10000) return 0;
-  if (v >= 1) return 2;
-  if (v >= 0.01) return 3;
-  return Math.min(12, Math.ceil(-Math.log10(v)) + 3);
+  const more = prefData.precision === 'extra' ? 1 : 0;
+  if (stable) return 3 + more;
+  if (v >= 10000) return more ? 2 : 0;
+  if (v >= 1) return 2 + more;
+  if (v >= 0.01) return 3 + more;
+  return Math.min(12, Math.ceil(-Math.log10(v)) + 3 + more);
 }
 
 function numberText(v, stable) {
@@ -327,16 +352,52 @@ export function el(tag, className, text) {
   return node;
 }
 
+// Coin logos arrive with very different margins (some fill the whole picture, some float in a lot of
+// empty space). Each one is measured once and scaled so every logo fills its round tile the same way.
+const fitCache = new Map();
+function measureLogo(img) {
+  try {
+    const n = 48;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = n;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, n, n);
+    const d = ctx.getImageData(0, 0, n, n).data;
+    let x0 = n, y0 = n, x1 = -1, y1 = -1, seen = 0;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      if (d[(y * n + x) * 4 + 3] > 40) { seen++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0) return null;
+    const w = x1 - x0 + 1, h = y1 - y0 + 1;
+    if (seen / (n * n) > 0.92) return { s: 1, x: 0, y: 0 }; // an opaque picture: leave it alone
+    const side = Math.max(w, h);
+    const fill = seen / (w * h);
+    const round = fill < 0.86 && fill > 0.7; // a round logo fills the tile; other shapes keep some air
+    const target = round ? 0.98 : 0.74;
+    const s = Math.max(1, Math.min(2.6, (target * n) / side));
+    return { s, x: (x0 + x1 + 1) / 2 / n - 0.5, y: (y0 + y1 + 1) / 2 / n - 0.5 };
+  } catch { return null; }
+}
+function fitLogo(img, ticker) {
+  let f = fitCache.get(ticker);
+  if (f === undefined) { f = measureLogo(img); fitCache.set(ticker, f); }
+  if (!f || (f.s === 1 && !f.x && !f.y)) return;
+  img.style.transform = `translate(${(-f.x * f.s * 100).toFixed(1)}%, ${(-f.y * f.s * 100).toFixed(1)}%) scale(${f.s.toFixed(3)})`;
+}
+
+/** A coin logo in a round tile. size: '' (32px) | 'sm' | 'lg' | 'xl'. */
 export function logoEl(coin, size = '') {
   const wrap = el('div', 'logo' + (size ? ' ' + size : ''));
-  const monogram = () => wrap.replaceChildren(document.createTextNode(coin.ticker.slice(0, 4)));
+  const monogram = () => { wrap.classList.add('mono'); wrap.replaceChildren(document.createTextNode(coin.ticker.slice(0, size === 'sm' ? 2 : 4))); };
   if (coin.logo) {
     const img = new Image();
     img.alt = '';
     img.loading = 'lazy';
     img.decoding = 'async';
-    img.src = API + coin.logo;
+    img.crossOrigin = 'anonymous';
+    img.onload = () => fitLogo(img, coin.ticker);
     img.onerror = monogram;
+    img.src = API + coin.logo;
     wrap.append(img);
   } else {
     monogram();
@@ -449,6 +510,7 @@ function initSearch(coins) {
     if (open) input.focus();
   });
   document.addEventListener('keydown', e => {
+    if (prefData.shortcuts === false) return;
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
     e.preventDefault();
@@ -529,34 +591,30 @@ function initTape(coins) {
   onCurrency(() => { /* prices repaint on the next reading */ });
 }
 
-// ---------- Back to top (a round button that appears once you have scrolled) ----------
+// ---------- Back to top (a button inside the footer, not floating over the page) ----------
 function initToTop() {
-  if (document.getElementById('to-top')) return;
-  const C = 2 * Math.PI * 19;
-  const b = el('button', 'to-top');
-  b.id = 'to-top';
-  b.type = 'button';
-  b.setAttribute('aria-label', 'Back to top');
-  b.innerHTML = '<svg class="tt-ring" viewBox="0 0 44 44" aria-hidden="true"><circle class="tt-track" cx="22" cy="22" r="19"/><circle class="tt-bar" cx="22" cy="22" r="19" transform="rotate(-90 22 22)"/></svg>'
-    + '<svg class="tt-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 6-6 6 6"/></svg>';
-  const bar = b.querySelector('.tt-bar');
-  bar.setAttribute('stroke-dasharray', C.toFixed(2));
-  document.body.append(b);
-  let queued = false;
-  const paint = () => {
-    queued = false;
-    const y = window.scrollY;
-    const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    b.classList.toggle('show', y > 520);
-    bar.setAttribute('stroke-dashoffset', (C * (1 - Math.min(1, y / max))).toFixed(2));
-  };
-  window.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(paint); } }, { passive: true });
-  window.addEventListener('resize', paint);
-  b.addEventListener('click', () => {
+  document.getElementById('to-top')?.addEventListener('click', () => {
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: 0, behavior: calm ? 'auto' : 'smooth' });
   });
-  paint();
+}
+
+// ---------- Footer wordmark: always exactly as wide as the page ----------
+function initWordmark() {
+  const box = document.querySelector('.foot-mark');
+  const word = box?.firstElementChild;
+  if (!box || !word) return;
+  const fit = () => {
+    const avail = box.clientWidth - 2 * parseFloat(getComputedStyle(box).paddingLeft || '0');
+    if (avail < 40) return;
+    box.style.fontSize = '100px';
+    const w = word.getBoundingClientRect().width;
+    if (w > 0) box.style.fontSize = Math.max(24, Math.min(320, Math.floor((100 * avail) / w * 10) / 10 - 0.2)) + 'px';
+  };
+  fit();
+  document.fonts?.ready?.then(fit);
+  let t = 0;
+  window.addEventListener('resize', () => { cancelAnimationFrame(t); t = requestAnimationFrame(fit); });
 }
 
 // ---------- Footer: the biggest moves right now ----------
@@ -626,6 +684,7 @@ export async function initChrome() {
   initSearch(coins);
   initTape(coins);
   initToTop();
+  initWordmark();
   initFooterMovers(coins);
   if (path === '/portfolio') document.querySelector('[data-nav="portfolio"]')?.setAttribute('aria-current', 'page');
   pollPrices(() => {}); // starts the shared live connection on every page

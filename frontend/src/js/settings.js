@@ -1,9 +1,12 @@
 // Settings: the hub, Preferences, Watchlist, Price alerts, Data and privacy.
 import {
-  API, initChrome, pollPrices, store, prefs, PREF_DEFAULTS, currency, onCurrency, setCurrency, currencySymbol, CURRENCY_NAMES,
-  money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings,
+  API, initChrome, pollPrices, getJSON, store, prefs, PREF_DEFAULTS, currency, onCurrency, setCurrency, currencySymbol, CURRENCY_NAMES,
+  money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings, setLive,
 } from './common.js';
-import { loadTargets, addTarget, removeTarget, clearReached, rearm } from './targets.js';
+import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime } from './targets.js';
+import { openSheet, coinPicker } from './ui.js';
+import { createChart } from './chart.js';
+import { LESSONS, CATS, TERMS } from './learn-content.js';
 
 const $ = id => document.getElementById(id);
 const page = document.body.dataset.page;
@@ -21,12 +24,24 @@ function flashSaved(text = 'Saved') {
 }
 
 // ---------------------------------------------------------------- hub
+const ACCENT_LABEL = { citrine: 'Gold', azure: 'Blue', emerald: 'Green', violet: 'Violet', rose: 'Rose', graphite: 'Slate' };
 function paintHub() {
   const set = (id, text) => { const n = $(id); if (n) n.textContent = text; };
-  set('hv-prefs', `${THEME_LABEL[prefs.get('theme')]} theme · ${currency.code}`);
-  set('hv-watch', favCount() === 1 ? '1 coin starred' : `${favCount()} coins starred`);
+  set('hv-appearance', `${THEME_LABEL[prefs.get('theme')]} theme · ${ACCENT_LABEL[prefs.get('accent')] || 'Gold'}`);
+  set('hv-preferences', `${currency.code} · ${prefs.get('chartType') === 'candles' ? 'Candles' : 'Line'} · ${String(prefs.get('chartRange')).toUpperCase()}`);
+  const hidden = (prefs.get('hide') || []).length;
+  set('hv-home', hidden ? `${hidden} ${hidden === 1 ? 'section' : 'sections'} hidden` : 'Everything shown');
+  set('hv-watchlist', favCount() === 1 ? '1 coin starred' : `${favCount()} coins starred`);
   const active = loadTargets().filter(t => !t.firedAt).length;
   set('hv-alerts', active === 1 ? '1 alert watching' : `${active} alerts watching`);
+  const held = holdings.load().length;
+  set('hv-portfolio', held ? (held === 1 ? '1 holding' : `${held} holdings`) : 'Nothing added yet');
+  set('hv-learn', `${TERMS.length} words explained`);
+  set('hv-sources', 'Live from the exchanges');
+  set('hv-about', 'About ' + (window.CRYPTOMIUM?.brand || 'Cryptomium'));
+  set('hv-data', 'Stays on this device');
+  set('hv-advanced', prefs.get('liveMode') === 'saver' ? 'Data saver on' : 'Auto updates');
+  set('hv-experimental', prefs.get('sound') || prefs.get('haptics') ? 'Some on' : 'All off');
 }
 
 // ---------------------------------------------------------------- preferences
@@ -35,7 +50,9 @@ function paintPrefs() {
     const value = String(prefs.get(group.dataset.pref));
     group.querySelectorAll('[data-value]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === value)));
   });
-  document.querySelectorAll('[data-toggle]').forEach(b => b.setAttribute('aria-checked', String(prefs.get(b.dataset.toggle) !== false)));
+  document.querySelectorAll('[data-toggle]').forEach(b => b.setAttribute('aria-checked', String(Boolean(prefs.get(b.dataset.toggle)))));
+  const hidden = prefs.get('hide') || [];
+  document.querySelectorAll('[data-show]').forEach(b => b.setAttribute('aria-checked', String(!hidden.includes(b.dataset.show))));
 }
 
 function paintCurrencies() {
@@ -46,73 +63,25 @@ function paintCurrencies() {
   setNum($('cur-preview'), btc ? money(btc.price) : '–', btc?.price);
 }
 
-// A sheet that slides up on phones and drops in on larger screens, with search and the common currencies first.
+// The currency list opens in the shared sheet, with the common currencies first.
 const COMMON = ['USD', 'EUR', 'GBP', 'KES', 'NGN', 'ZAR'];
 function openCurrencySheet() {
-  const trigger = $('cur-pick');
   const known = Object.keys(currency.rates).length > 1;
-  const back = el('div', 'sheet-back');
-  const sheet = el('div', 'sheet');
-  sheet.setAttribute('role', 'dialog');
-  sheet.setAttribute('aria-modal', 'true');
-  sheet.setAttribute('aria-label', 'Choose a currency');
-  const head = el('div', 'sheet-head');
-  head.append(el('h2', '', 'Choose a currency'));
-  const close = el('button', 'icon-btn');
-  close.type = 'button';
-  close.setAttribute('aria-label', 'Close');
-  close.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-  head.append(close);
-  const search = el('input', 'sheet-search');
-  search.type = 'search';
-  search.placeholder = 'Search currencies';
-  search.setAttribute('aria-label', 'Search currencies');
-  search.autocomplete = 'off';
-  const ul = el('ul', 'sheet-list');
-  ul.setAttribute('role', 'listbox');
-  sheet.append(head, search, ul);
-  back.append(sheet);
-  document.body.append(back);
-  document.body.classList.add('sheet-open');
-  trigger.setAttribute('aria-expanded', 'true');
-
   const all = Object.keys(CURRENCY_NAMES);
-  const paint = () => {
-    const q = search.value.trim().toLowerCase();
-    const codes = q
-      ? all.filter(c => c.toLowerCase().includes(q) || CURRENCY_NAMES[c].toLowerCase().includes(q))
-      : [...COMMON.filter(c => all.includes(c)), ...all.filter(c => !COMMON.includes(c))];
-    ul.replaceChildren(...codes.map((code, i) => {
-      const li = el('li');
-      const b = el('button', 'sheet-item');
-      b.type = 'button';
-      b.setAttribute('role', 'option');
-      b.setAttribute('aria-selected', String(code === currency.code));
+  const ordered = [...COMMON.filter(c => all.includes(c)), ...all.filter(c => !COMMON.includes(c))];
+  openSheet({
+    title: 'Choose a currency', searchLabel: 'Search currencies', trigger: $('cur-pick'), value: currency.code,
+    empty: 'No currency matches that.',
+    items: ordered.map(code => {
       const off = known && !currency.rates[code];
-      b.disabled = off;
-      b.append(el('span', 'cc-sym', currencySymbol(code).slice(0, 4)), Object.assign(el('span', 'si-t'), {}), el('span', 'si-check'));
-      b.children[1].append(el('b', '', code), el('span', '', CURRENCY_NAMES[code] + (off ? ' (not available right now)' : '')));
-      b.addEventListener('click', () => { setCurrency(code); flashSaved(); done(); });
-      li.append(b);
-      if (!q && i === COMMON.length - 1) li.classList.add('after-common');
-      return li;
-    }));
-    if (!codes.length) ul.append(el('li', 'sheet-none', 'No currency matches that.'));
-  };
-  const done = () => {
-    back.remove();
-    document.body.classList.remove('sheet-open');
-    trigger.setAttribute('aria-expanded', 'false');
-    document.removeEventListener('keydown', onKey);
-    trigger.focus();
-  };
-  const onKey = e => { if (e.key === 'Escape') done(); };
-  document.addEventListener('keydown', onKey);
-  back.addEventListener('pointerdown', e => { if (e.target === back) done(); });
-  close.addEventListener('click', done);
-  search.addEventListener('input', paint);
-  paint();
-  if (matchMedia('(min-width: 821px)').matches) search.focus();
+      return {
+        value: code, title: code, sub: CURRENCY_NAMES[code] + (off ? ' (not available right now)' : ''), disabled: off,
+        group: COMMON.includes(code) ? 'Popular' : 'All currencies',
+        lead: () => el('span', 'cc-sym', currencySymbol(code).slice(0, 4)),
+      };
+    }),
+    onPick: code => { setCurrency(code); flashSaved(); },
+  });
 }
 
 function initPreferences() {
@@ -121,22 +90,97 @@ function initPreferences() {
     group.addEventListener('click', e => {
       const b = e.target.closest('[data-value]');
       if (!b) return;
-      prefs.set(group.dataset.pref, b.dataset.value);
+      const key = group.dataset.pref;
+      const raw = b.dataset.value;
+      prefs.set(key, key === 'pageSize' ? Number(raw) : raw);
       paintPrefs();
       flashSaved();
     });
   });
   document.querySelectorAll('[data-toggle]').forEach(b => {
     b.addEventListener('click', () => {
-      prefs.set(b.dataset.toggle, !(prefs.get(b.dataset.toggle) !== false));
+      const key = b.dataset.toggle;
+      prefs.set(key, !prefs.get(key));
       paintPrefs();
       flashSaved();
     });
   });
-  paintCurrencies();
-  $('cur-pick').addEventListener('click', openCurrencySheet);
-  onCurrency(paintCurrencies);
-  $('reset-prefs').addEventListener('click', () => { prefs.reset(); paintPrefs(); flashSaved('Back to the defaults'); });
+  document.querySelectorAll('[data-show]').forEach(b => {
+    b.addEventListener('click', () => {
+      const key = b.dataset.show;
+      const hidden = new Set(prefs.get('hide') || []);
+      if (hidden.has(key)) hidden.delete(key); else hidden.add(key);
+      prefs.set('hide', [...hidden]);
+      paintPrefs();
+      flashSaved();
+    });
+  });
+  if ($('cur-pick')) {
+    paintCurrencies();
+    $('cur-pick').addEventListener('click', openCurrencySheet);
+    onCurrency(paintCurrencies);
+  }
+  $('reset-prefs')?.addEventListener('click', () => {
+    const next = prefs.all();
+    for (const n of document.querySelectorAll('[data-pref],[data-toggle]')) { const k = n.dataset.pref || n.dataset.toggle; next[k] = PREF_DEFAULTS[k]; }
+    prefs.replace(next);
+    paintPrefs(); flashSaved('Back to the defaults');
+  });
+  $('reset-layout')?.addEventListener('click', () => { prefs.set('hide', []); prefs.set('pageSize', 10); paintPrefs(); flashSaved('Everything is shown again'); });
+}
+
+// ---------------------------------------------------------------- live preview (desktop)
+const preview = { chart: null, key: '' };
+function paintPreviewTape() {
+  const host = $('pv-tape');
+  if (!host) return;
+  host.hidden = prefs.get('tape') === false;
+  const picks = ['BTC', 'ETH', 'SOL', 'XRP'].map(t => live.get(t)).filter(Boolean);
+  host.replaceChildren(...picks.map(c => {
+    const ch = pct(c.change24h);
+    const s = el('span', 'pv-t');
+    s.append(el('b', '', c.ticker), el('span', 'num', money(c.price, { stable: c.stable })), el('span', 'num chg ' + ch.cls, ch.text));
+    return s;
+  }));
+}
+async function loadPreviewChart() {
+  const type = prefs.get('chartType') === 'candles' ? 'candles' : 'line';
+  const range = ['24h', '7d', '30d', '90d', '1y'].includes(prefs.get('chartRange')) ? prefs.get('chartRange') : '7d';
+  document.querySelectorAll('#pv-tabs [data-r]').forEach(n => n.classList.toggle('on', n.dataset.r === range));
+  const key = type + range;
+  if (!preview.chart) preview.chart = createChart($('pv-chart'), {});
+  if (key === preview.key) { preview.chart.redraw(); return; }
+  preview.key = key;
+  try {
+    const h = await getJSON(`/api/history/BTC?range=${range}${type === 'candles' ? '&style=candles' : ''}`);
+    if (preview.key !== key) return;
+    preview.chart.setData(type === 'candles' ? { type, range, candles: h.candles } : { type, range, points: h.points });
+    const btc = live.get('BTC');
+    if (btc?.price) preview.chart.tick(btc.price);
+  } catch { preview.chart.setMessage('Preview not available right now'); }
+}
+function paintPreview() {
+  const btc = live.get('BTC');
+  if (btc) {
+    setNum($('pv-price'), money(btc.price), btc.price);
+    const ch = pct(btc.change24h);
+    $('pv-chg').textContent = ch.text; $('pv-chg').className = 'chg num ' + ch.cls;
+    if (!$('pv-logo').firstChild) $('pv-logo').append(logoEl(btc, 'lg'));
+    preview.chart?.tick(btc.price);
+  }
+  paintPreviewTape();
+}
+function initPreview() {
+  if (!$('pv-chart') || !API) return;
+  loadPreviewChart();
+  prefs.onChange(key => {
+    if (['chartType', 'chartRange', '*'].includes(key)) loadPreviewChart();
+    if (['theme', 'accent', 'palette', 'density', 'textSize', '*'].includes(key)) setTimeout(() => preview.chart?.redraw(), 30);
+    paintPreviewTape();
+  });
+  document.addEventListener('themechange', () => preview.chart?.redraw());
+  onCurrency(() => { paintPreview(); preview.chart?.redraw(); });
+  new ResizeObserver(() => preview.chart?.redraw()).observe($('pv-chart'));
 }
 
 // ---------------------------------------------------------------- watchlist
@@ -190,8 +234,9 @@ function initWatchlist() {
 // ---------------------------------------------------------------- price alerts
 const parseNum = text => Number(String(text).replace(/,/g, '').trim());
 
+let alPick = null;
 function paintAlertHint() {
-  const t = $('al-coin').value;
+  const t = alPick ? alPick.get() : '';
   const l = live.get(t);
   $('al-code').textContent = currency.code;
   $('al-now').textContent = l ? `${t} is ${money(l.price, { stable: l.stable })} right now.` : ' ';
@@ -247,6 +292,7 @@ function updateTargetMeta() {
 
 function paintNotif() {
   const btn = $('notif-btn'), text = $('notif-text');
+  if (!btn || !text) return;
   if (!('Notification' in window)) { btn.hidden = true; text.textContent = 'This browser cannot show notifications. You will still see a message on the page.'; return; }
   const p = Notification.permission;
   btn.hidden = p !== 'default';
@@ -256,10 +302,8 @@ function paintNotif() {
 }
 
 function initAlerts() {
-  $('al-coin').replaceChildren(...coins.map(c => new Option(`${c.name} (${c.ticker})`, c.ticker)));
-  const fromUrl = new URLSearchParams(location.search).get('coin');
-  if (fromUrl && coins.some(c => c.ticker === fromUrl.toUpperCase())) $('al-coin').value = fromUrl.toUpperCase();
-  $('al-coin').addEventListener('change', paintAlertHint);
+  const fromUrl = (new URLSearchParams(location.search).get('coin') || '').toUpperCase();
+  alPick = coinPicker($('al-coin'), { coins, live, value: coins.some(c => c.ticker === fromUrl) ? fromUrl : (coins[0]?.ticker || ''), placeholder: 'Choose a coin', onChange: () => paintAlertHint() });
   onCurrency(() => { paintAlertHint(); renderTargets(); });
   paintAlertHint();
   renderTargets();
@@ -270,7 +314,7 @@ function initAlerts() {
     e.preventDefault();
     const err = $('al-error');
     err.hidden = true;
-    const ticker = $('al-coin').value;
+    const ticker = alPick.get();
     const dir = $('al-dir').value;
     const shown = parseNum($('al-price').value);
     if (!(shown > 0)) { err.textContent = 'Enter a price greater than zero.'; err.hidden = false; return; }
@@ -299,7 +343,7 @@ const FAV_KEY = 'cm-favs';
 function bytes(text) { return new Blob([text || '']).size; }
 function renderStore() {
   const rows = [
-    ['Preferences', 'Theme, accent, density, chart and market defaults', store.get('cm-prefs')],
+    ['Preferences', 'Appearance, layout, chart and market defaults', store.get('cm-prefs')],
     ['Currency', `Showing ${currency.code}`, store.get('cm-currency')],
     ['Starred coins', favCount() === 1 ? '1 coin' : `${favCount()} coins`, store.get(FAV_KEY)],
     ['Price alerts', `${loadTargets().length} saved`, store.get('cm-targets')],
@@ -388,6 +432,72 @@ function initData() {
   });
 }
 
+// ---------------------------------------------------------------- learn
+function initLearn() {
+  $('lessons').replaceChildren(...LESSONS.map((l, i) => {
+    const d = el('details', 'lesson');
+    if (i === 0) d.open = true;
+    const sm = el('summary'); sm.append(el('span', 'ls-n', String(i + 1)), el('b', '', l.t));
+    d.append(sm, el('p', '', l.d));
+    return d;
+  }));
+  let cat = 'All';
+  const cats = $('gl-cats');
+  const paintCats = () => cats.replaceChildren(...['All', ...CATS].map(c => {
+    const b = el('button', 'gl-chip', c); b.type = 'button'; b.setAttribute('aria-pressed', String(c === cat));
+    b.addEventListener('click', () => { cat = c; paintCats(); paint(); });
+    return b;
+  }));
+  const paint = () => {
+    const q = $('gl-search').value.trim().toLowerCase();
+    const list = TERMS.filter(t => (cat === 'All' || t.c === cat) && (!q || t.w.toLowerCase().includes(q) || t.d.toLowerCase().includes(q)));
+    $('gloss').replaceChildren(...list.flatMap(t => {
+      const dt = el('dt'); dt.append(el('b', '', t.w), el('i', 'gl-cat', t.c));
+      return [dt, el('dd', '', t.d)];
+    }));
+    $('gl-empty').hidden = list.length > 0;
+  };
+  $('gl-search').addEventListener('input', paint);
+  paintCats(); paint();
+}
+
+// ---------------------------------------------------------------- data sources
+function initSources() {
+  const msg = $('src-msg');
+  const stateText = { live: 'Live', reconnecting: 'Reconnecting', connecting: 'Connecting' };
+  let last = null;
+  pollPrices(data => {
+    last = data;
+    $('src-name').textContent = data.source || '–';
+    $('src-time').textContent = data.updatedAt ? ago(data.updatedAt) : '–';
+  }, st => { $('src-state').textContent = stateText[st] || st; $('src-state').dataset.state = st; });
+  setInterval(() => { if (last?.updatedAt) $('src-time').textContent = ago(last.updatedAt); }, 5000);
+  const test = async () => {
+    msg.textContent = 'Testing…';
+    const t0 = performance.now();
+    try { await getJSON('/api/prices', { timeoutMs: 8000 }); const ms = Math.round(performance.now() - t0); $('src-ping').textContent = ms + ' ms'; msg.textContent = ms < 800 ? 'All good' : 'A little slow'; }
+    catch { $('src-ping').textContent = 'No answer'; msg.textContent = 'Could not reach the price service'; }
+  };
+  $('src-test').addEventListener('click', test);
+  test();
+}
+
+// ---------------------------------------------------------------- advanced + experimental
+function initAdvanced() {
+  initPreferences();
+  $('clear-recent')?.addEventListener('click', () => { store.set('cm-recent', '[]'); flashSaved('Recent searches cleared'); });
+  $('reload-now')?.addEventListener('click', () => location.reload());
+  $('notif-btn')?.addEventListener('click', async () => {
+    try { await Notification.requestPermission(); } catch { /* older browsers */ }
+    paintNotif();
+  });
+  paintNotif();
+}
+function initExperimental() {
+  initPreferences();
+  $('test-sound')?.addEventListener('click', () => chime());
+}
+
 // ---------------------------------------------------------------- boot
 async function boot() {
   coins = await initChrome();
@@ -395,23 +505,29 @@ async function boot() {
     paintHub();
     onCurrency(paintHub);
     onFavs(paintHub);
+    prefs.onChange(paintHub);
     document.addEventListener('cm:targets', paintHub);
   } else {
     const here = document.querySelector(`.snav [data-s="${page}"]`);
     here?.setAttribute('aria-current', 'page');
     here?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
-  if (page === 'preferences') initPreferences();
+  if (['appearance', 'preferences', 'home'].includes(page)) { initPreferences(); initPreview(); }
   if (page === 'watchlist') initWatchlist();
   if (page === 'alerts') initAlerts();
   if (page === 'data') initData();
+  if (page === 'learn') initLearn();
+  if (page === 'sources') initSources();
+  if (page === 'advanced') initAdvanced();
+  if (page === 'experimental') initExperimental();
 
-  if (API && ['preferences', 'watchlist', 'alerts'].includes(page)) {
+  if (API && ['appearance', 'preferences', 'home', 'watchlist', 'alerts'].includes(page)) {
     pollPrices(data => {
       for (const c of data.coins) live.set(c.ticker, c);
       if (page === 'preferences') paintCurrencies();
+      if (['appearance', 'preferences', 'home'].includes(page)) paintPreview();
       if (page === 'watchlist') { if (!document.querySelector('.wl-price') || document.querySelector('.wl-price').textContent === '–') renderWatchlist(); else updateWatchlistPrices(); }
-      if (page === 'alerts') { paintAlertHint(); updateTargetMeta(); }
+      if (page === 'alerts') { paintAlertHint(); updateTargetMeta(); alPick?.refresh(); }
     }, () => {});
   }
 }

@@ -1,4 +1,5 @@
 // Portfolio: holdings kept on this device, valued with the live prices.
+import { coinPicker } from './ui.js';
 import { API, initChrome, pollPrices, holdings, money, pct, el, logoEl, setNum, currency, onCurrency } from './common.js';
 
 const $ = id => document.getElementById(id);
@@ -111,9 +112,8 @@ function refreshValues() {
 
 async function boot() {
   coins = await initChrome();
-  $('pf-coin').replaceChildren(...coins.map(c => new Option(`${c.name} (${c.ticker})`, c.ticker)));
-  const want = new URLSearchParams(location.search).get('coin');
-  if (want && coins.some(c => c.ticker === want.toUpperCase())) $('pf-coin').value = want.toUpperCase();
+  const want = (new URLSearchParams(location.search).get('coin') || '').toUpperCase();
+  const picker = coinPicker($('pf-coin'), { coins, live, value: coins.some(c => c.ticker === want) ? want : (coins[0]?.ticker || ''), placeholder: 'Choose a coin' });
   render();
   document.addEventListener('cm:holdings', () => { list = holdings.load(); render(); });
   onCurrency(render);
@@ -124,7 +124,7 @@ async function boot() {
     err.hidden = true;
     const amount = parse($('pf-amount').value);
     if (!(amount > 0) || !Number.isFinite(amount)) { err.textContent = 'Enter an amount greater than zero.'; err.hidden = false; return; }
-    const ticker = $('pf-coin').value;
+    const ticker = picker.get();
     const existing = list.find(h => h.ticker === ticker);
     if (existing) existing.amount += amount;
     else if (list.length >= 40) { err.textContent = 'That is plenty. Remove a holding to add another.'; err.hidden = false; return; }
@@ -137,7 +137,7 @@ async function boot() {
   let first = true;
   pollPrices(data => {
     for (const c of data.coins) live.set(c.ticker, c);
-    if (first) { first = false; render(); } else refreshValues();
+    if (first) { first = false; render(); picker.refresh(); } else refreshValues();
   });
 }
 boot();

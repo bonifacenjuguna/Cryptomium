@@ -34,6 +34,7 @@ export async function fetchMarket({ get = coingeckoFetch } = {}) {
       volume24h: num(item.total_volume),
       high24h: num(item.high_24h),
       low24h: num(item.low_24h),
+      change24h: num(item.price_change_percentage_24h_in_currency ?? item.price_change_percentage_24h),
       change7d: num(item.price_change_percentage_7d_in_currency),
       change1h: num(item.price_change_percentage_1h_in_currency),
       change30d: num(item.price_change_percentage_30d_in_currency),

@@ -24,11 +24,11 @@
     <a class="crumb" href="/#markets">All markets</a>
     <div id="coin-root">
       <div class="coin-head">
-        <div class="coin-id">
-          <div class="logo lg" id="c-logo"></div>
-          <div>
+        <div class="ch-id">
+          <div class="ch-logo" id="c-logo"></div>
+          <div class="ch-text">
+            <div class="ch-chips"><span class="sym" id="c-sym">{{COIN_TICKER}}</span><span class="rank-chip" id="c-rank" hidden></span></div>
             <h1 id="c-name">{{COIN_NAME}}</h1>
-            <span class="sym" id="c-sym">{{COIN_TICKER}}</span><span class="rank-chip" id="c-rank" hidden></span>
           </div>
           <div class="coin-actions">
             <button class="fav" id="c-fav" type="button" aria-pressed="false" aria-label="Star {{COIN_NAME}}">
@@ -71,9 +71,12 @@
             <button class="tab" role="tab" data-range="90d" aria-selected="false">90D</button>
             <button class="tab" role="tab" data-range="1y" aria-selected="false">1Y</button>
           </div>
-          <label class="cmp-pick"><span class="sr">Compare with another coin</span>
-            <select id="cmp-select" aria-label="Compare with another coin"><option value="">Compare with…</option></select>
-          </label>
+          <div class="cmp-pick">
+            <button class="cmp-btn" id="cmp-btn" type="button" aria-label="Compare with another coin"></button>
+            <button class="icon-btn cmp-clear" id="cmp-clear" type="button" aria-label="Stop comparing" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -83,6 +86,17 @@
         <div class="perf-cell"><span>7 days</span><b class="num chg flat" id="p-7d">–</b></div>
         <div class="perf-cell"><span>30 days</span><b class="num chg flat" id="p-30d">–</b></div>
         <div class="perf-cell"><span>1 year</span><b class="num chg flat" id="p-1y">–</b></div>
+      </div>
+
+      <div class="panel mood-card" id="coin-mood" hidden>
+        <div class="mood-dial" id="cm-dial"><div class="mood-read" id="cm-read"><b id="cm-val">–</b><span id="cm-label">&nbsp;</span></div></div>
+        <div class="mood-body">
+          <h2>{{COIN_NAME}} Fear &amp; Greed</h2>
+          <p class="mc-note">Our reading of how {{COIN_NAME}} feels right now, from its recent price moves, where it sits in today's range and how busy trading is.</p>
+          <div class="mood-compare">
+            <div class="mc-row"><span>Whole market <small class="mood-src-inline">· alternative.me</small></span><b id="cm-overall">–</b></div>
+          </div>
+        </div>
       </div>
 
       <dl class="stats" id="stats">
@@ -106,14 +120,35 @@
         <p id="about-text">&nbsp;</p>
       </div>
 
-      <div class="panel converter" id="converter">
-        <div class="cv-head"><h2>Converter</h2><span class="cv-note">Uses the live price</span></div>
-        <div class="cv-row">
-          <label class="cv-field"><span class="cv-label" id="cv-sym">{{COIN_TICKER}}</span><input id="cv-coin" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Amount of {{COIN_NAME}}"></label>
-          <span class="cv-eq" aria-hidden="true">=</span>
-          <label class="cv-field"><span class="cv-label" id="cv-code">USD</span><input id="cv-fiat" type="text" inputmode="decimal" autocomplete="off" aria-label="Value in your currency"></label>
+      <div class="duo-cards">
+        <div class="panel converter" id="converter">
+          <div class="cv-head"><h2>Converter</h2><span class="cv-note">Uses the live price</span></div>
+          <div class="cv-row">
+            <label class="cv-field"><span class="cv-label" id="cv-sym">{{COIN_TICKER}}</span><input id="cv-coin" type="text" inputmode="decimal" autocomplete="off" value="1" aria-label="Amount of {{COIN_NAME}}"></label>
+            <span class="cv-eq" aria-hidden="true">=</span>
+            <label class="cv-field"><span class="cv-label" id="cv-code">USD</span><input id="cv-fiat" type="text" inputmode="decimal" autocomplete="off" aria-label="Value in your currency"></label>
+          </div>
         </div>
-        <a class="cv-link" id="cv-alert" href="/settings/alerts">Set a price alert for {{COIN_NAME}}</a>
+
+        <div class="panel alert-card" id="alert-card">
+          <div class="ac-head">
+            <span class="ac-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></span>
+            <div><h2>Price alert</h2><p>Hear about it the moment {{COIN_NAME}} reaches your price.</p></div>
+          </div>
+          <div class="ac-now"><span>Now</span><b class="num" id="ac-now">–</b></div>
+          <form id="ac-form" autocomplete="off" novalidate>
+            <div class="segs ac-dir" role="radiogroup" aria-label="Alert when the price goes">
+              <button type="button" role="radio" class="seg" data-dir="above" aria-checked="true">Rises to</button>
+              <button type="button" role="radio" class="seg" data-dir="below" aria-checked="false">Falls to</button>
+            </div>
+            <label class="cv-field ac-field"><span class="cv-label" id="ac-code">USD</span><input id="ac-price" type="text" inputmode="decimal" placeholder="Target price" aria-label="Target price"></label>
+            <div class="ac-chips" id="ac-chips" role="group" aria-label="Quick targets"></div>
+            <p class="ac-hint" id="ac-hint" aria-live="polite">&nbsp;</p>
+            <button class="btn btn-accent ac-set" type="submit">Set alert</button>
+          </form>
+          <ul class="ac-list" id="ac-list"></ul>
+          <a class="ac-all" href="/settings/alerts">All my alerts</a>
+        </div>
       </div>
     </div>
   </div>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Appearance | {{BRAND}}</title>
+  <meta name="description" content="Theme, colours and how much movement you want. Changes apply straight away.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/appearance">
+</head>
+<body data-page="appearance">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout has-aside">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Appearance</h1><p class="lede">Theme, colours and how much movement you want. Changes apply straight away.</p></div>
+        <section class="s-card" aria-labelledby="h-look">
+          <h2 id="h-look">Look and feel</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Theme</b><span>Follow your device, or pick one.</span></div>
+            <div class="theme-cards" role="radiogroup" aria-label="Theme" data-pref="theme">
+              <button type="button" role="radio" class="theme-card" data-value="auto"><span class="tc-prev tc-auto"><i></i><i></i></span><span class="tc-name">Auto</span></button>
+              <button type="button" role="radio" class="theme-card" data-value="light"><span class="tc-prev tc-light"><i></i><i></i></span><span class="tc-name">Light</span></button>
+              <button type="button" role="radio" class="theme-card" data-value="dark"><span class="tc-prev tc-dark"><i></i><i></i></span><span class="tc-name">Dark</span></button>
+            </div>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Accent colour</b><span>Used for buttons and highlights.</span></div>
+            <div class="swatches" role="radiogroup" aria-label="Accent colour" data-pref="accent">
+              <button type="button" role="radio" class="swatch" data-value="citrine" aria-label="Gold"><i></i><span>Gold</span></button>
+              <button type="button" role="radio" class="swatch" data-value="azure" aria-label="Blue"><i></i><span>Blue</span></button>
+              <button type="button" role="radio" class="swatch" data-value="emerald" aria-label="Green"><i></i><span>Green</span></button>
+              <button type="button" role="radio" class="swatch" data-value="violet" aria-label="Violet"><i></i><span>Violet</span></button>
+              <button type="button" role="radio" class="swatch" data-value="rose" aria-label="Rose"><i></i><span>Rose</span></button>
+              <button type="button" role="radio" class="swatch" data-value="graphite" aria-label="Slate"><i></i><span>Slate</span></button>
+            </div>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Density</b><span>Auto is compact on phones and roomy on larger screens.</span></div>
+            <div class="segs" role="radiogroup" aria-label="Density" data-pref="density"><button type="button" role="radio" class="seg" data-value="auto">Auto</button><button type="button" role="radio" class="seg" data-value="comfortable">Roomy</button><button type="button" role="radio" class="seg" data-value="compact">Compact</button></div>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Text size</b><span>Make everything a little larger and easier to read.</span></div>
+            <div class="segs" role="radiogroup" aria-label="Text size" data-pref="textSize"><button type="button" role="radio" class="seg" data-value="default">Default</button><button type="button" role="radio" class="seg" data-value="large">Large</button><button type="button" role="radio" class="seg" data-value="larger">Larger</button></div>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Up and down colours</b><span>Classic is green and red. Clear uses blue and orange, which is easier if red and green look alike.</span></div>
+            <div class="segs" role="radiogroup" aria-label="Up and down colours" data-pref="palette"><button type="button" role="radio" class="seg" data-value="classic">Classic</button><button type="button" role="radio" class="seg" data-value="clear">Clear</button></div>
+          </div>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-live">
+          <h2 id="h-live">Live motion</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Live market bar</b><span>The moving strip of prices under the header. Turn off to hide it completely.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="tape" aria-checked="false" aria-label="Live market bar"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Price flash</b><span>A price tints green or red for a moment when it ticks. Off by default.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="flash" aria-checked="false" aria-label="Price flash"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Animations</b><span>Turn off to keep the page still.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="motion" aria-checked="false" aria-label="Animations"><span></span></button>
+          </div>
+        </section>
+
+        <div class="s-actions"><button type="button" class="btn btn-ghost" id="reset-prefs">Reset appearance</button></div>
+
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+      <aside class="s-aside" aria-label="Live preview">
+        <div class="pv">
+          <div class="pv-label"><span class="pv-dot"></span>Live preview</div>
+          <div class="pv-card">
+            <div class="pv-tape" id="pv-tape" aria-hidden="true"></div>
+            <div class="pv-head">
+              <span class="pv-logo" id="pv-logo"></span>
+              <span class="pv-name"><b>BTC</b><span>Bitcoin</span></span>
+              <span class="pv-price"><b class="num" id="pv-price">–</b><span class="chg num flat" id="pv-chg">&nbsp;</span></span>
+            </div>
+            <div class="chart pv-chart" id="pv-chart"></div>
+            <div class="pv-tabs" id="pv-tabs" aria-hidden="true"><span data-r="24h">24H</span><span data-r="7d">7D</span><span data-r="30d">30D</span><span data-r="90d">90D</span><span data-r="1y">1Y</span></div>
+            <div class="pv-btns"><span class="btn btn-accent btn-sm">Set alert</span><span class="btn btn-ghost btn-sm">Compare</span></div>
+          </div>
+          <p class="pv-note">This is a small copy of the site. It changes as you change your settings.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

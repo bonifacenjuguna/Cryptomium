@@ -2,10 +2,11 @@ import {
   API, initChrome, getJSON, pollPrices, setLive, currency, onCurrency, money, compactMoney, pct, ago,
   isFav, toggleFav, onFavs, el, logoEl, DIR_SVG, prefs, setNum,
 } from './common.js';
+import { createGauge, moodClass } from './gauge.js';
 
 const $ = id => document.getElementById(id);
 
-const PAGE = 10; // rows shown first, and added by each "Show more coins"
+const PAGE = [10, 20, 50].includes(Number(prefs.get('pageSize'))) ? Number(prefs.get('pageSize')) : 10; // rows shown first, and added by each "Show more coins"
 const STABLES = new Set(['USDT', 'USDC']);
 // The order the list opens in before market sizes arrive: the best-known coins first, stablecoins last.
 const POPULAR = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'TON', 'SUI', 'XLM', 'DOT', 'LTC', 'HBAR', 'UNI', 'HYPE', 'ZEC', 'USDT', 'USDC'];
@@ -357,32 +358,64 @@ function squarify(items, x, y, w, h) {
   return out;
 }
 
-const heat = { tiles: new Map(), key: '' };
+const heat = { tiles: new Map(), key: '', period: '24h' };
+const MAP_TILES = 15;
+// Stepped colours: a handful of clear shades instead of a smooth blend, so the map reads at a glance.
+const STEPS = { '24h': [0.4, 2, 5], '7d': [1, 5, 12] };
+function mapChange(t) {
+  return heat.period === '7d' ? state.market[t]?.change7d : state.live.get(t)?.change24h;
+}
+function stepClass(change) {
+  if (typeof change !== 'number' || !Number.isFinite(change)) return 'hm-flat';
+  const [a, b, c] = STEPS[heat.period];
+  const m = Math.abs(change);
+  if (m < a) return 'hm-flat';
+  const n = m < b ? 1 : m < c ? 2 : 3;
+  return (change > 0 ? 'hm-up' : 'hm-down') + n;
+}
+function paintMapKey() {
+  const host = $('hm-key');
+  if (!host) return;
+  const [a, b, c] = STEPS[heat.period];
+  const cells = [['hm-down3', `−${c}%`], ['hm-down2', `−${b}%`], ['hm-down1', `−${a}%`], ['hm-flat', '0'], ['hm-up1', `+${a}%`], ['hm-up2', `+${b}%`], ['hm-up3', `+${c}%`]];
+  host.replaceChildren(...cells.map(([cls, text]) => { const s = el('span', 'hm-key-cell ' + cls); s.append(el('i', ''), el('small', '', text)); return s; }));
+}
 function paintHeatmap(force = false) {
   const host = $('heatmap');
-  const items = state.coins
+  const all = state.coins
     .filter(c => !isStable(c.ticker))
     .map(c => ({ ticker: c.ticker, name: c.name, cap: liveCap(c.ticker) }))
     .filter(i => i.cap)
     .sort((a, b) => b.cap - a.cap);
-  if (items.length < 6) return;
+  if (all.length < 6) return;
   $('heat').hidden = false;
   const W = host.clientWidth, H = host.clientHeight;
   if (!W || !H) return;
-  const key = items.map(i => i.ticker).join() + ':' + W + 'x' + H;
+  const top = all.slice(0, MAP_TILES);
+  const rest = all.slice(MAP_TILES);
+  const key = top.map(i => i.ticker).join() + ':' + rest.length + ':' + W + 'x' + H;
   if (key !== heat.key || force) {
     heat.key = key;
     heat.tiles.clear();
     // Square-root-ish sizing keeps Bitcoin from swallowing the whole map.
-    const laid = squarify(items.map(i => ({ ...i, weight: i.cap ** 0.62 })), 0, 0, W, H);
+    const items = top.map(i => ({ ...i, weight: i.cap ** 0.62 }));
+    if (rest.length) items.push({ ticker: '', more: rest.length, weight: top.at(-1).cap ** 0.62 * 0.9 });
+    const laid = squarify(items, 0, 0, W, H);
     host.replaceChildren(...laid.map(t => {
-      const a = el('a', 'hm-tile');
-      a.href = '/coin/' + t.ticker;
+      const a = el(t.more ? 'a' : 'a', 'hm-tile');
       a.style.left = (t.x / W) * 100 + '%';
       a.style.top = (t.y / H) * 100 + '%';
       a.style.width = (t.w / W) * 100 + '%';
       a.style.height = (t.h / H) * 100 + '%';
       a.classList.add(t.w > 120 && t.h > 78 ? 'lg' : t.w > 62 && t.h > 46 ? 'md' : 'sm');
+      if (t.more) {
+        a.href = '/#markets';
+        a.classList.add('hm-more');
+        a.append(el('b', 'hm-sym', `+${t.more}`), el('span', 'hm-chg', 'More coins'));
+        a.setAttribute('aria-label', `${t.more} more coins in the markets list`);
+        return a;
+      }
+      a.href = '/coin/' + t.ticker;
       const sym = el('b', 'hm-sym', t.ticker);
       const chg = el('span', 'hm-chg num');
       const price = el('span', 'hm-price num');
@@ -391,19 +424,41 @@ function paintHeatmap(force = false) {
       return a;
     }));
   }
+  paintMapKey();
   for (const [t, r] of heat.tiles) {
     const c = state.live.get(t);
     if (!c) continue;
-    const ch = pct(c.change24h);
+    const change = mapChange(t);
+    const ch = pct(change);
     r.chg.textContent = ch.text;
     r.price.textContent = money(c.price);
-    r.a.classList.remove('up', 'down', 'flat');
-    r.a.classList.add(ch.cls);
-    r.a.style.setProperty('--a', heatStrength(c.change24h).toFixed(3));
-    r.a.setAttribute('aria-label', `${c.name}, ${money(c.price)}, ${ch.text} in 24 hours`);
+    r.a.className = r.a.className.replace(/\bhm-(?:up|down)\d|\bhm-flat\b/g, '').trim() + ' ' + stepClass(change);
+    r.a.setAttribute('aria-label', `${c.name}, ${money(c.price)}, ${ch.text} over ${heat.period === '7d' ? '7 days' : '24 hours'}`);
   }
 }
-const heatStrength = change => (typeof change !== 'number' ? 0 : Math.min(1, Math.abs(change) / 6) * 0.62 + 0.06);
+
+// ---------------------------------------------------------------- fear and greed
+const fng = { gauge: null };
+function paintSentiment(data) {
+  const o = data?.overall;
+  if (!o) return;
+  if (!fng.gauge) {
+    fng.gauge = createGauge({ label: 'Fear and greed index' });
+    $('fng-dial').prepend(fng.gauge.svg);
+  }
+  fng.gauge.set(o.value);
+  fng.gauge.svg.dataset.band = moodClass(o.value);
+  $('fng-val').textContent = String(o.value);
+  $('fng-label').textContent = o.label;
+  $('fng-read').className = 'mood-read ' + moodClass(o.value);
+  const hist = [['Yesterday', o.yesterday], ['Last week', o.lastWeek], ['Last month', o.lastMonth]].filter(([, v]) => v != null);
+  $('fng-hist').replaceChildren(...hist.map(([l, v]) => {
+    const s = el('span'); s.append(el('small', '', l), el('b', '', `${v} · ${labelOf(v)}`)); return s;
+  }));
+  $('fng-src').hidden = o.source !== 'alternative.me';
+  $('fng').hidden = false;
+}
+const labelOf = v => (v < 25 ? 'Extreme fear' : v < 45 ? 'Fear' : v <= 55 ? 'Neutral' : v < 75 ? 'Greed' : 'Extreme greed');
 
 // ---------------------------------------------------------------- latest moves
 const FRESH_MS = 6 * 3600 * 1000; // an alert older than this is history, not news
@@ -536,6 +591,17 @@ async function boot() {
   };
   loadMarket();
   setInterval(loadMarket, 5 * 60 * 1000);
+
+  const loadSentiment = async () => { try { paintSentiment(await getJSON('/api/sentiment')); } catch { /* optional */ } };
+  loadSentiment();
+  setInterval(loadSentiment, 10 * 60 * 1000);
+  $('hm-tabs')?.addEventListener('click', e => {
+    const b = e.target.closest('[data-hm]');
+    if (!b || b.dataset.hm === heat.period) return;
+    heat.period = b.dataset.hm;
+    $('hm-tabs').querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t === b)));
+    paintHeatmap(true);
+  });
 
   loadAlerts();
   setInterval(loadAlerts, 20 * 1000);

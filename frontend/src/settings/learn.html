@@ -10,12 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
-  <title>Watchlist | {{BRAND}}</title>
-  <meta name="description" content="Choose the coins you follow. They appear under Starred on the home page.">
+  <title>Learn crypto | {{BRAND}}</title>
+  <meta name="description" content="Short, plain-language guides and a glossary you can search.">
   <meta name="robots" content="noindex">
-  <link rel="canonical" href="{{SITE_URL}}/settings/watchlist">
+  <link rel="canonical" href="{{SITE_URL}}/settings/learn">
 </head>
-<body data-page="watchlist">
+<body data-page="learn">
 <!--@header-->
 <main id="main">
   <div class="wrap">
@@ -23,15 +23,18 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Watchlist</h1><p class="lede">Choose the coins you follow. They appear under Starred on the home page.</p></div>
-        <section class="s-card" aria-labelledby="h-wl">
-          <h2 id="h-wl">Your coins</h2>
-          <p class="s-hint" id="wl-count">&nbsp;</p>
-          <div class="wl-tools">
-            <label class="wl-search"><span class="sr">Filter coins</span><input id="wl-filter" type="search" placeholder="Filter coins" autocomplete="off"></label>
-            <button type="button" class="btn btn-ghost btn-sm" id="wl-clear" hidden>Clear stars</button>
-          </div>
-          <ul class="wl-list" id="wl-list"></ul>
+        <div class="s-head"><h1>Learn crypto</h1><p class="lede">Short, plain-language guides and a glossary you can search.</p></div>
+        <section class="s-card" aria-labelledby="h-start">
+          <h2 id="h-start">Start here</h2>
+          <div class="lessons" id="lessons"></div>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-gloss">
+          <h2 id="h-gloss">Glossary</h2>
+          <label class="wl-search"><span class="sr">Search the glossary</span><input id="gl-search" type="search" placeholder="Search a word, like staking" autocomplete="off"></label>
+          <div class="gl-cats" id="gl-cats" role="group" aria-label="Topic"></div>
+          <dl class="gloss" id="gloss"></dl>
+          <p class="empty" id="gl-empty" hidden>No word matches that.</p>
         </section>
 
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
