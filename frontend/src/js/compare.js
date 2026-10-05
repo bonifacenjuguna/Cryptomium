@@ -1,5 +1,5 @@
 // Compare: up to three coins as a metric matrix, with the better value marked and plain insights.
-import { initChrome, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
+import { initChrome, dragScroll, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
 import { coinPicker } from './ui.js';
 import { loadMarket, buildRows, coinCell, changeSpan, distText, dateText, supplyText, insights, tag, RULES } from './intel.js';
 
@@ -110,6 +110,7 @@ function sync() {
 
 async function boot() {
   state.coins = await initChrome();
+  dragScroll(document.querySelector('.cp-wrap'));
   const want = (new URLSearchParams(location.search).get('coins') || '').toUpperCase().split(',').filter(t => state.coins.some(c => c.ticker === t));
   state.picks = [...new Set(want)].slice(0, 3);
   for (const d of ['BTC', 'ETH']) if (state.picks.length < 2 && !state.picks.includes(d) && state.coins.some(c => c.ticker === d)) state.picks.push(d);

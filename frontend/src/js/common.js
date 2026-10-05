@@ -147,6 +147,7 @@ export const PREF_DEFAULTS = {
   shortcuts: true, // the / key opens search
   sound: false, // a soft chime when a price alert is reached
   haptics: false, // a light tap on phones while moving across a chart
+  selectText: false, // long-press selects text on touch screens (off: it feels like an app; fields always allow it)
 };
 let prefData = { ...PREF_DEFAULTS };
 try { Object.assign(prefData, JSON.parse(store.get('cm-prefs') || '{}')); } catch { /* start from defaults */ }
@@ -177,6 +178,7 @@ export function applyPrefs() {
   root.dataset.density = prefData.density === 'auto' ? (phoneQuery.matches ? 'compact' : 'comfortable') : prefData.density;
   if (prefData.motion === false) root.dataset.motion = 'off'; else delete root.dataset.motion;
   if (prefData.tape === false) root.dataset.tape = 'off'; else delete root.dataset.tape;
+  if (prefData.selectText === true) root.dataset.select = 'on'; else delete root.dataset.select;
   for (const [attr, key, def] of [['size', 'textSize', 'default'], ['palette', 'palette', 'classic']]) {
     if (prefData[key] && prefData[key] !== def) root.dataset[attr] = prefData[key]; else delete root.dataset[attr];
   }
@@ -803,6 +805,26 @@ function initFooterMovers(coins) {
       r.chg.className = 'fm-chg num ' + ch.cls;
     }
   });
+}
+
+/** Lets a mouse drag a wide table sideways (touch and trackpads already scroll natively). */
+export function dragScroll(box) {
+  if (!box) return;
+  let down = false, moved = false, x0 = 0, s0 = 0;
+  box.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    down = true; moved = false; x0 = e.clientX; s0 = box.scrollLeft;
+  });
+  window.addEventListener('pointermove', e => {
+    if (!down) return;
+    const dx = e.clientX - x0;
+    if (!moved && Math.abs(dx) > 4) { moved = true; box.classList.add('dragging'); }
+    if (moved) box.scrollLeft = s0 - dx;
+  });
+  const end = () => { if (!down) return; down = false; setTimeout(() => box.classList.remove('dragging'), 0); };
+  window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
+  box.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
 }
 
 export async function copyText(text) {

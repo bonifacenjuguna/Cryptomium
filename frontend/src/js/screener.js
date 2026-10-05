@@ -1,32 +1,12 @@
 // Screener: filter and sort every tracked coin. Runs entirely in the browser on the one shared
 // market reading, so changing a filter costs no request. Filters are kept in the address bar.
-import { initChrome, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
+import { initChrome, dragScroll, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
 import { loadMarket, buildRows, coinCell, changeSpan, distText, supplyText } from './intel.js';
 
 const $ = id => document.getElementById(id);
 const state = { coins: [], live: new Map(), market: null, sort: 'cap', dir: -1, f: {}, q: '' };
 
 // Amounts accept 5, 2.5k, 40m, 1.2b, 3t. Prices are US dollars.
-// Lets a mouse drag the table sideways (touch and trackpads already scroll natively).
-function dragScroll(box) {
-  if (!box) return;
-  let down = false, moved = false, x0 = 0, s0 = 0;
-  box.addEventListener('pointerdown', e => {
-    if (e.pointerType !== 'mouse' || e.button !== 0) return;
-    down = true; moved = false; x0 = e.clientX; s0 = box.scrollLeft;
-  });
-  window.addEventListener('pointermove', e => {
-    if (!down) return;
-    const dx = e.clientX - x0;
-    if (!moved && Math.abs(dx) > 4) { moved = true; box.classList.add('dragging'); }
-    if (moved) box.scrollLeft = s0 - dx;
-  });
-  const end = () => { if (!down) return; down = false; setTimeout(() => box.classList.remove('dragging'), 0); };
-  window.addEventListener('pointerup', end);
-  window.addEventListener('pointercancel', end);
-  box.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
-}
-
 export function parseAmount(text) {
   const m = String(text ?? '').trim().toLowerCase().replace(/[,$\s]/g, '').match(/^(-?\d*\.?\d+)([kmbt])?$/);
   if (!m) return null;

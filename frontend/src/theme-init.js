@@ -32,6 +32,7 @@
   if (p.motion === false) root.setAttribute('data-motion', 'off');
   if (p.tape === false) root.setAttribute('data-tape', 'off');
   if (p.textSize === 'large' || p.textSize === 'larger') root.setAttribute('data-size', p.textSize);
+  if (p.selectText === true) root.setAttribute('data-select', 'on');
   if (p.palette === 'clear') root.setAttribute('data-palette', 'clear');
   if (Array.isArray(p.hide) && p.hide.length) root.setAttribute('data-hide', p.hide.filter(function (x) { return /^[a-z]+$/.test(x); }).join(' '));
 })();

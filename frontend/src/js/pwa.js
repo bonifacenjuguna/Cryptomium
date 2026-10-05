@@ -157,6 +157,7 @@ function initAppTouch() {
   // Long-press on a link, logo or button opens the browser's own context menu on Android. An app has none.
   // Typing fields and anything marked data-selectable keep it (copy, paste, select).
   document.addEventListener('contextmenu', e => {
+    if (document.documentElement.dataset.select === 'on') return; // the visitor chose to allow selecting text
     if (e.target.closest && e.target.closest('input, textarea, [contenteditable="true"], [data-selectable], pre, code')) return;
     e.preventDefault();
   });

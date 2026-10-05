@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.2
+
+**Long-press no longer selects text, and Compare scrolls sideways. Redeploy the frontend (the backend is unchanged).**
+- **No text selection on touch screens by default.** In 3.2.1 reading text (intro lines, About, FAQ) was still selectable, so a long-press still highlighted words and opened Google's search panel. Now nothing on a touch screen selects on long-press, in the app and in the browser. Text fields, code and anything marked `data-selectable` always allow it.
+- **New setting: Preferences > Touch > Select text** (off by default). Turn it on to allow selecting and copying text with a long-press again; the app's long-press menu comes back with it.
+- **Compare:** only the first coin was visible on phones because the label column took too much room and nothing hinted at more. The table now scrolls sideways like the Screener (finger, trackpad, or dragging with a mouse), the label column is slimmer and stays in view, and the next coin peeks in from the edge.
+- Internal: the mouse drag-scroll helper is shared by Screener and Compare.
+
 ## 3.2.1
 
 **The installed app now behaves like an app, not a website. Redeploy the frontend (the backend is unchanged). The normal website in a browser tab is unchanged.**
