@@ -544,6 +544,42 @@ async function loadAlerts() {
 }
 
 // ---------------------------------------------------------------- boot
+
+// ---------- In the news: one lead story and three more headlines ----------
+async function loadNews() {
+  if (!API) return;
+  try {
+    const data = await getJSON('/api/news', { timeoutMs: 20000 });
+    const items = (data.items || []).slice(0, 4);
+    if (items.length < 2) return;
+    const tags = i => {
+      const row = el('div', 'nw-tags');
+      for (const t of i.coins.slice(0, 3)) row.append(el('span', 'tag', t));
+      return row;
+    };
+    const [lead, ...rest] = items;
+    const a = el('a', 'panel hn-lead');
+    a.href = lead.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    const kick = el('span', 'hn-kick'); kick.append(el('i'), document.createTextNode('Top story'));
+    const meta = el('div', 'hn-meta'); meta.append(el('b', '', lead.publisher), el('time', '', ago(lead.at)));
+    a.append(kick, el('h3', '', lead.title));
+    if (lead.summary) a.append(el('p', '', lead.summary));
+    a.append(meta);
+    if (lead.coins.length) a.append(tags(lead));
+    const list = el('ul', 'panel hn-list');
+    for (const i of rest) {
+      const li = el('li'); const l = el('a', 'hn-item');
+      l.href = i.link; l.target = '_blank'; l.rel = 'noopener noreferrer';
+      const m = el('div', 'hn-meta'); m.append(el('b', '', i.publisher), el('time', '', ago(i.at)));
+      l.append(m, el('strong', '', i.title));
+      if (i.coins.length) l.append(tags(i));
+      li.append(l); list.append(li);
+    }
+    $('hn-grid').replaceChildren(a, list);
+    $('home-news').hidden = false;
+  } catch { /* the section stays hidden when the feeds are unreachable */ }
+}
+
 async function boot() {
   state.coins = await initChrome();
   if (!state.coins.length) return;
@@ -605,6 +641,8 @@ async function boot() {
 
   loadAlerts();
   setInterval(loadAlerts, 20 * 1000);
+  loadNews();
+  setInterval(loadNews, 10 * 60 * 1000);
   setInterval(paintMoves, 30 * 1000); // keeps "5 min ago" honest between fetches
   new ResizeObserver(() => paintHeatmap(true)).observe($('heatmap'));
 }

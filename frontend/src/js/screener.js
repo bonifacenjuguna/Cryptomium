@@ -7,6 +7,26 @@ const $ = id => document.getElementById(id);
 const state = { coins: [], live: new Map(), market: null, sort: 'cap', dir: -1, f: {}, q: '' };
 
 // Amounts accept 5, 2.5k, 40m, 1.2b, 3t. Prices are US dollars.
+// Lets a mouse drag the table sideways (touch and trackpads already scroll natively).
+function dragScroll(box) {
+  if (!box) return;
+  let down = false, moved = false, x0 = 0, s0 = 0;
+  box.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    down = true; moved = false; x0 = e.clientX; s0 = box.scrollLeft;
+  });
+  window.addEventListener('pointermove', e => {
+    if (!down) return;
+    const dx = e.clientX - x0;
+    if (!moved && Math.abs(dx) > 4) { moved = true; box.classList.add('dragging'); }
+    if (moved) box.scrollLeft = s0 - dx;
+  });
+  const end = () => { if (!down) return; down = false; setTimeout(() => box.classList.remove('dragging'), 0); };
+  window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
+  box.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+}
+
 export function parseAmount(text) {
   const m = String(text ?? '').trim().toLowerCase().replace(/[,$\s]/g, '').match(/^(-?\d*\.?\d+)([kmbt])?$/);
   if (!m) return null;
@@ -192,6 +212,7 @@ async function boot() {
   $('sc-q').addEventListener('input', e => { state.q = e.target.value.trim(); paint(); writeUrl(); syncInputs(); });
   if (window.matchMedia('(max-width: 720px)').matches && !Object.keys(state.f).length) $('sc-filters').open = false;
   sync(); markPreset();
+  dragScroll(document.querySelector('.sc-table'));
   onCurrency(paint);
   if (!API) return;
   let first = true, timer = 0;

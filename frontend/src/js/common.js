@@ -595,7 +595,7 @@ function initMenu() {
   document.addEventListener('click', e => {
     if (menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) set(false);
   });
-  matchMedia('(min-width: 821px)').addEventListener('change', e => { if (e.matches) set(false); });
+  matchMedia('(min-width: 1101px)').addEventListener('change', e => { if (e.matches) set(false); });
   document.getElementById('search-toggle')?.addEventListener('click', () => set(false));
 }
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.1.0
+
+**Layout fixes, a news section on the home page and a draggable Screener. Redeploy the frontend (the backend is unchanged).**
+- **Top movers**: coin logos no longer sit on top of the symbols. A rule meant for the Markets page was squeezing the logo column on the home page.
+- **Home**: new **In the news** section after Latest moves, with a top story (excerpt, publisher, time, related coins) and three more headlines linking to the originals, plus an "All news" button. It uses the existing `/api/news` and stays hidden if the feeds cannot be reached.
+- **Screener**: the table scrolls sideways on phones too (it was cut off), and on desktop it can be dragged with the mouse as well as scrolled with the bar, trackpad or Shift + wheel. The coin column stays in view.
+- **Header**: the full navigation now switches to the menu button below 1100px wide, so the tabs no longer hide or run under the brand name on small desktop windows.
+
 ## 3.0.0
 
 **Cryptomium becomes a market intelligence site: Markets, Screener, News, Compare, portfolio analytics and more alert types. Still no accounts. Redeploy both the backend and the frontend (backend first).**
