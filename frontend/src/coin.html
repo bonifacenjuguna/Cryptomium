@@ -168,17 +168,21 @@
     </div>
   </section>
 
-  <section id="coin-insights" hidden>
+  <section id="coin-insights">
     <div class="wrap">
       <div class="sec-head"><h2>{{COIN_NAME}} insights</h2><p>Readings from today's numbers. They describe what has happened and are not predictions or advice.</p></div>
-      <div class="panel ci-panel"><dl class="cp-dl ci-dl" id="ci-dl"></dl>
+      <div class="panel ci-panel">
+        <p class="ci-empty" id="ci-empty">Insights appear once today's market numbers have loaded.</p>
+        <div id="ci-panel-body" hidden><dl class="cp-dl ci-dl" id="ci-dl"></dl>
         <details class="cp-rules"><summary>How these are calculated</summary><ul id="ci-rules"></ul></details></div>
+      </div>
     </div>
   </section>
 
-  <section id="coin-news" hidden>
+  <section id="coin-news">
     <div class="wrap">
       <div class="sec-head"><h2>{{COIN_NAME}} in the news</h2><p><a href="/news?coin={{COIN_TICKER}}">More headlines</a></p></div>
+      <p class="ci-empty" id="cn-note">Loading headlines…</p>
       <ol class="nw-list" id="cn-list"></ol>
     </div>
   </section>

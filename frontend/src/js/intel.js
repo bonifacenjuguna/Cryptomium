@@ -41,7 +41,17 @@ export const RULES = {
   volatility: '24h high–low range as a share of price: under 2% low, under 5% moderate, under 10% high, else extreme.',
   activity: '24h volume as a share of market cap: under 2% quiet, under 8% normal, under 20% busy, else very busy.',
   ath: 'Distance of the live price from its all-time high.',
+  peg: 'Stablecoins only: how far the price is from $1. Under 0.2% holding, under 0.5% slight drift, beyond that off its peg.',
 };
+
+export function stableInsights(r) {
+  if (!r || !r.stable || !(r.price > 0)) return null;
+  const dev = Math.abs(r.price - 1) * 100;
+  const peg = dev < 0.2 ? ['Holding', 'up'] : dev < 0.5 ? ['Slight drift', 'warn'] : ['Off peg', 'down'];
+  const range = r.high24 != null && r.low24 != null ? ((r.high24 - r.low24) / r.price) * 100 : null;
+  const activity = r.volCap == null ? null : r.volCap < 2 ? ['Quiet', 'flat'] : r.volCap < 8 ? ['Normal', 'flat'] : r.volCap < 20 ? ['Busy', 'warn'] : ['Very busy', 'warn'];
+  return { peg, dev, range, activity };
+}
 
 export function insights(r) {
   if (!r || r.stable) return null;

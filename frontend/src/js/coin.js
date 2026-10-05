@@ -6,7 +6,7 @@ import { createChart } from './chart.js';
 import { coinPicker } from './ui.js';
 import { createGauge, moodClass } from './gauge.js';
 import { loadTargets, addTarget, removeTarget, describe } from './targets.js';
-import { buildRows, insights, tag, distText, dateText, RULES } from './intel.js';
+import { buildRows, insights, stableInsights, tag, distText, dateText, RULES } from './intel.js';
 import { ABOUT } from './about-coins.js';
 
 const $ = id => document.getElementById(id);
@@ -49,40 +49,57 @@ function paintHead() {
 
 function paintInsights() {
   const r = buildRows(state.coins, state.live, state.market).find(x => x.ticker === ticker);
-  const i = insights(r);
   const sec = $('coin-insights');
-  if (!i || !r.price) { sec.hidden = true; return; }
   const dl = $('ci-dl');
   const rows = [];
   const add = (label, v, extra = '') => { if (!v) return; const dd = el('dd'); dd.append(tag(v[0], v[1])); if (extra) dd.append(el('span', 'cp-x num', ' ' + extra)); rows.push(el('dt', '', label), dd); };
-  add('Momentum', i.momentum);
-  add('7-day trend', i.trend, r.c7 != null ? (r.c7 > 0 ? '+' : '−') + Math.abs(r.c7).toFixed(1) + '%' : '');
-  add('Volatility', i.volatility, i.range != null ? i.range.toFixed(1) + '% 24h range' : '');
-  add('Volume activity', i.activity, r.volCap != null ? r.volCap.toFixed(1) + '% of cap' : '');
-  rows.push(el('dt', '', 'From all-time high'), el('dd', 'num', `${distText(r.athDist)} (high on ${dateText(r.athDate)})`));
-  rows.push(el('dt', '', 'Above all-time low'), el('dd', 'num', `${distText(r.atlUp)} (low on ${dateText(r.atlDate)})`));
+  const s = r?.stable ? stableInsights(r) : null;
+  const i = r?.stable ? null : insights(r);
+  if (s) {
+    add('Peg to $1', s.peg, (s.dev < 0.005 ? 'on the dot' : s.dev.toFixed(2) + '% away'));
+    add('24h range', s.range == null ? null : [s.range < 0.3 ? 'Tight' : s.range < 1 ? 'Normal' : 'Wide', s.range < 1 ? 'flat' : 'warn'], s.range != null ? s.range.toFixed(2) + '%' : '');
+    add('Volume activity', s.activity, r.volCap != null ? r.volCap.toFixed(1) + '% of cap' : '');
+    $('ci-rules').replaceChildren(...[RULES.peg, RULES.activity].map(v => el('li', '', v)));
+  } else if (i && r.price) {
+    add('Momentum', i.momentum);
+    add('7-day trend', i.trend, r.c7 != null ? (r.c7 > 0 ? '+' : '−') + Math.abs(r.c7).toFixed(1) + '%' : '');
+    add('Volatility', i.volatility, i.range != null ? i.range.toFixed(1) + '% 24h range' : '');
+    add('Volume activity', i.activity, r.volCap != null ? r.volCap.toFixed(1) + '% of cap' : '');
+    rows.push(el('dt', '', 'From all-time high'), el('dd', 'num', `${distText(r.athDist)} (high on ${dateText(r.athDate)})`));
+    rows.push(el('dt', '', 'Above all-time low'), el('dd', 'num', `${distText(r.atlUp)} (low on ${dateText(r.atlDate)})`));
+    $('ci-rules').replaceChildren(...Object.entries(RULES).filter(([k]) => k !== 'peg').map(([, v]) => el('li', '', v)));
+  }
+  // The section is always on the page so every coin looks the same; it says so when the numbers are not in yet.
+  $('ci-empty').hidden = rows.length > 0;
+  $('ci-panel-body').hidden = rows.length === 0;
   dl.replaceChildren(...rows);
-  $('ci-rules').replaceChildren(...Object.values(RULES).map(v => el('li', '', v)));
-  sec.hidden = false;
 }
 
 let newsLoaded = false;
 async function loadCoinNews() {
   if (newsLoaded) return;
   newsLoaded = true;
+  const row = n => {
+    const li = el('li', 'nw-item');
+    const a = el('a', 'nw-title', n.title); a.href = n.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    const meta = el('div', 'nw-meta'); meta.append(el('b', '', n.publisher), el('span', '', ago(n.at)));
+    li.append(meta, a);
+    return li;
+  };
   try {
     const data = await getJSON('/api/news', { timeoutMs: 20000 });
     const mine = data.items.filter(n => n.coins.includes(ticker)).slice(0, 4);
-    if (!mine.length) return;
-    $('cn-list').replaceChildren(...mine.map(n => {
-      const li = el('li', 'nw-item');
-      const a = el('a', 'nw-title', n.title); a.href = n.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      const meta = el('div', 'nw-meta'); meta.append(el('b', '', n.publisher), el('span', '', ago(n.at)));
-      li.append(meta, a);
-      return li;
-    }));
-    $('coin-news').hidden = false;
-  } catch { /* optional */ }
+    if (mine.length) { $('cn-list').replaceChildren(...mine.map(row)); $('cn-note').hidden = true; return; }
+    // No headline names this coin right now: say so, and show the latest general ones so the section is never empty.
+    const latest = data.items.slice(0, 3);
+    $('cn-note').textContent = `No recent headlines name ${state.coin?.name || ticker}. Here is the latest from the wider market.`;
+    $('cn-note').hidden = false;
+    $('cn-list').replaceChildren(...latest.map(row));
+  } catch {
+    $('cn-note').textContent = 'Headlines are not reachable right now. Try again in a few minutes.';
+    $('cn-note').hidden = false;
+    newsLoaded = false;
+  }
 }
 
 function paintStats() {

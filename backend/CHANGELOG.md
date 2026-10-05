@@ -1,9 +1,16 @@
 # Changelog
 
+## 3.1.2
+
+**Coin pages look the same for every coin, a tidier Markets control, and the market overview is easy to find. Redeploy the frontend (the backend is unchanged).**
+- **Coin pages**: the Insights and In the news sections now appear on every coin instead of only some. Stablecoins get their own insights (peg to $1, 24h range, volume activity) rather than none. When no headline names a coin, the section says so and shows the latest market headlines; before market data loads, Insights shows a short placeholder.
+- **Market overview**: the page is now called Overview in the top navigation and Market overview in its title, and the home page links to it from a card under the market snapshot and from Top movers. It was previously linked from the footer only.
+- **Markets page**: the Gainers & losers / Most active / Highs & lows selector no longer wraps into a lopsided pill on phones. It becomes an even row with short labels (Movers, Active, Highs/lows), and the period buttons sit evenly below it.
+
 ## 3.1.1
 
-**Header fit on desktop. Redeploy the frontend (the backend is unchanged).**
-- **Header**: on desktop the tabs always stay visible and no longer run under the brand name. As the window narrows, search first folds into an icon that opens a search box over the bar, then the tabs tighten slightly. The menu button is still only for phones and small tablets (820px and below).
+**A gentler header on narrow desktop windows. Redeploy the frontend (the backend is unchanged).**
+- **Header**: desktop keeps its tabs at every width instead of switching to the menu button at 1100px. As the window narrows, search first folds into an icon that opens a search box over the bar, then the tabs tighten slightly. The menu button is only for phones and small tablets (820px and below).
 
 ## 3.1.0
 
@@ -11,6 +18,7 @@
 - **Top movers**: coin logos no longer sit on top of the symbols. A rule meant for the Markets page was squeezing the logo column on the home page.
 - **Home**: new **In the news** section after Latest moves, with a top story (excerpt, publisher, time, related coins) and three more headlines linking to the originals, plus an "All news" button. It uses the existing `/api/news` and stays hidden if the feeds cannot be reached.
 - **Screener**: the table scrolls sideways on phones too (it was cut off), and on desktop it can be dragged with the mouse as well as scrolled with the bar, trackpad or Shift + wheel. The coin column stays in view.
+- **Header**: below 1100px wide the navigation switched to the menu button. (Reworked in 3.1.1.)
 
 ## 3.0.0
 
