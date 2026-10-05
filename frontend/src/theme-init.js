@@ -16,6 +16,11 @@
   var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
   if (app) root.classList.add('is-app');
   if (window.navigator.standalone === true) root.classList.add('ios-app');
+  // Which bottom tab is current, known before the page paints so the bar never changes after it appears.
+  var path = (location.pathname.replace(/\/+$/, '') || '/'), first = path.split('/')[1] || '';
+  var tabs = { '': 'home', coin: 'home', markets: 'markets', screener: 'screener', news: 'news', portfolio: 'portfolio' };
+  root.setAttribute('data-tab', Object.prototype.hasOwnProperty.call(tabs, first) ? tabs[first] : '');
+  root.setAttribute('data-depth', path === '/' || (tabs[first] && first !== 'coin' && path === '/' + first) ? 'root' : 'sub');
   root.setAttribute('data-accent', p.accent || 'citrine');
   var d = p.density;
   var migrated = false;

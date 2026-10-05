@@ -1,6 +1,7 @@
 // Shared interface pieces: the choose-from-a-list sheet (used for coins and currencies) and
 // the coin picker button that replaces the plain browser dropdowns.
 import { el, logoEl, money, pct } from './common.js';
+import { pushLayer } from './backstack.js';
 
 const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
@@ -65,13 +66,21 @@ export function openSheet({ title, items, value = null, searchLabel = 'Search', 
     ul.replaceChildren(...rows);
     if (!shown.length) ul.append(el('li', 'sheet-none', empty));
   };
-  function done() {
-    back.remove();
+  let closed = false;
+  let release = null;
+  function hide() {
+    if (closed) return;
+    closed = true;
     document.body.classList.remove('sheet-open');
     trigger?.setAttribute('aria-expanded', 'false');
     document.removeEventListener('keydown', onKey);
-    trigger?.focus?.();
+    // Slide away instead of vanishing (skipped when motion is off).
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off';
+    if (calm) back.remove(); else { back.classList.add('out'); setTimeout(() => back.remove(), 190); }
+    if (!matchMedia('(pointer: coarse)').matches) trigger?.focus?.();
   }
+  function done() { const r = release; release = null; hide(); r?.(); }
+  release = pushLayer(() => { release = null; hide(); });
   const onKey = e => { if (e.key === 'Escape') done(); };
   document.addEventListener('keydown', onKey);
   back.addEventListener('pointerdown', e => { if (e.target === back) done(); });
@@ -80,6 +89,23 @@ export function openSheet({ title, items, value = null, searchLabel = 'Search', 
   search.addEventListener('keydown', e => {
     if (e.key === 'Enter') { ul.querySelector('.sheet-item:not(:disabled)')?.click(); }
   });
+  // Pull the sheet down by its header to dismiss it, like a native bottom sheet.
+  let y0 = 0, dy = 0, pulling = false;
+  head.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; dy = 0; pulling = true; }, { passive: true });
+  head.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    sheet.style.animation = 'none'; sheet.style.transition = 'none';
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  const release2 = () => {
+    if (!pulling) return;
+    pulling = false;
+    sheet.style.transition = ''; sheet.style.transform = ''; sheet.style.animation = '';
+    if (dy > 90) done();
+  };
+  head.addEventListener('touchend', release2, { passive: true });
+  head.addEventListener('touchcancel', release2, { passive: true });
   paint();
   if (matchMedia('(min-width: 821px)').matches) search.focus();
   return { close: done };

@@ -34,6 +34,17 @@ async function networkFirst(request, cacheName, ms) {
   }
 }
 
+// Pages are small static shells (prices load afterwards), so show the saved page at once and refresh it
+// behind the scenes. Without this every tab switch waited for the network on slow connections.
+async function pageFast(event) {
+  const { request } = event;
+  const cache = await caches.open(PAGES);
+  const hit = await cache.match(request);
+  const fresh = fetch(request).then(res => { if (res && res.ok) cache.put(request, res.clone()); return res; });
+  if (hit) { event.waitUntil(fresh.catch(() => {})); return hit; }
+  return withTimeout(fresh, 6000);
+}
+
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(STATIC);
   const hit = await cache.match(request);
@@ -49,7 +60,7 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      networkFirst(request, PAGES, 4000).catch(async () => (await caches.match('/offline')) || new Response('Offline', { status: 503 }))
+      pageFast(event).catch(async () => (await caches.match('/offline')) || new Response('Offline', { status: 503 }))
     );
     return;
   }

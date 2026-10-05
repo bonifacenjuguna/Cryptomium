@@ -1,4 +1,5 @@
-import './pwa.js';
+import { isApp } from './pwa.js';
+import { pushLayer, leave } from './backstack.js';
 // Shared pieces: config, storage, preferences, currency, favourites, the live price
 // connection, formatting, the header (menu, search, price tape) and small DOM helpers.
 
@@ -577,27 +578,113 @@ function initSearch(coins) {
 }
 
 // ---------- Header: phone menu ----------
+// In a browser it is a dropdown under the header. In the installed app (phones) it is a side drawer:
+// slides in over a dimmed backdrop, locks the page behind it, closes with Back, a swipe or a tap outside.
 function initMenu() {
   const btn = document.getElementById('menu-toggle');
   const menu = document.getElementById('menu');
+  const scrim = document.getElementById('menu-scrim');
   if (!btn || !menu) return;
-  const set = open => {
+  const root = document.documentElement;
+  const phone = matchMedia('(max-width: 820px)');
+  const drawer = () => isApp() && phone.matches;
+  const behind = () => document.querySelectorAll('main, .app-tabbar, .tape, .site-header .bar > :not(.menu):not(.menu-scrim)');
+  let release = null;
+  let liveTimer = 0;
+
+  const paint = open => {
     menu.classList.toggle('open', open);
+    scrim?.classList.toggle('open', open);
     btn.setAttribute('aria-expanded', String(open));
     btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    if (!drawer()) return;
+    clearTimeout(liveTimer);
+    root.classList.toggle('menu-open', open);
+    if (open) root.classList.add('menu-live'); else liveTimer = setTimeout(() => root.classList.remove('menu-live'), 320);
+    // Nothing behind the drawer can be tapped, focused or read out while it is open.
+    behind().forEach(n => { if (open) n.setAttribute('inert', ''); else n.removeAttribute('inert'); });
+    menu.toggleAttribute('inert', !open);
+    menu.setAttribute('aria-hidden', String(!open));
+    if (open) menu.querySelector('a')?.focus({ preventScroll: true });
   };
-  btn.addEventListener('click', () => {
-    const open = !menu.classList.contains('open');
-    if (open) document.getElementById('search')?.classList.remove('open');
-    set(open);
+  const open = () => {
+    if (menu.classList.contains('open')) return;
+    document.getElementById('search')?.classList.remove('open');
+    paint(true);
+    if (drawer()) release = pushLayer(() => { release = null; paint(false); });
+  };
+  const close = () => {
+    if (!menu.classList.contains('open')) return;
+    const r = release; release = null;
+    paint(false);
+    r?.();
+  };
+  btn.addEventListener('click', () => (menu.classList.contains('open') ? close() : open()));
+  scrim?.addEventListener('click', close);
+
+  // Choosing something closes the drawer, then the page changes (one history step, no leftover entries).
+  menu.addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (!a) return;
+    if (drawer() && !a.target && a.origin === location.origin && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      if (a.pathname === location.pathname && !a.hash) { close(); return; }
+      release = null;
+      paint(false);
+      leave(a.href);
+    } else if (!drawer()) set(false);
   });
-  menu.querySelectorAll('.nav a').forEach(a => a.addEventListener('click', () => set(false)));
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menu.classList.contains('open')) { set(false); btn.focus(); } });
+  function set(v) { paint(v); }
+
+  // Swipe the drawer toward the left edge to put it away.
+  let sx = 0, sy = 0, dx = 0, dragging = false, width = 300;
+  menu.addEventListener('touchstart', e => {
+    if (!drawer() || e.touches.length !== 1) return;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; dragging = false; width = menu.offsetWidth || 300;
+  }, { passive: true });
+  menu.addEventListener('touchmove', e => {
+    if (!drawer() || e.touches.length !== 1) return;
+    const mx = e.touches[0].clientX - sx, my = e.touches[0].clientY - sy;
+    if (!dragging) { if (Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(my) * 1.4 && mx < 0) dragging = true; else return; }
+    dx = Math.min(0, mx);
+    menu.style.transition = 'none';
+    menu.style.transform = `translate3d(${dx}px,0,0)`;
+    if (scrim) { scrim.style.transition = 'none'; scrim.style.opacity = String(Math.max(0, 1 + dx / width)); }
+  }, { passive: true });
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    menu.style.transition = ''; menu.style.transform = '';
+    if (scrim) { scrim.style.transition = ''; scrim.style.opacity = ''; }
+    if (dx < -width * 0.28) close();
+  };
+  menu.addEventListener('touchend', endDrag, { passive: true });
+  menu.addEventListener('touchcancel', endDrag, { passive: true });
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menu.classList.contains('open')) { close(); btn.focus(); } });
   document.addEventListener('click', e => {
-    if (menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) set(false);
+    if (!drawer() && menu.classList.contains('open') && !menu.contains(e.target) && !btn.contains(e.target)) set(false);
   });
+  phone.addEventListener('change', () => { release = null; root.classList.remove('menu-open', 'menu-live'); behind().forEach(n => n.removeAttribute('inert')); menu.removeAttribute('inert'); menu.removeAttribute('aria-hidden'); paint(false); });
   matchMedia('(min-width: 821px)').addEventListener('change', e => { if (e.matches) set(false); });
-  document.getElementById('search-toggle')?.addEventListener('click', () => set(false));
+  document.getElementById('search-toggle')?.addEventListener('click', () => close());
+  if (drawer()) { menu.setAttribute('inert', ''); menu.setAttribute('aria-hidden', 'true'); }
+
+  // Mark where you are in the drawer.
+  const here = location.pathname.replace(/\/+$/, '') || '/';
+  menu.querySelectorAll('.menu-app a').forEach(a => { if (a.origin === location.origin && a.pathname.replace(/\/+$/, '') === here) a.setAttribute('aria-current', 'page'); });
+}
+
+// ---------- Header: back arrow inside the app (pages below the main tabs) ----------
+function initAppBack() {
+  const b = document.getElementById('app-back');
+  if (!b) return;
+  b.addEventListener('click', () => {
+    const sameSite = document.referrer && new URL(document.referrer).origin === location.origin;
+    if (history.length > 1 && sameSite) { history.back(); return; }
+    const p = location.pathname;
+    location.href = p.startsWith('/settings/') ? '/settings' : '/';
+  });
 }
 
 // ---------- Header: current page highlight + boot ----------
@@ -734,6 +821,7 @@ export async function initChrome() {
   initTheme();
   initCurrency();
   initMenu();
+  initAppBack();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
   if (path.startsWith('/settings')) document.querySelector('[data-nav="settings"]')?.setAttribute('aria-current', 'page');

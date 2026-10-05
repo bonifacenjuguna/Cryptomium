@@ -43,7 +43,9 @@ const siteUrl = String(process.env.SITE_URL || site.siteUrl || (vercelHost ? `ht
   .trim()
   .replace(/\/+$/, '');
 
+const pkgVersion = readJson('package.json', {}).version || '';
 const tokens = {
+  VERSION: pkgVersion,
   BRAND: site.brand || 'Cryptomium',
   CHANNEL_HANDLE: site.channelHandle || '@cryptomiumx',
   CHANNEL_URL: site.channelUrl || 'https://t.me/cryptomiumx',
@@ -80,7 +82,8 @@ const withPwa = html => {
 const header = fs.readFileSync(path.join(src, 'partials/header.html'), 'utf8');
 const footer = fs.readFileSync(path.join(src, 'partials/footer.html'), 'utf8');
 const settingsNav = fs.readFileSync(path.join(src, 'partials/settings-nav.html'), 'utf8');
-const compose = html => withPwa(html.replace('<!--@header-->', header).replace('<!--@footer-->', footer).replace('<!--@settings-nav-->', settingsNav));
+const tabbar = fs.readFileSync(path.join(src, 'partials/app-tabbar.html'), 'utf8');
+const compose = html => withPwa(html.replace('<!--@header-->', header).replace('<!--@footer-->', footer + tabbar).replace('<!--@settings-nav-->', settingsNav));
 
 // Only this site, Google Fonts, and the backend may be used by the pages. Two public icon sets are
 // allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
@@ -118,9 +121,10 @@ const pageFiles = [];
 // Version stamp for css/js so a redeploy always reaches phones immediately.
 import crypto from 'node:crypto';
 const stamp = crypto.createHash('sha1');
-for (const f of ['style.css', 'theme-init.js', ...fs.readdirSync(path.join(src, 'js')).sort().map(n => 'js/' + n)]) {
+for (const f of ['style.css', 'theme-init.js', 'sw.js', ...fs.readdirSync(path.join(src, 'js')).sort().map(n => 'js/' + n), ...fs.readdirSync(path.join(src, 'partials')).sort().map(n => 'partials/' + n)]) {
   try { stamp.update(fs.readFileSync(path.join(src, f))); } catch { /* optional */ }
 }
+stamp.update(pkgVersion);
 const ver = stamp.digest('hex').slice(0, 8);
 const bust = html => html.replace(/(href|src)="\/(style\.css|theme-init\.js|config\.js|js\/[a-z]+\.js)"/g, `$1="/$2?v=${ver}"`);
 

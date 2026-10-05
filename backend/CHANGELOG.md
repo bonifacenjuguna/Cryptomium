@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.2.1
+
+**The installed app now behaves like an app, not a website. Redeploy the frontend (the backend is unchanged). The normal website in a browser tab is unchanged.**
+- **Bottom tab bar glitch, fixed at the cause.** The bar used to be built by script after each page loaded, and the page transition then cross-faded the old bar into the new one, so the old tab seemed to react late and the bar jumped. The bar is now part of every page, the current tab is known before the first frame, the tapped tab lights up instantly, and the bar keeps its own layer during page changes so it never blinks. Tapping the tab you are already on scrolls to the top. The bar tucks away while the keyboard is open.
+- **Bottom bar holds only the five main destinations** (Home, Overview, Screener, News, Portfolio). Menu items live in the menu.
+- **Menu is a side drawer** in the app (phones): slides in over a dimmed backdrop, the page behind cannot be touched or scrolled, Android Back closes it, swipe left or tap outside closes it, choosing an item closes it and opens the page with no leftover history. It now also carries Tools, Learn and info, Settings, the Telegram channel and the disclaimer, plus the version.
+- **Website footer is gone inside the app.** Nothing was lost: Help and about, Data sources, Data and privacy, the Telegram channel, version and the "not financial advice" note are in the menu and in an "About this app" section in Settings.
+- **Back arrow** in the top bar on inner pages (coin pages, Compare, About, Settings pages).
+- **Android Back** closes sheets (coin and currency pickers) and the full screen chart before leaving the page. Sheets slide away and can be pulled down to dismiss.
+- **No web-style touch behaviour:** no text selection or long-press menus on buttons, links, tabs, tiles, headings and the menu; no link drag, no double-tap zoom delay. Fields, code and reading text (About, FAQ, lead paragraphs) stay selectable.
+- **Faster page switching:** pages open instantly from the saved copy and refresh quietly in the background. Page changes only fade the content, shorter than before, and respect "reduce motion".
+- **Toasts** sit above the tab bar. The floating back-to-top button is off in the app.
+- Build: `{{VERSION}}` is filled in from package.json, and the offline cache now refreshes when any page part changes.
+- New files: `js/backstack.js`, `partials/app-tabbar.html`.
+
 ## 3.2.0
 
 **Cryptomium is now an installable app (PWA). Redeploy the frontend (the backend is unchanged).**

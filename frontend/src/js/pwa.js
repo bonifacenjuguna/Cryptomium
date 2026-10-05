@@ -2,6 +2,7 @@
 const FLAG = 'cm-pwa-installed';
 const standaloneQuery = window.matchMedia('(display-mode: standalone)');
 const isStandalone = () => standaloneQuery.matches || window.navigator.standalone === true;
+export const isApp = isStandalone;
 const ua = navigator.userAgent || '';
 const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const iosSafari = isIOS && !/crios|fxios|edgios|opios/i.test(ua);
@@ -116,26 +117,53 @@ function initCard() {
   paint();
 }
 
-// 5. Phone tab bar, only inside the installed app
-const TABS = [
-  ['/', 'Home', 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
-  ['/markets', 'Overview', 'M4 20V10M10 20V4M16 20v-7M22 20H2'],
-  ['/screener', 'Screener', 'M3 4h18l-7 8.5V19l-4 2v-8.5z'],
-  ['/news', 'News', 'M5 4h11a1 1 0 0 1 1 1v14H6a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1zM17 8h3v9a2 2 0 0 1-2 2M8 8h5M8 12h5M8 16h3'],
-  ['/portfolio', 'Portfolio', 'M21 12A9 9 0 1 1 12 3v9zM15 3.5A9 9 0 0 1 20.5 9H15z'],
-];
+// 5. Phone tab bar. The bar itself is plain HTML in every page (so it is there on the very first
+// frame and never pops in), and the highlighted tab is decided by <html data-tab> which theme-init.js sets
+// before the page paints. This only adds the instant tap response and keeps assistive text in step.
+const TAB_OF = { '': 'home', coin: 'home', markets: 'markets', screener: 'screener', news: 'news', portfolio: 'portfolio' };
 function initTabBar() {
-  if (!isStandalone() || document.querySelector('.app-tabbar')) return;
-  const path = location.pathname.replace(/\/+$/, '') || '/';
-  const here = path.startsWith('/coin') ? '/' : '/' + (path.split('/')[1] || '');
-  const nav = document.createElement('nav');
-  nav.className = 'app-tabbar';
-  nav.setAttribute('aria-label', 'App');
-  nav.innerHTML = TABS.map(([href, label, d]) =>
-    `<a href="${href}"${href === here || (href === '/' && here === '/') ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span>${label}</span></a>`
-  ).join('');
-  document.body.append(nav);
+  const bar = document.querySelector('.app-tabbar');
+  if (!bar) return;
+  const root = document.documentElement;
+  const mark = tab => {
+    root.dataset.tab = tab;
+    bar.querySelectorAll('a').forEach(a => { if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  };
+  mark(root.dataset.tab || '');
+  bar.addEventListener('click', e => {
+    const a = e.target.closest('a[data-tab]');
+    if (!a) return;
+    if (a.dataset.tab === root.dataset.tab) {
+      // Tapping the tab you are already on: back to the top of that screen (like a native app), no reload.
+      e.preventDefault();
+      const here = location.pathname.replace(/\/+$/, '') || '/';
+      const own = a.getAttribute('href');
+      if (here === own || (own === '/' && here.startsWith('/coin'))) {
+        window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        return;
+      }
+    }
+    mark(a.dataset.tab); // answer the tap now; the page follows
+  });
+  // The on-screen keyboard pushes fixed bars up over the form: tuck the bar away while typing.
+  const typing = el => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(checkbox|radio|button|submit|range)$/.test(el.type || '');
+  document.addEventListener('focusin', e => { if (typing(e.target)) root.classList.add('kb-open'); });
+  document.addEventListener('focusout', () => { setTimeout(() => { if (!typing(document.activeElement)) root.classList.remove('kb-open'); }, 60); });
 }
 
-function boot() { initCard(); initTabBar(); }
+// 6. App behaviour that a website does not need
+function initAppTouch() {
+  if (!isStandalone()) return;
+  // Long-press on a link, logo or button opens the browser's own context menu on Android. An app has none.
+  // Typing fields and anything marked data-selectable keep it (copy, paste, select).
+  document.addEventListener('contextmenu', e => {
+    if (e.target.closest && e.target.closest('input, textarea, [contenteditable="true"], [data-selectable], pre, code')) return;
+    e.preventDefault();
+  });
+  document.addEventListener('dragstart', e => { if (e.target.closest && e.target.closest('a, img')) e.preventDefault(); });
+  // Pinch / double-tap zoom is a web habit; the app has its own text size setting.
+  document.addEventListener('gesturestart', e => e.preventDefault());
+}
+
+function boot() { initCard(); initTabBar(); initAppTouch(); }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

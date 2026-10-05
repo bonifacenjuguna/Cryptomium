@@ -1,6 +1,7 @@
 <a class="sr" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap bar">
+    <button class="icon-btn app-back" id="app-back" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
     <a class="brand" href="/" aria-label="{{BRAND}} home">
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
       <span>{{BRAND}}</span>
@@ -14,6 +15,25 @@
         <a href="/portfolio" data-nav="portfolio">Portfolio</a>
         <a href="/about" data-nav="about">About</a>
       </nav>
+      <div class="menu-app">
+        <div class="ma-head">
+          <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
+          <span class="ma-name">{{BRAND}}</span><span class="ma-ver">v{{VERSION}}</span>
+        </div>
+        <p class="ma-title">Tools</p>
+        <a href="/compare">Compare coins</a>
+        <a href="/settings/alerts">Price alerts</a>
+        <a href="/settings/watchlist">Watchlist</a>
+        <p class="ma-title">Learn and info</p>
+        <a href="/settings/learn">Learn crypto</a>
+        <a href="/settings/sources">Data sources</a>
+        <a href="/about">Help and about</a>
+        <a href="/settings/data">Data and privacy</a>
+        <p class="ma-title">App</p>
+        <a href="/settings">Settings</a>
+        <a href="{{CHANNEL_URL}}" target="_blank" rel="noopener">Telegram alerts channel</a>
+        <p class="ma-note">Market information only, not financial advice. Prices can differ between exchanges.</p>
+      </div>
       <div class="menu-tools">
         <a class="settings-link" href="/settings" data-nav="settings" aria-label="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -29,6 +49,7 @@
       <input id="search-input" type="search" placeholder="Search coins" autocomplete="off" spellcheck="false" aria-label="Search coins" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-list">
       <ul class="search-list" id="search-list" role="listbox" aria-label="Matching coins" hidden></ul>
     </div>
+    <div class="menu-scrim" id="menu-scrim" aria-hidden="true"></div>
     <button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg>
     </button>

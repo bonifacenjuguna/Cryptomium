@@ -4,6 +4,7 @@ import {
 } from './common.js';
 import { createChart } from './chart.js';
 import { coinPicker } from './ui.js';
+import { pushLayer } from './backstack.js';
 import { createGauge, moodClass } from './gauge.js';
 import { loadTargets, addTarget, removeTarget, describe } from './targets.js';
 import { buildRows, insights, stableInsights, tag, distText, dateText, RULES } from './intel.js';
@@ -182,8 +183,11 @@ function paintToolbar() {
   $('chart-card').classList.toggle('is-compare', Boolean(state.cmp));
 }
 
+let fullRelease = null;
 function setFull(on) {
   const card = $('chart-card');
+  if (on && !fullRelease) fullRelease = pushLayer(() => { fullRelease = null; setFull(false); });
+  if (!on && fullRelease) { const r = fullRelease; fullRelease = null; r(); }
   card.classList.toggle('is-full', on);
   document.body.classList.toggle('chart-open', on);
   const b = $('chart-full');
