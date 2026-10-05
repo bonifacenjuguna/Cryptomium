@@ -30,9 +30,10 @@ function readJson(file, fallback) {
 const site = readJson('site.config.json', {});
 const coins = readJson('coins.json', []);
 
-const apiUrl = String(process.env.API_URL || site.apiUrl || '').trim().replace(/\/+$/, '');
+const apiUrl = String(process.env.API_URL || '').trim().replace(/\/+$/, '');
 if (!apiUrl) {
-  console.warn('[build] No API address found (API_URL or site.config.json). The site will build, but will show a setup message instead of prices.');
+  console.error('[build] Missing required API_URL environment variable. Set API_URL in Vercel/local environment before building.');
+  process.exit(1);
 } else if (!/^https?:\/\//.test(apiUrl)) {
   console.error(`[build] The API address must start with https:// (got "${apiUrl}").`);
   process.exit(1);
