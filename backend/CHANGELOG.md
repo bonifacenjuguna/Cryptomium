@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.1.5
+
+**A more inviting Market overview entry on the home page. Redeploy the frontend (the backend is unchanged).**
+- **Home**: the Market overview row now carries a live line (for example "Fear & Greed 62, Greed · 21 of 30 coins up") that updates with the market, a pulsing dot, and an accent-coloured Open button, so it reads as something worth opening rather than a plain link. Before the data arrives it describes what is inside.
+
 ## 3.1.4
 
 **The home page opens on the markets, and the "leading gainer" highlight lives in the Market overview. Redeploy the frontend (the backend is unchanged).**

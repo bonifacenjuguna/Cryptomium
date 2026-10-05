@@ -229,8 +229,15 @@ function liveCap(t) {
   return live?.price && ref ? m.marketCap * (live.price / ref) : m.marketCap;
 }
 
+// The Market overview row shows a live teaser (mood and breadth) so there is a reason to open it.
+const ovBits = { fng: '', breadth: '' };
+function paintOverviewTeaser() {
+  const text = [ovBits.fng, ovBits.breadth].filter(Boolean).join(' · ');
+  if (text) $('ov-live').textContent = text;
+}
+
 function paintSnapshot() {
-  let cap = 0, capAgo = 0, vol = 0;
+  let cap = 0, capAgo = 0, vol = 0, up = 0, down = 0;
   for (const c of state.coins) {
     const v = liveCap(c.ticker);
     if (!v) continue;
@@ -238,8 +245,10 @@ function paintSnapshot() {
     cap += v;
     capAgo += typeof ch === 'number' ? v / (1 + ch / 100) : v;
     vol += state.market[c.ticker]?.volume24h || 0;
+    if (!isStable(c.ticker) && typeof ch === 'number') { if (ch > 0) up++; else if (ch < 0) down++; }
   }
   if (!cap) return;
+  if (up + down) { ovBits.breadth = `${up} of ${up + down} coins up`; paintOverviewTeaser(); }
   setNum($('sn-cap'), compactMoney(cap), cap);
   const chg = pct(((cap - capAgo) / capAgo) * 100);
   $('sn-cap-chg').textContent = chg.text + ' in 24 hours';
@@ -434,6 +443,7 @@ function paintSentiment(data) {
     $('fng-dial').prepend(fng.gauge.svg);
   }
   fng.gauge.set(o.value);
+  ovBits.fng = `Fear & Greed ${o.value}, ${o.label}`; paintOverviewTeaser();
   fng.gauge.svg.dataset.band = moodClass(o.value);
   $('fng-val').textContent = String(o.value);
   $('fng-label').textContent = o.label;
