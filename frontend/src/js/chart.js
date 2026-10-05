@@ -37,10 +37,10 @@ function gridTicks(min, max, n = GRID_ROWS) {
 
 // Zoom feel. The pinch used to follow the fingers one-to-one and the wheel moved 0.42% per pixel, which felt slow.
 // These make a gesture go a bit further without becoming twitchy: normal, not fast.
-const PINCH_GAIN = 1.45; // 1 = fingers exactly; higher = zooms further for the same finger movement
-const WHEEL_ZOOM = 0.0075; // per pixel of wheel / trackpad-pinch movement (was 0.0042)
-const WHEEL_ZOOM_LINES = 0.06; // per line, for mice that scroll by lines (was 0.03)
-const KEY_ZOOM = 1.6; // + and - keys (was 1.5)
+const PINCH_GAIN = 2.1; // 1 = fingers exactly; higher = zooms further for the same finger movement (2.7.0: 1.45)
+const WHEEL_ZOOM = 0.012; // per pixel of wheel / trackpad-pinch movement (2.6.0: 0.0042, 2.7.0: 0.0075)
+const WHEEL_ZOOM_LINES = 0.1; // per line, for mice that scroll by lines (2.6.0: 0.03, 2.7.0: 0.06)
+const KEY_ZOOM = 1.8; // + and - keys (2.6.0: 1.5, 2.7.0: 1.6)
 function timeLabel(ms, range) {
   const d = new Date(ms);
   if (range === '24h') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -195,7 +195,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const vals = el('div', 'lg-vals');
     if (v.mode === 'compare') {
       const i = sel == null ? v.n - 1 : sel;
-      title.append(el('span', 'lg-time', sel == null ? 'Past ' + RANGE_LABEL[st.range] : tipTime(v.times[i], st.lr || st.range)));
+      title.append(el('span', 'lg-time', sel == null ? 'Past ' + RANGE_LABEL[st.range] : tipTime(v.times[i], st.lr || st.range)), el('b', 'chg num', '\u00a0'));
       v.cmp.forEach((s, k) => {
         const idx = sel == null ? s.pts.length - 1 : s.nearest(v.times[i]);
         const ch = signed(s.pts[idx][1]);
@@ -510,7 +510,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
   host.addEventListener('pointercancel', endDrag);
 
   // Two fingers: pinch to zoom, move both to pan. The moment under the fingers stays under them.
-  let pinch = null;
+  let pinch = null, pinchNext = null, pinchFrame = 0;
   const touchInfo = e => {
     const [p, q] = [e.touches[0], e.touches[1]];
     return { dist: Math.max(20, Math.hypot(p.clientX - q.clientX, p.clientY - q.clientY)), cx: (p.clientX + q.clientX) / 2 };
@@ -533,7 +533,9 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const span0 = pinch.b - pinch.a;
     const span = Math.min(pinch.total, Math.max(pinch.minSpan, span0 * (pinch.dist / info.dist) ** PINCH_GAIN));
     const frac = plotFrac(info.cx);
-    setWin(pinch.anchorT - frac * span, pinch.anchorT + (1 - frac) * span, false);
+    // One redraw per animation frame: rebuilding the chart on every raw touch event made fast pinches feel laggy.
+    pinchNext = [pinch.anchorT - frac * span, pinch.anchorT + (1 - frac) * span];
+    if (!pinchFrame) pinchFrame = requestAnimationFrame(() => { pinchFrame = 0; if (pinch && pinchNext) setWin(pinchNext[0], pinchNext[1], false); });
   }, { passive: false });
   const endPinch = e => { if (pinch && (!e.touches || e.touches.length < 2)) { pinch = null; setTimeout(() => { pinching = false; }, 60); } };
   host.addEventListener('touchend', endPinch, { passive: true });

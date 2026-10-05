@@ -1069,10 +1069,14 @@ td.go { vertical-align: middle; }
 /* Chart header: title and tools on one row, the values on a full-width row below. */
 .chart-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title tools" "vals vals"; align-items: start; gap: 4px 12px; }
 .legend { display: contents; }
-.lg-title { grid-area: title; align-self: center; }
-.lg-vals { grid-area: vals; min-height: 1.6em; }
 .chart-tools { grid-area: tools; }
-@media (max-width: 640px) { .lg-vals { font-size: .86rem; gap: 2px 14px; min-height: 2.9em; } }
+/* The chart header is always 3 rows, so nothing below it moves while you drag across the chart:
+   row 1 the time, row 2 the change, row 3 the values (one line, never wraps). */
+.lg-title { grid-area: title; align-self: start; display: grid; grid-template-rows: 1.5em 1.5em; align-content: start; gap: 4px; }
+.lg-title > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+.lg-vals { grid-area: vals; height: 1.6em; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; align-items: baseline; }
+@media (max-width: 640px) { .lg-vals { font-size: .84rem; gap: 2px 12px; } }
+@media (max-width: 380px) { .lg-vals { font-size: .78rem; gap: 2px 9px; } }
 #markets { padding-top: 28px; }
 
 /* =====================================================================

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.8.0
+
+**Zooming is more responsive again. Redeploy the frontend.**
+- Pinching with two fingers now zooms about 1.4x further for the same finger movement than in 2.7.x (the pinch curve went from 1.45 to 2.1; 1 would be fingers exactly). The mouse wheel and trackpad pinch are about 1.6x quicker, and the + / - keys step 1.8x instead of 1.6x.
+- Pinch zooming redraws once per frame instead of on every touch event, so fast pinches are smoother as well as stronger.
+- The numbers sit at the top of `src/js/chart.js` (`PINCH_GAIN`, `WHEEL_ZOOM`, `WHEEL_ZOOM_LINES`, `KEY_ZOOM`) if you want to fine-tune them.
+
+## 2.7.1
+
+**The chart header (the time, change and price above the chart) now always takes exactly 3 rows. Redeploy the frontend.**
+- Row 1 is the time, row 2 the change, row 3 the values (High / Low / Last, Price when you touch the chart, or O / H / L / C on candles). Row 3 stays on one line and no longer wraps, so the chart no longer jumps up and down while you analyse it. Comparing coins keeps the same 3 rows.
+- The 2.7.0 change (5 fixed price rows inside the chart and the Telegram chart images) stays.
+
 ## 2.7.0
 
 **Ten more coins, TON is now GRAM, steadier charts, easier zooming and a white margin round the coin logo. Redeploy both the backend and the frontend.**

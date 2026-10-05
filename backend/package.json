@@ -1,6 +1,6 @@
 {
   "name": "cryptomium",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Cryptomium: owner-only Telegram bot posting milestone crypto price alerts as branded image banners, plus the API behind the Cryptomium website.",
   "type": "module",
   "main": "src/index.js",
