@@ -1,5 +1,5 @@
 import { COINS, CONFIG, TICKERS } from '../config.js';
-import { muteIndefinitely, muteUntil, unmute, getCoinSettings } from '../db.js';
+import { muteIndefinitely, muteUntil, unmute, getSettingsMap } from '../db.js';
 import { scheduleMuteExpiry, cancelScheduledMuteExpiry } from '../redisClient.js';
 import { parseMuteTime, formatInTimezone } from '../timezone.js';
 import { isMuted, statusLine } from '../coinView.js';
@@ -154,16 +154,15 @@ export function registerMuteHandlers(bot) {
   // Status
   // ------------------------------------------------------------------
   bot.hears(MENU.status, async ctx => {
-    const rows = await Promise.all(
-      COINS.map(async coin => {
-        const settings = await getCoinSettings(coin.ticker);
-        let line = statusLine(coin, settings);
-        if (isMuted(settings) && !settings.muted_indefinitely) {
-          line += ` (until ${new Date(settings.muted_until).toLocaleString()})`;
-        }
-        return line;
-      })
-    );
+    const allSettings = await getSettingsMap();
+    const rows = COINS.map(coin => {
+      const settings = allSettings.get(coin.ticker);
+      let line = statusLine(coin, settings);
+      if (isMuted(settings) && !settings.muted_indefinitely) {
+        line += ` (until ${new Date(settings.muted_until).toLocaleString()})`;
+      }
+      return line;
+    });
     await ctx.reply(rows.join('\n'), statusExtrasKeyboard());
   });
 

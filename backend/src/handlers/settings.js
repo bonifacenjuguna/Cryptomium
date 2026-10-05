@@ -100,8 +100,8 @@ export function registerSettingsHandlers(bot) {
   bot.action(/^setmode:([^:]+):(\w+)$/, async ctx => {
     const [, ticker, key] = ctx.match;
     if (!MODES.some(m => m.key === key)) return ctx.answerCbQuery('Unknown mode.');
-    await setMode(ticker, key);
     await ctx.answerCbQuery(`${ticker}: ${modeByKey(key).emoji} ${modeByKey(key).name}`);
+    await setMode(ticker, key);
     await showCoinDetail(ctx, ticker);
   });
 

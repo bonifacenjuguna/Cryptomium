@@ -23,6 +23,23 @@ export function createBot({ onChannelConnected }) {
     console.error(`[bot] Error while handling update ${ctx?.update?.update_id}:`, err);
   });
 
+  // Run every update in the background instead of making Telegraf's polling loop wait for it.
+  // Telegraf fetches the next batch of updates only after the current batch has been fully
+  // handled, so one slow handler (a chart render, "post all", a price fetch, a source test)
+  // used to freeze every other command and button tap until it finished. Now the loop
+  // returns at once and each tap is handled on its own. Errors are routed to bot.catch above.
+  bot.use((ctx, next) => {
+    Promise.resolve()
+      .then(next)
+      .catch(err => {
+        try {
+          bot.handleError(err, ctx);
+        } catch (handlerErr) {
+          console.error('[bot] Error handler failed:', handlerErr);
+        }
+      });
+  });
+
   // Owner-only guard: silently drop any update not from the configured
   // owner. This runs before every other handler.
   bot.use(async (ctx, next) => {

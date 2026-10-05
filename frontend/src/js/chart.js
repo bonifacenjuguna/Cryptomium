@@ -37,10 +37,10 @@ function gridTicks(min, max, n = GRID_ROWS) {
 
 // Zoom feel. The pinch used to follow the fingers one-to-one and the wheel moved 0.42% per pixel, which felt slow.
 // These make a gesture go a bit further without becoming twitchy: normal, not fast.
-const PINCH_GAIN = 2.1; // 1 = fingers exactly; higher = zooms further for the same finger movement (2.7.0: 1.45)
-const WHEEL_ZOOM = 0.012; // per pixel of wheel / trackpad-pinch movement (2.6.0: 0.0042, 2.7.0: 0.0075)
-const WHEEL_ZOOM_LINES = 0.1; // per line, for mice that scroll by lines (2.6.0: 0.03, 2.7.0: 0.06)
-const KEY_ZOOM = 1.8; // + and - keys (2.6.0: 1.5, 2.7.0: 1.6)
+const PINCH_GAIN = 3.2; // 1 = fingers exactly; higher = zooms further for the same finger movement (2.8.0: 2.1, 2.7.0: 1.45)
+const WHEEL_ZOOM = 0.022; // per pixel of wheel / trackpad-pinch movement (2.8.0: 0.012, 2.7.0: 0.0075)
+const WHEEL_ZOOM_LINES = 0.2; // per line, for mice that scroll by lines (2.8.0: 0.1, 2.7.0: 0.06)
+const KEY_ZOOM = 2.2; // + and - keys and the on-chart + / - buttons (2.8.0: 1.8, 2.7.0: 1.6)
 function timeLabel(ms, range) {
   const d = new Date(ms);
   if (range === '24h') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -126,7 +126,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
   }
 
   // ---------------------------------------------------------------- zoom window
-  const fullData = () => (st.type === 'compare' ? null : st.type === 'candles' ? st.candles : lineSeries());
+  const fullData = () => (st.type === 'compare' ? st.series?.[0]?.points ?? null : st.type === 'candles' ? st.candles : lineSeries());
   function resolveWin(arr) {
     const T0 = arr[0][0], T1 = arr.at(-1)[0];
     const total = Math.max(1, T1 - T0);
@@ -195,7 +195,8 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const vals = el('div', 'lg-vals');
     if (v.mode === 'compare') {
       const i = sel == null ? v.n - 1 : sel;
-      title.append(el('span', 'lg-time', sel == null ? 'Past ' + RANGE_LABEL[st.range] : tipTime(v.times[i], st.lr || st.range)), el('b', 'chg num', '\u00a0'));
+      const cmpLabel = v.zoomed ? timeLabel(v.t0, st.lr || st.range) + ' – ' + timeLabel(v.t1, st.lr || st.range) : 'Past ' + RANGE_LABEL[st.range];
+      title.append(el('span', 'lg-time', sel == null ? cmpLabel : tipTime(v.times[i], st.lr || st.range)), el('b', 'chg num', '\u00a0'));
       v.cmp.forEach((s, k) => {
         const idx = sel == null ? s.pts.length - 1 : s.nearest(v.times[i]);
         const ch = signed(s.pts[idx][1]);
@@ -248,10 +249,9 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       if (legend) legend.replaceChildren();
       return;
     }
-    if (isCmp) st.win = null; // comparing coins always shows the whole range
     const win = whole.length > 2 ? resolveWin(whole) : { a: whole[0][0], b: whole.at(-1)[0], T0: whole[0][0], T1: whole.at(-1)[0], total: 1, zoomed: false };
     st.dom = { T0: win.T0, T1: win.T1 };
-    const data = isCmp ? whole : slice(whole, win, !isC);
+    const data = isCmp ? slice(whole, win, true) : slice(whole, win, !isC);
     const rate = currency.rate;
     const W = host.clientWidth || 640;
     const H = host.clientHeight || 320;
@@ -261,8 +261,10 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     // Compare mode works in percent change from the start, so two very different prices share one scale.
     let cmp = null;
     if (isCmp) {
-      cmp = st.series.map(s => {
-        const pts = s.points.map(p => [p[0], (p[1] / s.points[0][1] - 1) * 100]);
+      cmp = st.series.map((s, k) => {
+        // Percent change is measured from the first point on screen, so a zoomed view starts at 0% again.
+        const part = k === 0 ? data : slice(s.points, win, true);
+        const pts = part.map(p => [p[0], (p[1] / part[0][1] - 1) * 100]);
         const times = pts.map(p => p[0]);
         const nearest = t => {
           let lo = 0, hi = times.length - 1;
@@ -287,7 +289,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const iw = W - padL - padR, ih = H - padT - padB;
     const y = v => padT + (1 - (v - lo) / (hi - lo)) * ih;
 
-    const t0 = isC || isCmp ? data[0][0] : win.a, t1 = isC || isCmp ? data.at(-1)[0] : win.b;
+    const t0 = isC ? data[0][0] : win.a, t1 = isC ? data.at(-1)[0] : win.b;
     st.lr = t1 - t0 <= 3 * 864e5 && st.range !== '24h' ? '24h' : null; // a zoomed-in view shows clock times
     const n = data.length;
     const band = iw / n;
@@ -327,7 +329,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const ticks = W < 520 ? 2 : 4;
     for (let k = 0; k <= ticks; k++) {
       const i = Math.round((k / ticks) * (n - 1));
-      const tt = isC || isCmp ? data[i][0] : t0 + (k / ticks) * (t1 - t0);
+      const tt = isC ? data[i][0] : t0 + (k / ticks) * (t1 - t0);
       const tx = isC ? x(i) : xt(tt);
       const t = svg('text', { class: 'axis-t', x: tx, y: H - 6, 'text-anchor': k === 0 ? 'start' : k === ticks ? 'end' : 'middle' });
       t.textContent = timeLabel(tt, st.lr || st.range);
@@ -335,10 +337,12 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     }
 
     if (isCmp) {
+      const g = svg('g', { 'clip-path': 'url(#cclip)' });
       cmp.forEach((s, k) => {
         const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
-        root.append(svg('path', { class: 'line', d, stroke: k ? color2 : color }));
+        g.append(svg('path', { class: 'line', d, stroke: k ? color2 : color }));
       });
+      root.append(g);
     } else if (isC) {
       const bodyW = Math.max(1.6, Math.min(16, band * 0.62));
       data.forEach((c, i) => {
@@ -390,6 +394,17 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     root.append(vline, hline, dot, dot2, pill);
     host.append(root);
     host.classList.toggle('is-zoomed', win.zoomed);
+    // Easy zoom controls for mouse users (no Ctrl+wheel needed) and anyone who prefers a tap.
+    const btns = el('div', 'zoom-btns');
+    for (const [label, aria, factor] of [['\u2212', 'Zoom out', 1 / KEY_ZOOM], ['+', 'Zoom in', KEY_ZOOM]]) {
+      const b = el('button', 'zoom-btn', label);
+      b.type = 'button';
+      b.setAttribute('aria-label', aria);
+      b.addEventListener('pointerdown', e => e.stopPropagation());
+      b.addEventListener('click', () => zoomAt(factor, 0.5));
+      btns.append(b);
+    }
+    host.append(btns);
     if (win.zoomed) {
       const chip = el('button', 'zoom-reset', 'Reset zoom');
       chip.type = 'button';
@@ -481,7 +496,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
 
   // ---------------------------------------------------------------- input
   const place = e => { if (view) select(indexFromClientX(e.clientX)); };
-  const canZoom = () => view && !view.isCmp && st.type !== 'compare';
+  const canZoom = () => Boolean(view);
   host.addEventListener('pointerdown', e => {
     if (e.button > 0 || !e.isPrimary || pinching) return; // a second finger is never a second line
     if (e.pointerType === 'mouse' && canZoom() && view.zoomed) {
@@ -543,11 +558,15 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
 
   // Mouse wheel with Ctrl or Cmd (a trackpad pinch arrives the same way) zooms around the cursor.
   // Plain scrolling is left alone so the page still scrolls; sideways scrolling pans while zoomed.
+  let wheelFactor = 1, wheelFrac = 0.5, wheelFrame = 0;
   host.addEventListener('wheel', e => {
     if (!canZoom()) return;
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? WHEEL_ZOOM_LINES : WHEEL_ZOOM)), plotFrac(e.clientX));
+      // Gather the wheel events of one frame into a single zoom + redraw, so fast scrolling stays smooth.
+      wheelFactor *= Math.exp(-e.deltaY * (e.deltaMode ? WHEEL_ZOOM_LINES : WHEEL_ZOOM));
+      wheelFrac = plotFrac(e.clientX);
+      if (!wheelFrame) wheelFrame = requestAnimationFrame(() => { wheelFrame = 0; const f = wheelFactor; wheelFactor = 1; zoomAt(f, wheelFrac); });
     } else if (view.zoomed && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
       e.preventDefault();
       const w = resolveWin(fullData());

@@ -2,7 +2,7 @@
 // "🔭 Next alert" (how close each coin is to triggering right now) — both
 // reached from the 📊 Status screen.
 import { COINS, coinByTicker } from '../config.js';
-import { getCoinSettings, postCounts, postCountsByCoin, POST_PERIODS } from '../db.js';
+import { getSettingsMap, postCounts, postCountsByCoin, POST_PERIODS } from '../db.js';
 import { getLatestPrices, describeError } from '../priceService.js';
 import { nextAlertDistance, formatStep } from '../milestoneEngine.js';
 import { isMuted } from '../coinView.js';
@@ -70,15 +70,16 @@ async function postHistoryView(periodKey) {
 async function nextAlertView() {
   let latest;
   try {
-    latest = await getLatestPrices();
+    latest = await getLatestPrices({ maxAgeMs: 60_000 });
   } catch (err) {
     return `🔭 <b>Next alert</b>\n\nCouldn't fetch live prices right now (${escapeHtml(describeError(err))}). Try again in a moment.`;
   }
 
   const lines = [];
   let mutedCount = 0;
+  const allSettings = await getSettingsMap();
   for (const coin of COINS) {
-    const settings = await getCoinSettings(coin.ticker);
+    const settings = allSettings.get(coin.ticker);
     if (isMuted(settings)) {
       mutedCount++;
       continue;

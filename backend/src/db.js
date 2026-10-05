@@ -130,6 +130,12 @@ export async function getAllCoinSettings() {
   return rows;
 }
 
+/** Every coin's settings in ONE query, as a Map keyed by ticker (instead of one query per coin). */
+export async function getSettingsMap() {
+  const rows = await getAllCoinSettings();
+  return new Map(rows.map(r => [r.ticker, r]));
+}
+
 export async function setThreshold(ticker, threshold) {
   await pool.query('UPDATE coin_settings SET threshold = $2 WHERE ticker = $1', [ticker, threshold]);
 }

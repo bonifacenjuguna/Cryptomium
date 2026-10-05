@@ -1105,7 +1105,10 @@ td.go { vertical-align: middle; }
 .chart { position: relative; touch-action: pan-y; }
 .chart.is-zoomed { cursor: grab; }
 .chart.is-panning { cursor: grabbing; }
-.zoom-reset { position: absolute; left: 8px; top: 6px; z-index: 2; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 700 .78rem var(--text); cursor: pointer; box-shadow: var(--shadow); }
+.zoom-btns { position: absolute; left: 8px; top: 6px; z-index: 2; display: flex; gap: 6px; }
+.zoom-btn { width: 30px; height: 30px; padding: 0; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 700 1rem/1 var(--text); cursor: pointer; box-shadow: var(--shadow); opacity: .85; }
+.zoom-btn:hover { background: var(--accent); color: var(--accent-ink); border-color: transparent; opacity: 1; }
+.zoom-reset { position: absolute; left: 80px; top: 6px; z-index: 2; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 700 .78rem var(--text); cursor: pointer; box-shadow: var(--shadow); }
 .zoom-reset:hover { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
 /* Fear & Greed */

@@ -47,7 +47,7 @@ export function registerPostHandlers(bot) {
     let detail = '';
     if (target !== 'ALL') {
       try {
-        const latest = await getLatestPrices();
+        const latest = await getLatestPrices({ maxAgeMs: 60_000 });
         const price = latest.prices.get(target);
         if (price !== undefined) detail = ` (now ${formatAdminPrice(price, { stable: coinByTicker(target).stable })})`;
       } catch {

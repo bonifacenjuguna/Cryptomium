@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.8.2
+
+**Chart zoom is much easier, and it now works when comparing two coins. Redeploy the frontend (the backend is unchanged).**
+- Pinching with two fingers zooms about 1.5x further for the same finger movement than in 2.8.x (the pinch curve went from 2.1 to 3.2). The mouse wheel / trackpad pinch is about 1.8x quicker, and the + / - keys step 2.2x.
+- New + and - buttons in the top-left corner of every chart zoom in and out with one tap or click, so a mouse user no longer needs Ctrl + wheel. "Reset zoom" appears next to them while zoomed in.
+- Wheel and trackpad zooming redraws once per frame, so fast scrolling no longer feels sticky.
+- Compare mode: zooming and panning were switched off when a second coin was selected. They now work the same as on a single coin (pinch, Ctrl/Cmd + wheel, + / - buttons, drag to pan, double tap to reset). While zoomed, both lines are measured from the first moment on screen, so each starts at 0% again and the percentages describe just the part you are looking at.
+- The numbers sit at the top of `src/js/chart.js` (`PINCH_GAIN`, `WHEEL_ZOOM`, `WHEEL_ZOOM_LINES`, `KEY_ZOOM`) if you want to fine-tune them.
+
+## 2.8.1
+
+**The bot answers commands and button taps quickly again. Redeploy the backend only (nothing changes on the website).**
+- Cause: Telegram updates were handled in batches, and the bot did not ask Telegram for the next batch until every handler in the current one had finished. One slow action (rendering a chart, "Post all", a price fetch, "Test sources") therefore froze every other command and tap until it was done. Each update now runs on its own, so the bot keeps listening while a slow one works.
+- The Prices, Next alert and Status screens read all coin settings in one database query instead of one per coin (31 round trips before).
+- Prices, Next alert, Test banner and the post confirmation screen accept a price reading up to 60 seconds old (the scheduler refreshes it every poll) instead of often waiting on a fresh fetch. The Refresh button still forces a new one.
+- Refresh on the Prices screen, and changing a coin's mode, acknowledge your tap immediately so the button stops spinning; if a refresh fails you now get a short message instead of a pop-up.
+
 ## 2.8.0
 
 **Zooming is more responsive again. Redeploy the frontend.**

@@ -1,6 +1,6 @@
 // Owner-side tools: live prices, and the test-banner preview.
 import { COINS, LOGO_STYLES, coinByTicker } from '../config.js';
-import { getCoinSettings } from '../db.js';
+import { getCoinSettings, getSettingsMap } from '../db.js';
 import { getLatestPrices, describeError } from '../priceService.js';
 import { previewLevel } from '../milestoneEngine.js';
 import { generateBannerImage, getLogoStyle } from '../imageGenerator.js';
@@ -12,6 +12,10 @@ import { safeEdit } from '../telegramUtil.js';
 import {
   MENU, coinListKeyboard, pricesKeyboard, testOptionsKeyboard, testDirectionKeyboard,
 } from '../keyboards.js';
+
+// Owner screens accept a price reading up to this old instead of waiting for a fresh fetch
+// (the scheduler refreshes it every poll; the Refresh button forces a new one).
+const PANEL_MAX_AGE_MS = 60_000;
 
 const TEST_LIST_TEXT =
   '🧪 Test banner — pick a coin.\nThe preview is sent only to you, never to the channel.';
@@ -41,18 +45,19 @@ export function registerAdminHandlers(bot) {
   });
 
   bot.action('prices:refresh', async ctx => {
+    // Answer the tap right away so the button stops spinning; the fetch can take a few seconds.
+    await ctx.answerCbQuery('Refreshing…').catch(() => {});
     try {
       const view = await buildPricesView({ force: true });
       if (!view.ok) {
         // Keep the list that is already on screen; just say what went wrong.
-        await ctx.answerCbQuery(`Couldn't refresh: ${view.reason}`, { show_alert: true });
+        await ctx.reply(`Couldn't refresh: ${view.reason}`);
         return;
       }
-      const changed = await safeEdit(ctx, view.text, { parse_mode: 'HTML', ...pricesKeyboard() });
-      await ctx.answerCbQuery(changed ? 'Updated ✅' : 'Already the latest prices');
+      await safeEdit(ctx, view.text, { parse_mode: 'HTML', ...pricesKeyboard() });
     } catch (err) {
       console.error('[admin] Prices refresh failed:', err);
-      await ctx.answerCbQuery('Couldn\'t refresh — try again in a moment.', { show_alert: true }).catch(() => {});
+      await ctx.reply('Couldn\'t refresh — try again in a moment.').catch(() => {});
     }
   });
 
@@ -148,7 +153,7 @@ export function registerAdminHandlers(bot) {
 async function buildPricesView({ force }) {
   let latest;
   try {
-    latest = await getLatestPrices({ force });
+    latest = await getLatestPrices({ force, maxAgeMs: PANEL_MAX_AGE_MS });
   } catch (err) {
     const reason = describeError(err);
     return { ok: false, reason, text: `Couldn't fetch live prices right now (${escapeHtml(reason)}). Try again in a moment.` };
@@ -157,9 +162,10 @@ async function buildPricesView({ force }) {
   // A plain formatted message (not a code block), so Telegram can edit it in
   // place when Refresh is tapped.
   const lines = [];
+  const allSettings = await getSettingsMap();
   for (const coin of COINS) {
     const price = latest.prices.get(coin.ticker);
-    const settings = await getCoinSettings(coin.ticker);
+    const settings = allSettings.get(coin.ticker);
     const modeIcon = modeText(settings, { withMultiplier: false }).split(' ')[0]; // just the emoji
     const bell = isMuted(settings) ? '🔕' : '🔔';
 
@@ -194,7 +200,7 @@ async function sendTestBanner(ctx, ticker, direction, customPrice) {
   if (price === null) {
     let latest;
     try {
-      latest = await getLatestPrices();
+      latest = await getLatestPrices({ maxAgeMs: PANEL_MAX_AGE_MS });
     } catch {
       await ctx.reply('Couldn\'t fetch a live price right now. Use "Custom price" instead.');
       return;
