@@ -6,7 +6,7 @@ import { createGauge, moodClass } from './gauge.js';
 
 const $ = id => document.getElementById(id);
 
-const PAGE = [10, 20, 50].includes(Number(prefs.get('pageSize'))) ? Number(prefs.get('pageSize')) : 10; // rows shown first, and added by each "Show more coins"
+const PAGE = [10, 20, 50].includes(Number(prefs.get('pageSize'))) ? Number(prefs.get('pageSize')) : 20; // rows shown first, and added by each "Show more coins"
 const STABLES = new Set(['USDT', 'USDC']);
 // The order the list opens in before market sizes arrive: the best-known coins first, stablecoins last.
 const POPULAR = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'GRAM', 'SUI', 'XLM', 'DOT', 'LTC', 'HBAR', 'UNI', 'HYPE', 'ZEC', 'XMR', 'BCH', 'SHIB', 'NEAR', 'APT', 'ATOM', 'ICP', 'ETC', 'FIL', 'ALGO', 'USDT', 'USDC'];
@@ -230,7 +230,7 @@ function liveCap(t) {
 }
 
 function paintSnapshot() {
-  let cap = 0, capAgo = 0, vol = 0, btc = 0, up = 0, down = 0;
+  let cap = 0, capAgo = 0, vol = 0;
   for (const c of state.coins) {
     const v = liveCap(c.ticker);
     if (!v) continue;
@@ -238,8 +238,6 @@ function paintSnapshot() {
     cap += v;
     capAgo += typeof ch === 'number' ? v / (1 + ch / 100) : v;
     vol += state.market[c.ticker]?.volume24h || 0;
-    if (c.ticker === 'BTC') btc = v;
-    if (!isStable(c.ticker) && typeof ch === 'number') { if (ch > 0) up++; else if (ch < 0) down++; }
   }
   if (!cap) return;
   setNum($('sn-cap'), compactMoney(cap), cap);
@@ -247,17 +245,6 @@ function paintSnapshot() {
   $('sn-cap-chg').textContent = chg.text + ' in 24 hours';
   $('sn-cap-chg').className = 'snap-c num chg ' + chg.cls;
   $('sn-vol').textContent = compactMoney(vol);
-  $('sn-dom').textContent = btc ? ((btc / cap) * 100).toFixed(1) + '%' : '–';
-  $('sn-dom-bar').style.width = btc ? ((btc / cap) * 100).toFixed(1) + '%' : '0%';
-  const rated = up + down;
-  if (rated) {
-    const share = up / rated;
-    $('sn-mood').textContent = share >= 0.7 ? 'Mostly up' : share >= 0.52 ? 'Leaning up' : share > 0.48 ? 'Mixed' : share > 0.3 ? 'Leaning down' : 'Mostly down';
-    $('sn-mood').className = share > 0.52 ? 'up' : share < 0.48 ? 'down' : '';
-    $('sn-up').style.flexGrow = String(up || 0.01);
-    $('sn-down').style.flexGrow = String(down || 0.01);
-    $('sn-mood-sub').textContent = Math.round(share * 100) + '% of the leading coins are up today';
-  }
   // A seven day line for the whole market: every coin's own line, weighted by its size.
   const lines = state.coins.map(c => ({ m: state.market[c.ticker], cap: liveCap(c.ticker) })).filter(x => x.m?.spark?.length > 8 && x.cap);
   if (lines.length) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.3
+
+**A shorter top of the home page, so the markets start sooner. Redeploy the frontend (the backend is unchanged).**
+- **Home snapshot**: Market cap and 24h volume stay. The Bitcoin share and Market mood tiles are gone from the home page (the Market overview already shows BTC dominance, Fear & Greed and breadth), and the separate Market overview card is replaced by one tile in the same row that links there.
+- **Footer**: the "Moving now" card is removed, since Top movers on the home page shows the same thing. The Market overview link stays under Tools.
+- **Markets list**: 20 coins are shown first instead of 10 (still 10, 20 or 50 in Settings, Home). Anyone who had picked a size keeps it.
+
 ## 3.1.2
 
 **Coin pages look the same for every coin, a tidier Markets control, and the market overview is easy to find. Redeploy the frontend (the backend is unchanged).**

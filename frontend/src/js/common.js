@@ -138,7 +138,7 @@ export const PREF_DEFAULTS = {
   textSize: 'default', // default | large | larger
   palette: 'classic', // classic (green/red) | clear (blue/orange, easier for colour-blind readers)
   hide: [], // home and coin page sections the visitor turned off
-  pageSize: 10, // coins shown at first in the markets list
+  pageSize: 20, // coins shown at first in the markets list
   tabPrice: true, // the live price in the browser tab title on a coin page
   liveMode: 'auto', // auto | saver (fewer updates, less data)
   precision: 'auto', // auto | extra (one more decimal)

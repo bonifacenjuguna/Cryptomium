@@ -126,7 +126,7 @@ function initPreferences() {
     prefs.replace(next);
     paintPrefs(); flashSaved('Back to the defaults');
   });
-  $('reset-layout')?.addEventListener('click', () => { prefs.set('hide', []); prefs.set('pageSize', 10); paintPrefs(); flashSaved('Everything is shown again'); });
+  $('reset-layout')?.addEventListener('click', () => { prefs.set('hide', []); prefs.set('pageSize', 20); paintPrefs(); flashSaved('Everything is shown again'); });
 }
 
 // ---------------------------------------------------------------- live preview (desktop)
