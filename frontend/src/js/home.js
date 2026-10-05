@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const PAGE = [10, 20, 50].includes(Number(prefs.get('pageSize'))) ? Number(prefs.get('pageSize')) : 10; // rows shown first, and added by each "Show more coins"
 const STABLES = new Set(['USDT', 'USDC']);
 // The order the list opens in before market sizes arrive: the best-known coins first, stablecoins last.
-const POPULAR = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'TON', 'SUI', 'XLM', 'DOT', 'LTC', 'HBAR', 'UNI', 'HYPE', 'ZEC', 'USDT', 'USDC'];
+const POPULAR = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'TRX', 'AVAX', 'LINK', 'GRAM', 'SUI', 'XLM', 'DOT', 'LTC', 'HBAR', 'UNI', 'HYPE', 'ZEC', 'XMR', 'BCH', 'SHIB', 'NEAR', 'APT', 'ATOM', 'ICP', 'ETC', 'FIL', 'ALGO', 'USDT', 'USDC'];
 const popRank = t => { const i = POPULAR.indexOf(t); return i < 0 ? 50 : i; };
 const isStable = t => STABLES.has(t);
 

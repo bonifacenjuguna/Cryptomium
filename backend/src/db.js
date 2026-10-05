@@ -51,7 +51,25 @@ export async function initDb() {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS post_log_posted_at_idx ON post_log (posted_at)`);
 
+  await migrateRenamedTickers();
   await seedCoins();
+}
+
+// A coin that changes its ticker (TON -> GRAM, June 2026) keeps its history: the old rows are moved to
+// the new ticker before seeding, so the owner's step, mode, mute and the post history carry over.
+// Idempotent. If the new ticker already has a settings row, that one wins and the old row is dropped.
+async function migrateRenamedTickers(client = pool) {
+  for (const coin of COINS) {
+    for (const oldTicker of coin.formerTickers ?? []) {
+      const { rowCount: hasNew } = await client.query('SELECT 1 FROM coin_settings WHERE ticker = $1', [coin.ticker]);
+      if (hasNew) {
+        await client.query('DELETE FROM coin_settings WHERE ticker = $1', [oldTicker]);
+      } else {
+        await client.query('UPDATE coin_settings SET ticker = $2 WHERE ticker = $1', [oldTicker, coin.ticker]);
+      }
+      await client.query('UPDATE post_log SET ticker = $2 WHERE ticker = $1', [oldTicker, coin.ticker]);
+    }
+  }
 }
 
 // Creates a settings row for every coin (first run, or right after a reset).

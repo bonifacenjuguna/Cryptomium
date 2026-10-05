@@ -80,7 +80,8 @@ test('auto: falls back to Binance when CoinGecko is rate-limited; stablecoins ar
   assert.equal(prices.has('USDT'), false);
   assert.equal(prices.has('USDC'), false);
   assert.equal(prices.get('BTC'), 99);
-  assert.equal(prices.size, COINS.filter(c => !c.stable).length);
+  // Only coins Binance actually lists (XMR has no Binance pair) can come from the Binance backup.
+  assert.equal(prices.size, COINS.filter(c => !c.stable && c.binanceSymbol).length);
 });
 
 test('Binance: main host blocked (451) -> the data-api host is used', async () => {

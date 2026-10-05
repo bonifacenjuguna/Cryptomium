@@ -66,7 +66,7 @@ export function previewLevel(coin, settings, price) {
 /** Human-readable step, e.g. "$500", "$0.005" or "0.75%". */
 export function formatStep(unit, value) {
   if (unit === 'pct') return `${Number(value.toFixed(4))}%`;
-  const decimals = value >= 1 ? 2 : Math.min(8, Math.max(2, (value.toString().split('.')[1] || '').length));
+  const decimals = value >= 1 ? 2 : Math.min(10, Math.max(2, decimalPlaces(value)));
   const trimmed = Number(value.toFixed(decimals));
   return `$${trimmed.toLocaleString('en-US', { maximumFractionDigits: decimals })}`;
 }
@@ -186,6 +186,17 @@ export function nextAlertDistance(coin, settings, currentPrice) {
 export function roundToStep(value, step) {
   // Guards against floating point drift (e.g. 0.30000000000000004) by
   // rounding to a sensible number of decimal places derived from the step.
-  const decimals = Math.min(10, (step.toString().split('.')[1] || '').length);
+  const decimals = Math.min(12, decimalPlaces(step));
   return Number(value.toFixed(decimals));
+}
+
+/**
+ * How many decimal places a number needs. Handles exponent notation too: JavaScript prints 0.00000004
+ * as "4e-8", which a plain split on "." reads as zero decimals (that would round SHIB's step to 0).
+ */
+export function decimalPlaces(n) {
+  if (!Number.isFinite(n)) return 0;
+  const match = String(n).match(/^-?\d*\.?(\d*)(?:e([+-]?\d+))?$/i);
+  if (!match) return 0;
+  return Math.max(0, (match[1] || '').length - (match[2] ? Number(match[2]) : 0));
 }

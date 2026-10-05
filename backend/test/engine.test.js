@@ -143,3 +143,33 @@ test('nextAlertDistance: stablecoin already depegged -> distance back inside the
   assert.equal(down.direction, 'down');
   closeTo(down.toReturn, 0.003);
 });
+
+// ---- 2.7.0: very small prices (SHIB) and the added coins ----
+import { roundToStep as _roundToStep, formatStep as _formatStep, decimalPlaces as _decimalPlaces } from '../src/milestoneEngine.js';
+import { COINS as _COINS, coinByTicker as _coinByTicker } from '../src/config.js';
+
+test('decimalPlaces reads exponent notation (0.00000004 prints as "4e-8")', () => {
+  assert.equal(_decimalPlaces(4e-8), 8);
+  assert.equal(_decimalPlaces(1.5e-7), 8);
+  assert.equal(_decimalPlaces(0.003), 3);
+  assert.equal(_decimalPlaces(500), 0);
+});
+
+test('a SHIB-sized step is not rounded down to zero and prints readably', () => {
+  assert.equal(_roundToStep(0.00000572, 0.00000004), 0.00000572);
+  assert.equal(_formatStep('usd', 0.00000004), '$0.00000004');
+});
+
+test('config: the ten added coins exist, none is first, and TON is now GRAM', () => {
+  const added = ['XMR', 'SHIB', 'BCH', 'NEAR', 'APT', 'ATOM', 'ICP', 'ETC', 'FIL', 'ALGO'];
+  for (const t of added) {
+    const c = _coinByTicker(t);
+    assert.ok(c, `${t} is configured`);
+    assert.ok(c.coingeckoId && c.coinpaprikaId && c.brandColor && c.defaultThreshold > 0 && c.defaultPercent > 0, `${t} has full details`);
+    assert.ok(_COINS.findIndex(x => x.ticker === t) >= 19, `${t} sits after the original popular coins`);
+  }
+  assert.equal(_coinByTicker('TON'), undefined);
+  assert.deepEqual(_coinByTicker('GRAM').formerTickers, ['TON']);
+  assert.equal(new Set(_COINS.map(c => c.ticker)).size, _COINS.length, 'no duplicate tickers');
+  assert.equal(_COINS.at(-1).ticker, 'USDC');
+});

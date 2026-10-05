@@ -1135,7 +1135,7 @@ td.go { vertical-align: middle; }
 .coin-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px 28px; padding: 22px 26px; margin-top: 12px; border-radius: 24px;
   background: radial-gradient(520px 200px at 0 0, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), var(--surface); }
 .ch-id { display: flex; align-items: center; gap: 18px; min-width: 0; }
-.ch-logo { flex: none; padding: 5px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent); }
+.ch-logo { flex: none; padding: 3px; border-radius: 50%; background: #fff; /* a thin white margin; it used to take the page colour, which is black in dark mode */ box-shadow: 0 0 0 1px var(--line), 0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent); }
 .ch-logo .logo.xl { width: 64px; height: 64px; box-shadow: none; }
 .ch-text { display: grid; gap: 4px; min-width: 0; }
 .ch-chips { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

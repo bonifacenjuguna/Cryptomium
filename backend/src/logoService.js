@@ -3,7 +3,7 @@
 // Why this exists: v1.0 downloaded each logo with one CoinGecko /coins/{id}
 // call per coin, 1.5s apart, at build time. CoinGecko's free tier rate-limits
 // (HTTP 429) after roughly half a dozen quick calls, so the coins later in the
-// list (DOGE, ADA, LINK, TON, USDT, USDC) silently ended up with no logo.
+// list (DOGE, ADA, LINK, TON (now GRAM), USDT, USDC) silently ended up with no logo.
 //
 // This version:
 //   1. asks CoinGecko for ALL coins' image URLs in ONE request,
@@ -114,7 +114,7 @@ export async function normalizeToPng(buffer) {
 
 // Public icon CDNs, tried in order after CoinGecko's own image.
 function fallbackUrls(coin) {
-  const sym = coin.ticker.toLowerCase();
+  const sym = (coin.logoSymbol || coin.ticker).toLowerCase(); // a renamed coin's old ticker (GRAM -> ton)
   return [
     `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${sym}.png`,
     `https://assets.coincap.io/assets/icons/${sym}@2x.png`,

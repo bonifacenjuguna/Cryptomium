@@ -10,7 +10,10 @@ import { ABOUT } from './about-coins.js';
 
 const $ = id => document.getElementById(id);
 
-const ticker = (location.pathname.split('/').filter(Boolean).pop() || '').replace(/\.html$/, '').toUpperCase();
+const OLD_TICKERS = { TON: 'GRAM' }; // renamed coins: an old bookmark or shared link still lands on the right page
+const rawTicker = (location.pathname.split('/').filter(Boolean).pop() || '').replace(/\.html$/, '').toUpperCase();
+const ticker = OLD_TICKERS[rawTicker] || rawTicker;
+if (ticker !== rawTicker) history.replaceState(null, '', '/coin/' + ticker);
 const RANGES = ['24h', '7d', '30d', '90d', '1y'];
 const state = {
   coin: null, coins: [], live: new Map(), market: null, alerts: [],

@@ -1,7 +1,7 @@
 # Cryptomium website (Vercel)
 
 The public site for Cryptomium: a live tile board and markets table, a page for
-each of the 21 coins (chart, market stats, that coin's alerts), the latest
+each of the 31 coins (chart, market stats, that coin's alerts), the latest
 Telegram alerts, About and FAQ. It needs no framework and no install step.
 
 ## Deploy on Vercel (same as before)
@@ -32,7 +32,7 @@ After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site addres
 
 - `src/` pages (`index.html`, `coin.html`, `about.html`, `404.html`), `style.css`, `js/`
 - `src/partials/` shared header and footer, inserted at build time
-- `coins.json` the 21 coins (used for search and for building one static page per coin)
+- `coins.json` the 31 coins (used for search and for building one static page per coin)
 - `build.js` builds `dist/`: fills in the brand, writes `dist/coin/BTC.html` and the other
   coin pages, the sitemap, `config.js` and a Content-Security-Policy that allows only
   this site, Google Fonts and your backend
@@ -43,7 +43,7 @@ Visitors' choices (theme, currency, starred coins) are saved in their own browse
 ## Adding or removing a coin
 
 Add it to the backend `src/config.js`, then add its ticker and name to `coins.json`
-here and redeploy.
+here (and to `POPULAR` in `src/js/home.js` to choose where it sits in the list) and redeploy.
 
 ## Needs from the backend (v2.2.0 or newer)
 

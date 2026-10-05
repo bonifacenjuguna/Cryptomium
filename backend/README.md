@@ -6,8 +6,8 @@ the ticker, direction arrow, and price.
 
 ## What it does
 
-- Watches BTC, ETH, XRP, BNB, SOL, TRX, DOGE, ADA, LINK, TON, AVAX, SUI, XLM,
-  HBAR, DOT, UNI, LTC, ZEC, HYPE, USDT, USDC (21 coins)
+- Watches BTC, ETH, XRP, BNB, SOL, TRX, DOGE, ADA, LINK, GRAM, AVAX, SUI, XLM,
+  HBAR, DOT, UNI, LTC, ZEC, HYPE, XMR, SHIB, BCH, NEAR, APT, ATOM, ICP, ETC, FIL, ALGO, USDT, USDC (31 coins)
 - Prices can come from CoinGecko, Binance, Kraken, CoinPaprika, or a real-time
   blend of the first three (see Data source below) — Auto tries the first
   four in order

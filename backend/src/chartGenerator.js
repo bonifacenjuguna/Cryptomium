@@ -84,13 +84,14 @@ export async function generateChartImage({ ticker, style, days, rangeLabel, poin
 // Axes + grid
 // ---------------------------------------------------------------------
 
-function drawGridAndAxes(ctx, { plotX, plotY, plotW, plotH, min, max, points, days }) {
-  const step = niceStep((max - min) / 5);
-  const firstLine = Math.ceil(min / step) * step;
+const PRICE_ROWS = 5; // horizontal price rows on every chart image
 
+function drawGridAndAxes(ctx, { plotX, plotY, plotW, plotH, min, max, points, days }) {
+  // Always the same number of price rows, evenly spaced, so the grid never changes shape from one chart to the next.
   ctx.textBaseline = 'middle';
   ctx.font = `22px ${FONT_REGULAR}`;
-  for (let price = firstLine; price <= max; price += step) {
+  for (let k = 1; k <= PRICE_ROWS; k++) {
+    const price = min + ((max - min) * k) / (PRICE_ROWS + 1);
     const y = plotY + (1 - (price - min) / (max - min)) * plotH;
     ctx.strokeStyle = GRID;
     ctx.lineWidth = 1;
@@ -125,14 +126,6 @@ function drawGridAndAxes(ctx, { plotX, plotY, plotW, plotH, min, max, points, da
   ctx.strokeStyle = GRID;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(plotX, plotY, plotW, plotH);
-}
-
-function niceStep(rough) {
-  if (!Number.isFinite(rough) || rough <= 0) return 1;
-  const exp = Math.floor(Math.log10(rough));
-  const base = rough / 10 ** exp;
-  const nice = base < 1.5 ? 1 : base < 3 ? 2 : base < 7 ? 5 : 10;
-  return nice * 10 ** exp;
 }
 
 function formatAxisTime(ms, days) {

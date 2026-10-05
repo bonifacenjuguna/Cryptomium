@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.0
+
+**Ten more coins, TON is now GRAM, steadier charts, easier zooming and a white margin round the coin logo. Redeploy both the backend and the frontend.**
+- New coins: Monero (XMR), Shiba Inu (SHIB), Bitcoin Cash (BCH), NEAR Protocol (NEAR), Aptos (APT), Cosmos (ATOM), Internet Computer (ICP), Ethereum Classic (ETC), Filecoin (FIL) and Algorand (ALGO). That makes 31 coins. They sit after the main coins (and before the stablecoins) in the Telegram lists and on the website, not at the top. Each starts with a step of roughly 1% of its price; change any of them in Settings.
+- XMR has no Binance pair (Binance delisted Monero spot), so it is priced from CoinGecko, Kraken or CoinPaprika. The other nine are on all three.
+- TON is now GRAM. The token was renamed from Toncoin on 15 June 2026 (the network is still called TON). Prices, alerts, logos and pages all use GRAM. On the first start after the update the database moves the old TON row (step, mode, mute) and its post history to GRAM, so nothing is lost. On the website, old `/coin/TON` links redirect to `/coin/GRAM`, and saved favourites, recent searches, portfolio holdings and price alerts that said TON are moved over on the visitor's device.
+- Very small steps (SHIB): a step such as $0.00000004 was read as "0 decimals" and rounded to zero. It now keeps the right number of decimals everywhere.
+- Charts, both the Telegram images and the website: the price scale now always shows the same 5 rows, evenly spaced. Before, the number of rows changed with the price range, so the grid jumped while you dragged across a chart.
+- Zoom: pinching, the wheel / trackpad pinch and the + / - keys now react about 1.5-1.8x faster than before (normal, not fast).
+- Coin page: the ring between the logo and the header card was the page colour (black in dark mode). It is now a thin white margin (3px instead of 5px).
+- Kraken: a pair we asked for by name is now matched exactly before falling back to the looser match.
+- Worth a check after deploying: Use "Test sources" in Settings > Data source to confirm GRAM and the ten new coins show prices on every source (CoinGecko's id for GRAM is kept as `the-open-network`; CoinPaprika's id for GRAM is unconfirmed).
+
 ## 2.6.0
 
 **Real coin logos everywhere, much smaller Fear & Greed cards in better places, and a Clear button for recent searches. Redeploy both the backend and the frontend.**

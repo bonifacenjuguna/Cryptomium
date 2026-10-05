@@ -26,16 +26,21 @@ export const RANGE_MS = { '24h': 864e5, '7d': 7 * 864e5, '30d': 30 * 864e5, '90d
 const RANGE_LABEL = { '24h': '24H', '7d': '7D', '30d': '30D', '90d': '90D', '1y': '1Y' };
 const MAX_TAIL = 600;
 
-function niceTicks(min, max, n = 4) {
-  const span = max - min || Math.abs(max) * 0.02 || 1;
-  const raw = span / n;
-  const exp = Math.floor(Math.log10(raw));
-  const f = raw / 10 ** exp;
-  const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * 10 ** exp;
+// The price scale always draws the same number of rows, evenly spaced. (Rows at "nice" round numbers came and
+// went as the range changed, so the grid jumped about while you dragged across the chart.)
+const GRID_ROWS = 5;
+function gridTicks(min, max, n = GRID_ROWS) {
   const out = [];
-  for (let v = Math.ceil(min / step) * step; v <= max; v += step) out.push(v);
+  for (let k = 1; k <= n; k++) out.push(min + ((max - min) * k) / (n + 1));
   return out;
 }
+
+// Zoom feel. The pinch used to follow the fingers one-to-one and the wheel moved 0.42% per pixel, which felt slow.
+// These make a gesture go a bit further without becoming twitchy: normal, not fast.
+const PINCH_GAIN = 1.45; // 1 = fingers exactly; higher = zooms further for the same finger movement
+const WHEEL_ZOOM = 0.0075; // per pixel of wheel / trackpad-pinch movement (was 0.0042)
+const WHEEL_ZOOM_LINES = 0.06; // per line, for mice that scroll by lines (was 0.03)
+const KEY_ZOOM = 1.6; // + and - keys (was 1.5)
 function timeLabel(ms, range) {
   const d = new Date(ms);
   if (range === '24h') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -273,7 +278,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.01 || 1;
     lo -= pad; hi += pad;
     if (st.sel != null && st.frozen) { lo = Math.min(lo, st.frozen.lo); hi = Math.max(hi, st.frozen.hi); }
-    const tickValues = niceTicks(lo, hi);
+    const tickValues = gridTicks(lo, hi);
     const fmtAxis = isCmp ? v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(Math.abs(v) < 10 ? 1 : 0) + '%' : v => money(v / rate, { stable });
     const longest = Math.max(0, ...tickValues.map(v => fmtAxis(v).length));
     let padR = inside ? 6 : Math.min(W * 0.42, Math.max(62, longest * 6.8 + 16));
@@ -526,7 +531,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     e.preventDefault();
     const info = touchInfo(e);
     const span0 = pinch.b - pinch.a;
-    const span = Math.min(pinch.total, Math.max(pinch.minSpan, span0 * (pinch.dist / info.dist)));
+    const span = Math.min(pinch.total, Math.max(pinch.minSpan, span0 * (pinch.dist / info.dist) ** PINCH_GAIN));
     const frac = plotFrac(info.cx);
     setWin(pinch.anchorT - frac * span, pinch.anchorT + (1 - frac) * span, false);
   }, { passive: false });
@@ -540,7 +545,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     if (!canZoom()) return;
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? 0.03 : 0.0042)), plotFrac(e.clientX));
+      zoomAt(Math.exp(-e.deltaY * (e.deltaMode ? WHEEL_ZOOM_LINES : WHEEL_ZOOM)), plotFrac(e.clientX));
     } else if (view.zoomed && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
       e.preventDefault();
       const w = resolveWin(fullData());
@@ -569,8 +574,8 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     if (e.key === 'ArrowLeft') { e.preventDefault(); select(cur == null ? view.n - 1 : cur - 1); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); select(cur == null ? 0 : cur + 1); }
     else if (e.key === 'Escape') clear();
-    else if ((e.key === '+' || e.key === '=') && canZoom()) { e.preventDefault(); zoomAt(1.5, 0.5); }
-    else if ((e.key === '-' || e.key === '_') && canZoom()) { e.preventDefault(); zoomAt(1 / 1.5, 0.5); }
+    else if ((e.key === '+' || e.key === '=') && canZoom()) { e.preventDefault(); zoomAt(KEY_ZOOM, 0.5); }
+    else if ((e.key === '-' || e.key === '_') && canZoom()) { e.preventDefault(); zoomAt(1 / KEY_ZOOM, 0.5); }
     else if (e.key === '0') { e.preventDefault(); resetZoom(); }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') clear(); });

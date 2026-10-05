@@ -88,20 +88,20 @@ test('fetchMissingLogos: one batched CoinGecko call, retries, CDN fallback, mono
     if (u === 'https://img.test/ADA.png' && !rateLimitedOnce) { rateLimitedOnce = true; return response(429, null); }
     if (u.startsWith('https://img.test/')) return response(200, image);
     if (u.includes('jsdelivr') && u.endsWith('/doge.png')) return response(200, image); // DOGE via fallback CDN
-    return response(404, null); // TON has no source at all
+    return response(404, null); // GRAM has no source at all
   };
-  // TON: make CoinGecko not know it either
-  const wrapped = async url => (String(url).includes('img.test/TON.png') ? response(404, null) : fetchFn(url));
+  // GRAM: make CoinGecko not know it either
+  const wrapped = async url => (String(url).includes('img.test/GRAM.png') ? response(404, null) : fetchFn(url));
 
   const { saved, failed } = await logos.fetchMissingLogos({ fetchFn: wrapped, sleep: noSleep, log: quietLog });
 
   assert.equal(marketCalls, 1, 'image URLs must come from a single batched request');
-  assert.deepEqual(failed, ['TON']);
+  assert.deepEqual(failed, ['GRAM']);
   assert.equal(saved.length, COINS.length - 1);
   assert.ok(saved.includes('DOGE'), 'DOGE should come from the fallback CDN');
   assert.ok(saved.includes('ADA'), 'ADA should survive a 429 via retry');
   for (const ticker of saved) assert.ok(await logos.hasLogo(ticker), `${ticker} file exists`);
-  assert.deepEqual(await logos.missingLogos(), ['TON']);
+  assert.deepEqual(await logos.missingLogos(), ['GRAM']);
 });
 
 test('fetchMissingLogos skips logos that already exist, and does nothing when none are missing', async () => {

@@ -14,6 +14,10 @@ import { fileURLToPath } from 'node:url';
 //                   new to be confident about) — that coin is simply skipped on Kraken.
 // coinpaprikaId  -> used when CoinPaprika supplies prices (its "id" field, not the ticker,
 //                   since several unrelated coins can share a ticker symbol).
+// logoSymbol     -> optional: the ticker to use when looking a logo up on the public icon sets
+//                   (they are keyed by the OLD ticker for a renamed coin, e.g. GRAM -> 'ton').
+// formerTickers  -> optional: older tickers of a renamed coin. On boot the database moves the
+//                   old rows over to the new ticker (see migrateRenamedTickers in db.js).
 // defaultThreshold -> starting milestone step size in dollars (owner can change per-coin in the bot)
 // defaultPercent   -> starting milestone step size when a coin is switched to percentage
 //                     steps (alert every time price moves this % from the last alert)
@@ -23,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 //                  banner background for that coin (SOL's brand is
 //                  technically a purple->teal gradient; we use its primary
 //                  purple as a single flat color for consistency with the
-//                  other 11 coins)
+//                  other coins)
 // Where coin logo PNGs live (banners and the website API both read from here).
 export const LOGOS_DIR =
   process.env.LOGOS_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'logos');
@@ -38,7 +42,7 @@ export const COINS = [
   { ticker: 'DOGE', name: 'Dogecoin',  coingeckoId: 'dogecoin',          binanceSymbol: 'DOGEUSDT', krakenSymbol: 'XDGUSD',  coinpaprikaId: 'doge-dogecoin',    defaultThreshold: 0.001, defaultPercent: 1, stable: false, brandColor: '#C2A633' },
   { ticker: 'ADA',  name: 'Cardano',   coingeckoId: 'cardano',           binanceSymbol: 'ADAUSDT',  krakenSymbol: 'ADAUSD',  coinpaprikaId: 'ada-cardano',  defaultThreshold: 0.003, defaultPercent: 0.6, stable: false, brandColor: '#0033AD' },
   { ticker: 'LINK', name: 'Chainlink', coingeckoId: 'chainlink',         binanceSymbol: 'LINKUSDT', krakenSymbol: 'LINKUSD', coinpaprikaId: 'link-chainlink',  defaultThreshold: 0.15, defaultPercent: 0.6, stable: false, brandColor: '#2A5ADA' },
-  { ticker: 'TON',  name: 'Toncoin',   coingeckoId: 'the-open-network',  binanceSymbol: 'TONUSDT',  krakenSymbol: 'TONUSD',  coinpaprikaId: 'ton-toncoin', defaultThreshold: 0.025, defaultPercent: 0.6, stable: false, brandColor: '#0098EA' },
+  { ticker: 'GRAM', name: 'Gram',      coingeckoId: 'the-open-network',  binanceSymbol: 'GRAMUSDT', krakenSymbol: 'GRAMUSD', coinpaprikaId: 'ton-toncoin', logoSymbol: 'ton', formerTickers: ['TON'], defaultThreshold: 0.025, defaultPercent: 0.6, stable: false, brandColor: '#0098EA' },
   { ticker: 'AVAX', name: 'Avalanche', coingeckoId: 'avalanche-2',       binanceSymbol: 'AVAXUSDT', krakenSymbol: 'AVAXUSD', coinpaprikaId: 'avax-avalanche',  defaultThreshold: 0.15, defaultPercent: 1.25, stable: false, brandColor: '#E84142' },
   { ticker: 'SUI',  name: 'Sui',       coingeckoId: 'sui',               binanceSymbol: 'SUIUSDT',  krakenSymbol: 'SUIUSD',  coinpaprikaId: 'sui-sui', defaultThreshold: 0.03, defaultPercent: 1.5, stable: false, brandColor: '#4DA2FF' },
   { ticker: 'XLM',  name: 'Stellar',   coingeckoId: 'stellar',           binanceSymbol: 'XLMUSDT',  krakenSymbol: 'XLMUSD',  coinpaprikaId: 'xlm-stellar',   defaultThreshold: 0.0025, defaultPercent: 1.25, stable: false, brandColor: '#14B6E7' },
@@ -48,6 +52,18 @@ export const COINS = [
   { ticker: 'LTC',  name: 'Litecoin',  coingeckoId: 'litecoin',          binanceSymbol: 'LTCUSDT',  krakenSymbol: 'LTCUSD',  coinpaprikaId: 'ltc-litecoin',     defaultThreshold: 1.5, defaultPercent: 1, stable: false, brandColor: '#345D9D' },
   { ticker: 'ZEC',  name: 'Zcash',     coingeckoId: 'zcash',             binanceSymbol: 'ZECUSDT',  krakenSymbol: 'ZECUSD',  coinpaprikaId: 'zec-zcash',  defaultThreshold: 25, defaultPercent: 1, stable: false, brandColor: '#F4B728' },
   { ticker: 'HYPE', name: 'Hyperliquid', coingeckoId: 'hyperliquid',     binanceSymbol: 'HYPEUSDT', krakenSymbol: null,      coinpaprikaId: 'hype-hyperliquid', defaultThreshold: 1.5, defaultPercent: 1.5, stable: false, brandColor: '#26D9A5' },
+  // Added in 2.7.0 — the less-popular coins sit after the main list (and before the stablecoins),
+  // so the keyboards and the website show the well-known coins first.
+  { ticker: 'XMR',  name: 'Monero',           coingeckoId: 'monero',            binanceSymbol: null,       krakenSymbol: 'XMRUSD',  coinpaprikaId: 'xmr-monero',               defaultThreshold: 3,      defaultPercent: 0.6,  stable: false, brandColor: '#FF6600' },
+  { ticker: 'SHIB', name: 'Shiba Inu',        coingeckoId: 'shiba-inu',         binanceSymbol: 'SHIBUSDT', krakenSymbol: 'SHIBUSD', coinpaprikaId: 'shib-shiba-inu',           defaultThreshold: 0.00000004, defaultPercent: 1.5, stable: false, brandColor: '#FFA409' },
+  { ticker: 'BCH',  name: 'Bitcoin Cash',     coingeckoId: 'bitcoin-cash',      binanceSymbol: 'BCHUSDT',  krakenSymbol: 'BCHUSD',  coinpaprikaId: 'bch-bitcoin-cash',         defaultThreshold: 2,      defaultPercent: 0.6,  stable: false, brandColor: '#8DC351' },
+  { ticker: 'NEAR', name: 'NEAR Protocol',    coingeckoId: 'near',              binanceSymbol: 'NEARUSDT', krakenSymbol: 'NEARUSD', coinpaprikaId: 'near-near-protocol',       defaultThreshold: 0.05,   defaultPercent: 1,    stable: false, brandColor: '#00C08B' },
+  { ticker: 'APT',  name: 'Aptos',            coingeckoId: 'aptos',             binanceSymbol: 'APTUSDT',  krakenSymbol: 'APTUSD',  coinpaprikaId: 'apt-aptos',                defaultThreshold: 0.01,   defaultPercent: 1.25, stable: false, brandColor: '#1D9E8F' },
+  { ticker: 'ATOM', name: 'Cosmos',           coingeckoId: 'cosmos',            binanceSymbol: 'ATOMUSDT', krakenSymbol: 'ATOMUSD', coinpaprikaId: 'atom-cosmos',              defaultThreshold: 0.02,   defaultPercent: 1,    stable: false, brandColor: '#2E3148' },
+  { ticker: 'ICP',  name: 'Internet Computer', coingeckoId: 'internet-computer', binanceSymbol: 'ICPUSDT', krakenSymbol: 'ICPUSD',  coinpaprikaId: 'icp-internet-computer',    defaultThreshold: 0.04,   defaultPercent: 1.25, stable: false, brandColor: '#3B00B9' },
+  { ticker: 'ETC',  name: 'Ethereum Classic', coingeckoId: 'ethereum-classic',  binanceSymbol: 'ETCUSDT',  krakenSymbol: 'ETCUSD',  coinpaprikaId: 'etc-ethereum-classic',     defaultThreshold: 0.1,    defaultPercent: 1,    stable: false, brandColor: '#3AB83A' },
+  { ticker: 'FIL',  name: 'Filecoin',         coingeckoId: 'filecoin',          binanceSymbol: 'FILUSDT',  krakenSymbol: 'FILUSD',  coinpaprikaId: 'fil-filecoin',             defaultThreshold: 0.01,   defaultPercent: 1.25, stable: false, brandColor: '#0090FF' },
+  { ticker: 'ALGO', name: 'Algorand',         coingeckoId: 'algorand',          binanceSymbol: 'ALGOUSDT', krakenSymbol: 'ALGOUSD', coinpaprikaId: 'algo-algorand',            defaultThreshold: 0.002,  defaultPercent: 1.5,  stable: false, brandColor: '#2D2D2D' },
   { ticker: 'USDT', name: 'Tether',    coingeckoId: 'tether',            binanceSymbol: null,       krakenSymbol: 'USDTUSD', coinpaprikaId: 'usdt-tether',   defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#26A17B' },
   { ticker: 'USDC', name: 'USD Coin',  coingeckoId: 'usd-coin',          binanceSymbol: null,       krakenSymbol: 'USDCUSD', coinpaprikaId: 'usdc-usd-coin',  defaultThreshold: 0.005, defaultPercent: 0.5, stable: true,  brandColor: '#2775CA' },
 ];

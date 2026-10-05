@@ -5,6 +5,9 @@
   "installCommand": "",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/coin/TON", "destination": "/coin/GRAM", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/coin/:ticker", "destination": "/coin.html" }
   ],

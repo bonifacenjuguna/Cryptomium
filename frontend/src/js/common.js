@@ -11,6 +11,23 @@ export const store = {
   set(key, value) { try { localStorage.setItem(key, value); } catch { /* not available */ } },
 };
 
+// ---------- One-time rename: TON became GRAM (June 2026) ----------
+// Saved favourites, recent searches, portfolio holdings and price alerts that still say TON are moved over.
+(function migrateRenamedTickers() {
+  const RENAMES = { TON: 'GRAM' };
+  const fix = t => (typeof t === 'string' && RENAMES[t]) || t;
+  const rewrite = (key, map) => {
+    const raw = store.get(key);
+    if (!raw || !/"TON"/.test(raw)) return;
+    try { store.set(key, JSON.stringify(map(JSON.parse(raw)))); } catch { /* leave it as it was */ }
+  };
+  const uniq = list => [...new Set(list)];
+  rewrite('cm-favs', list => uniq(list.map(fix)));
+  rewrite('cm-recent', list => uniq(list.map(fix)));
+  rewrite('cm-portfolio', list => list.map(h => (h && h.ticker ? { ...h, ticker: fix(h.ticker) } : h)));
+  rewrite('cm-targets', list => list.map(t => (t && t.ticker ? { ...t, ticker: fix(t.ticker) } : t)));
+})();
+
 // ---------- API ----------
 export async function getJSON(path, { timeoutMs = 12000 } = {}) {
   if (!API) throw new Error('No API address configured.');
@@ -389,7 +406,7 @@ function fitLogo(img, ticker) {
 // one on demand). A browser that cached an older copy without CORS headers refuses it in "measure"
 // mode, so the same address is tried again as a plain picture. Public icon sets are the last resort.
 const logoSources = (coin, api) => {
-  const sym = coin.ticker.toLowerCase();
+  const sym = ({ GRAM: 'ton' }[coin.ticker] || coin.ticker).toLowerCase(); // icon sets still file GRAM under its old ticker
   return [
     { src: api + (coin.logo || `/api/logos/${coin.ticker}.png`), cors: true },
     { src: api + (coin.logo || `/api/logos/${coin.ticker}.png`), cors: false },

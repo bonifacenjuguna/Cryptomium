@@ -36,8 +36,8 @@
   "name": "Chainlink"
  },
  {
-  "ticker": "TON",
-  "name": "Toncoin"
+  "ticker": "GRAM",
+  "name": "Gram"
  },
  {
   "ticker": "AVAX",
@@ -74,6 +74,46 @@
  {
   "ticker": "HYPE",
   "name": "Hyperliquid"
+ },
+ {
+  "ticker": "XMR",
+  "name": "Monero"
+ },
+ {
+  "ticker": "SHIB",
+  "name": "Shiba Inu"
+ },
+ {
+  "ticker": "BCH",
+  "name": "Bitcoin Cash"
+ },
+ {
+  "ticker": "NEAR",
+  "name": "NEAR Protocol"
+ },
+ {
+  "ticker": "APT",
+  "name": "Aptos"
+ },
+ {
+  "ticker": "ATOM",
+  "name": "Cosmos"
+ },
+ {
+  "ticker": "ICP",
+  "name": "Internet Computer"
+ },
+ {
+  "ticker": "ETC",
+  "name": "Ethereum Classic"
+ },
+ {
+  "ticker": "FIL",
+  "name": "Filecoin"
+ },
+ {
+  "ticker": "ALGO",
+  "name": "Algorand"
  },
  {
   "ticker": "USDT",

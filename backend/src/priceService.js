@@ -180,7 +180,9 @@ async function fetchFromKraken() {
   const prices = new Map();
   for (const coin of coins) {
     const baseCode = coin.ticker === 'BTC' ? 'XBT' : coin.ticker === 'DOGE' ? 'XDG' : coin.ticker;
-    const key = resultKeys.find(k => k.toUpperCase().includes(baseCode) && k.toUpperCase().endsWith('USD'));
+    // The exact pair we asked for wins; the looser "contains the base code" match is only the fallback.
+    const key = resultKeys.find(k => k.toUpperCase() === coin.krakenSymbol)
+      ?? resultKeys.find(k => k.toUpperCase().includes(baseCode) && k.toUpperCase().endsWith('USD'));
     const price = key ? Number(data.result[key]?.c?.[0]) : NaN;
     if (Number.isFinite(price) && price > 0) prices.set(coin.ticker, price);
   }
