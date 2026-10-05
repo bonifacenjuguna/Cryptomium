@@ -450,10 +450,10 @@ function paintSentiment(data) {
   fng.gauge.svg.dataset.band = moodClass(o.value);
   $('fng-val').textContent = String(o.value);
   $('fng-label').textContent = o.label;
-  $('fng-read').className = 'mood-read ' + moodClass(o.value);
+  $('fng-read').className = 'mm-read mood-read ' + moodClass(o.value);
   const hist = [['Yesterday', o.yesterday], ['Last week', o.lastWeek], ['Last month', o.lastMonth]].filter(([, v]) => v != null);
   $('fng-hist').replaceChildren(...hist.map(([l, v]) => {
-    const s = el('span'); s.append(el('small', '', l), el('b', '', `${v} · ${labelOf(v)}`)); return s;
+    const s = el('span'); s.append(el('small', '', l), el('b', moodClass(v), `${v} · ${labelOf(v).replace('Extreme ', 'Ext. ')}`)); s.title = `${l}: ${v}, ${labelOf(v)}`; return s;
   }));
   $('fng-src').hidden = o.source !== 'alternative.me';
   $('fng').hidden = false;

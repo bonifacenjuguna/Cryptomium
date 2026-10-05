@@ -59,16 +59,6 @@
         <span class="snap-c" id="sn-mood-sub">&nbsp;</span>
       </div>
     </div>
-
-    <div class="panel mood-panel" id="fng" hidden>
-      <div class="mood-dial" id="fng-dial"><div class="mood-read" id="fng-read"><b id="fng-val">–</b><span id="fng-label">&nbsp;</span></div></div>
-      <div class="mood-copy">
-        <h2>Fear &amp; Greed</h2>
-        <p>How nervous or excited the crypto market feels right now. Fear can mean good prices; too much greed can mean a pullback is near.</p>
-        <div class="mood-hist" id="fng-hist"></div>
-        <p class="mood-src" id="fng-src" hidden>Source: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></p>
-      </div>
-    </div>
   </div>
 
   <section id="markets">
@@ -105,6 +95,23 @@
         <p class="empty" id="table-empty" hidden></p>
       </div>
       <button class="btn btn-ghost more-rows" id="more-rows" type="button" hidden>Show more coins</button>
+    </div>
+  </section>
+
+  <section id="fng-sec" class="mood-sec">
+    <div class="wrap">
+      <div class="panel mood-mini" id="fng" hidden>
+        <div class="mm-dial" id="fng-dial"></div>
+        <div class="mm-body">
+          <div class="mm-top">
+            <h2>Fear &amp; Greed</h2>
+            <p class="mm-read mood-read" id="fng-read"><b id="fng-val">–</b><span id="fng-label">&nbsp;</span></p>
+          </div>
+          <p class="mm-note">How nervous or excited the market feels. Fear can mean good prices; too much greed can mean a pullback is near.</p>
+        </div>
+        <div class="mm-hist mood-hist" id="fng-hist"></div>
+        <p class="mm-src mood-src" id="fng-src" hidden>Source: <a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener">alternative.me</a></p>
+      </div>
     </div>
   </section>
 

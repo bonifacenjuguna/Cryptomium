@@ -125,11 +125,12 @@ function fallbackUrls(coin) {
  * Downloads every logo that is missing (or all of them with force: true).
  * Never throws for individual coins. Returns { saved: string[], failed: string[] }.
  */
-export async function fetchMissingLogos({ force = false, fetchFn = fetch, sleep = defaultSleep, log = console } = {}) {
+export async function fetchMissingLogos({ force = false, only = null, fetchFn = fetch, sleep = defaultSleep, log = console } = {}) {
   await fs.mkdir(LOGOS_DIR, { recursive: true });
 
   const todo = [];
   for (const coin of COINS) {
+    if (only && !only.includes(coin.ticker)) continue;
     if (force || !(await hasLogo(coin.ticker))) todo.push(coin);
   }
   if (todo.length === 0) return { saved: [], failed: [] };
@@ -200,4 +201,31 @@ export function startLogoHealer({ intervalMs = 30 * 60_000, onStillMissing } = {
     if ((await missingLogos()).length > 0) pass();
   }, intervalMs);
   timer.unref?.();
+}
+
+// On-demand fetch for one coin: when the website asks for a logo we do not have yet (a fresh deploy
+// on a disk that was wiped, or the boot-time download that failed), get it right then instead of
+// waiting for the next healer pass. Concurrent requests share one download, and a coin that just
+// failed is not retried for a few minutes so a broken source is not hammered.
+const pendingLogos = new Map();
+const lastLogoTry = new Map();
+export async function ensureLogo(ticker, { cooldownMs = 5 * 60_000, now = () => Date.now(), ...rest } = {}) {
+  if (!COINS.some(c => c.ticker === ticker)) return false;
+  if (await hasLogo(ticker)) return true;
+  if (pendingLogos.has(ticker)) return pendingLogos.get(ticker);
+  const last = lastLogoTry.get(ticker);
+  if (last !== undefined && now() - last < cooldownMs) return false;
+  const job = (async () => {
+    try {
+      const { saved } = await fetchMissingLogos({ only: [ticker], ...rest });
+      return saved.includes(ticker);
+    } catch {
+      return false;
+    } finally {
+      lastLogoTry.set(ticker, now());
+      pendingLogos.delete(ticker);
+    }
+  })();
+  pendingLogos.set(ticker, job);
+  return job;
 }

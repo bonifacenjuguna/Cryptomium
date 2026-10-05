@@ -146,3 +146,33 @@ test('rate limited requests get 429', async () => {
     assert.equal((await fetch(`${base}/health`)).status, 200);
   });
 });
+
+test('GET /api/logos/<T>.png fetches a missing logo on demand, once, and still 404s when it cannot', async () => {
+  const { createApiHandler } = await import('../src/api.js');
+  const fsp = await import('node:fs/promises');
+  const os = await import('node:os');
+  const pth = await import('node:path');
+  const http = await import('node:http');
+  const dir = await fsp.mkdtemp(pth.join(os.tmpdir(), 'logos-od-'));
+  let calls = 0;
+  const ensureLogo = async t => {
+    calls++;
+    if (t !== 'BTC') return false;
+    await fsp.writeFile(pth.join(dir, 'BTC.png'), Buffer.alloc(900, 1));
+    return true;
+  };
+  const handler = createApiHandler({ getSnapshot: async () => ({ coins: [] }), logosDir: dir, ensureLogo, allowedOrigins: ['*'] });
+  const server = http.createServer(handler);
+  await new Promise(r => server.listen(0, r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const ok = await fetch(`${base}/api/logos/BTC.png`);
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('access-control-allow-origin'), '*');
+    assert.equal((await fetch(`${base}/api/logos/BTC.png`)).status, 200);
+    assert.equal(calls, 1); // the second request is served from disk
+    assert.equal((await fetch(`${base}/api/logos/ETH.png`)).status, 404);
+  } finally {
+    server.close();
+  }
+});

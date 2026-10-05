@@ -88,17 +88,6 @@
         <div class="perf-cell"><span>1 year</span><b class="num chg flat" id="p-1y">–</b></div>
       </div>
 
-      <div class="panel mood-card" id="coin-mood" hidden>
-        <div class="mood-dial" id="cm-dial"><div class="mood-read" id="cm-read"><b id="cm-val">–</b><span id="cm-label">&nbsp;</span></div></div>
-        <div class="mood-body">
-          <h2>{{COIN_NAME}} Fear &amp; Greed</h2>
-          <p class="mc-note">Our reading of how {{COIN_NAME}} feels right now, from its recent price moves, where it sits in today's range and how busy trading is.</p>
-          <div class="mood-compare">
-            <div class="mc-row"><span>Whole market <small class="mood-src-inline">· alternative.me</small></span><b id="cm-overall">–</b></div>
-          </div>
-        </div>
-      </div>
-
       <dl class="stats" id="stats">
         <div class="stat"><dt>Market cap</dt><dd class="num" id="s-cap">–</dd></div>
         <div class="stat"><dt>24h volume</dt><dd class="num" id="s-vol">–</dd></div>
@@ -159,6 +148,22 @@
       <div class="panel feed">
         <ul class="alerts" id="alert-list" aria-live="polite"></ul>
         <p class="empty" id="alert-empty" hidden>No alerts for this coin yet. The next one will show up here.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="coin-mood-sec" class="mood-sec">
+    <div class="wrap">
+      <div class="panel mood-mini" id="coin-mood" hidden>
+        <div class="mm-dial" id="cm-dial"></div>
+        <div class="mm-body">
+          <div class="mm-top">
+            <h2>{{COIN_NAME}} Fear &amp; Greed</h2>
+            <p class="mm-read mood-read" id="cm-read"><b id="cm-val">–</b><span id="cm-label">&nbsp;</span></p>
+          </div>
+          <p class="mm-note">From recent price moves, today's range and how busy trading is.</p>
+        </div>
+        <div class="mm-hist mood-hist"><span class="mc-row"><small>Whole market <em>· alternative.me</em></small><b id="cm-overall">–</b></span></div>
       </div>
     </div>
   </section>

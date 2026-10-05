@@ -168,6 +168,7 @@ export function clientIp(req, hops = 1) {
 export function createApiHandler({
   getSnapshot,
   logosDir,
+  ensureLogo = null, // optional: fetch a missing logo on demand, resolves true when it is now on disk
   allowedOrigins,
   allow = () => true,
   getMarket = null,
@@ -346,7 +347,14 @@ export function createApiHandler({
       const ticker = logo[1].toUpperCase();
       if (!tickerSet.has(ticker)) return json(res, 404, { error: 'Unknown coin.' });
       try {
-        const file = await fs.readFile(path.join(logosDir, `${ticker}.png`));
+        const logoFile = path.join(logosDir, `${ticker}.png`);
+        let file;
+        try {
+          file = await fs.readFile(logoFile);
+        } catch (err) {
+          if (!ensureLogo || !(await ensureLogo(ticker))) throw err;
+          file = await fs.readFile(logoFile);
+        }
         res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', 'Cross-Origin-Resource-Policy': 'cross-origin', 'Access-Control-Allow-Origin': '*' });
         return res.end(file);
       } catch {
@@ -430,6 +438,8 @@ export function groupIntoCandles(points, count) {
 
 /** Starts the API on CONFIG.port. Returns the server (call .close() to stop). */
 export function startApi({ recentAlerts }) {
+  // Loaded on first use so the API module itself stays light (the logo code needs the canvas library).
+  const ensureLogo = async ticker => (await import('./logoService.js')).ensureLogo(ticker);
   const hasLogo = async ticker => {
     try {
       return (await fs.stat(path.join(LOGOS_DIR, `${ticker}.png`))).size > 500;
@@ -494,6 +504,7 @@ export function startApi({ recentAlerts }) {
   const handler = createApiHandler({
     getSnapshot,
     logosDir: LOGOS_DIR,
+    ensureLogo,
     allowedOrigins: CONFIG.allowedOrigins,
     allow: createRateLimiter({ limit: CONFIG.apiRateLimitPerMin }),
     proxyHops: CONFIG.trustedProxyHops,

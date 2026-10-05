@@ -295,7 +295,7 @@ async function loadSentiment() {
     moodGauge.g.svg.dataset.band = moodClass(mine.value);
     $('cm-val').textContent = String(mine.value);
     $('cm-label').textContent = mine.value < 25 ? 'Extreme fear' : mine.value < 45 ? 'Fear' : mine.value <= 55 ? 'Neutral' : mine.value < 75 ? 'Greed' : 'Extreme greed';
-    $('cm-read').className = 'mood-read ' + moodClass(mine.value);
+    $('cm-read').className = 'mm-read mood-read ' + moodClass(mine.value);
     const o = data.overall;
     $('cm-overall').textContent = o ? `${o.value} · ${o.label}` : '–';
     $('cm-overall').closest('.mc-row').hidden = !o;

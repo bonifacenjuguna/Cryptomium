@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.6.0
+
+**Real coin logos everywhere, much smaller Fear & Greed cards in better places, and a Clear button for recent searches. Redeploy both the backend and the frontend.**
+- Logos: the website no longer settles for the letter badge (BTC, ETH...). If a logo fails to load it is
+  retried as a plain picture (a browser that cached an older copy without CORS headers was refusing it),
+  then from two public icon sets, and only then does it show letters. Logos also appear in the search list.
+- Backend: `GET /api/logos/<TICKER>.png` now downloads a missing logo on the spot (shared between
+  simultaneous requests, and not retried for 5 minutes after a failure), so a fresh deploy or a wiped disk
+  no longer leaves coins without logos until the next healing pass.
+- Fear & Greed: one compact card instead of a huge panel (a small dial, the reading, and
+  yesterday / last week / last month in a single row). On the home page it now comes after the coins list and
+  before Top movers; on a coin page it sits at the bottom, above "Explore more coins".
+- Search: the Recent list has a Clear button. (Settings > Data and privacy still has one too.)
+- The Content-Security-Policy allows pictures from cdn.jsdelivr.net and assets.coincap.io (images only) as the
+  last-resort logo source.
+
 ## 2.5.0
 
 **Zoomable charts, Fear & Greed, a rebuilt Settings area and a round of polish. Redeploy both the backend and the frontend.**

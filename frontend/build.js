@@ -65,14 +65,15 @@ const footer = fs.readFileSync(path.join(src, 'partials/footer.html'), 'utf8');
 const settingsNav = fs.readFileSync(path.join(src, 'partials/settings-nav.html'), 'utf8');
 const compose = html => html.replace('<!--@header-->', header).replace('<!--@footer-->', footer).replace('<!--@settings-nav-->', settingsNav);
 
-// Only this site, Google Fonts, and the backend may be used by the pages.
+// Only this site, Google Fonts, and the backend may be used by the pages. Two public icon sets are
+// allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
 const apiOrigin = apiUrl ? new URL(apiUrl).origin : '';
 const csp = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
-  `img-src 'self' data: ${apiOrigin}`.trim(),
+  `img-src 'self' data: ${apiOrigin} https://cdn.jsdelivr.net https://assets.coincap.io`.trim(),
   `connect-src 'self' ${apiOrigin}`.trim(),
   "base-uri 'self'",
   "form-action 'none'",

@@ -385,24 +385,54 @@ function fitLogo(img, ticker) {
   img.style.transform = `translate(${(-f.x * f.s * 100).toFixed(1)}%, ${(-f.y * f.s * 100).toFixed(1)}%) scale(${f.s.toFixed(3)})`;
 }
 
+// Where a logo can come from, best first. Our own backend serves every logo (and fetches a missing
+// one on demand). A browser that cached an older copy without CORS headers refuses it in "measure"
+// mode, so the same address is tried again as a plain picture. Public icon sets are the last resort.
+const logoSources = (coin, api) => {
+  const sym = coin.ticker.toLowerCase();
+  return [
+    { src: api + (coin.logo || `/api/logos/${coin.ticker}.png`), cors: true },
+    { src: api + (coin.logo || `/api/logos/${coin.ticker}.png`), cors: false },
+    { src: `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${sym}.png`, cors: false },
+    { src: `https://assets.coincap.io/assets/icons/${sym}@2x.png`, cors: false },
+  ];
+};
+const logoWorked = new Map(); // ticker -> index of the source that loaded, so later tiles skip the misses
+
 /** A coin logo in a round tile. size: '' (32px) | 'sm' | 'lg' | 'xl'. */
 export function logoEl(coin, size = '') {
   const wrap = el('div', 'logo' + (size ? ' ' + size : ''));
   const monogram = () => { wrap.classList.add('mono'); wrap.replaceChildren(document.createTextNode(coin.ticker.slice(0, size === 'sm' ? 2 : 4))); };
-  if (coin.logo) {
-    const img = new Image();
-    img.alt = '';
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.crossOrigin = 'anonymous';
-    img.onload = () => fitLogo(img, coin.ticker);
-    img.onerror = monogram;
-    img.src = API + coin.logo;
-    wrap.append(img);
-  } else {
-    monogram();
-  }
+  const sources = logoSources(coin, API);
+  let i = logoWorked.get(coin.ticker) ?? 0;
+  const img = new Image();
+  img.alt = '';
+  img.decoding = 'async';
+  img.onload = () => {
+    logoWorked.set(coin.ticker, i);
+    wrap.classList.add('has-img');
+    if (sources[i].cors) fitLogo(img, coin.ticker);
+    else applyFit(img, coin.ticker);
+  };
+  img.onerror = () => {
+    i += 1;
+    if (i >= sources.length) { monogram(); return; }
+    load();
+  };
+  const load = () => {
+    const s = sources[i];
+    if (s.cors) img.crossOrigin = 'anonymous'; else img.removeAttribute('crossorigin');
+    img.src = s.src;
+  };
+  wrap.append(img);
+  load();
   return wrap;
+}
+// A logo we could not measure (no CORS) reuses a measurement from an earlier tile if there is one.
+function applyFit(img, ticker) {
+  const f = fitCache.get(ticker);
+  if (!f || (f.s === 1 && !f.x && !f.y)) return;
+  img.style.transform = `translate(${(-f.x * f.s * 100).toFixed(1)}%, ${(-f.y * f.s * 100).toFixed(1)}%) scale(${f.s.toFixed(3)})`;
 }
 
 /** Tint strength for a tile: 0 (flat) to .32 (a move of 6% or more). */
@@ -466,13 +496,23 @@ function initSearch(coins) {
       li.id = 'sr-' + i;
       li.setAttribute('role', 'option');
       li.setAttribute('aria-selected', String(i === active));
-      li.append(el('span', 's-sym', c.ticker), el('span', 's-name', c.name));
+      li.append(logoEl(c, 'sm'), el('span', 's-sym', c.ticker), el('span', 's-name', c.name));
       li.addEventListener('mousedown', e => { e.preventDefault(); go(c); });
       list.append(li);
     });
     if (!results.length && input.value.trim()) list.append(el('li', 'search-empty', 'No coin matches that.'));
     list.hidden = !(results.length || input.value.trim());
-    if (!input.value.trim() && results.length) list.prepend(Object.assign(el('li', 'search-head', 'Recent'), { role: 'presentation' }));
+    if (!input.value.trim() && results.length) {
+      const head = el('li', 'search-head');
+      head.setAttribute('role', 'presentation');
+      const clear = el('button', 'search-clear', 'Clear');
+      clear.type = 'button';
+      clear.setAttribute('aria-label', 'Clear recent searches');
+      // mousedown (not click) so the input keeps focus and the list does not close first.
+      clear.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); store.set('cm-recent', '[]'); run(); });
+      head.append(el('span', '', 'Recent'), clear);
+      list.prepend(head);
+    }
     input.setAttribute('aria-expanded', String(!list.hidden));
     if (active >= 0) input.setAttribute('aria-activedescendant', 'sr-' + active); else input.removeAttribute('aria-activedescendant');
   };
