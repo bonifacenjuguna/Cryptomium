@@ -743,7 +743,9 @@ export async function initChrome() {
   initToTop();
   initWordmark();
   initFooterMovers(coins);
-  if (path === '/portfolio') document.querySelector('[data-nav="portfolio"]')?.setAttribute('aria-current', 'page');
+  for (const name of ['portfolio', 'markets', 'screener', 'news', 'compare']) {
+    if (path === '/' + name) document.querySelector(`[data-nav="${name}"]`)?.setAttribute('aria-current', 'page');
+  }
   pollPrices(() => {}); // starts the shared live connection on every page
   // Exchange rates arrive quietly; the currency follows when they do.
   getJSON('/api/rates').then(r => setRates(r.rates)).catch(() => {});

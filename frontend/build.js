@@ -129,7 +129,7 @@ for (const c of coins) {
 // Everything non-HTML that carries tokens.
 write('robots.txt', fill(fs.readFileSync(path.join(src, 'robots.txt'), 'utf8')).replace(/^Sitemap:.*\n?/m, siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''));
 if (siteUrl) {
-  const urls = ['/', '/about', '/portfolio', ...coins.map(c => `/coin/${c.ticker}`)];
+  const urls = ['/', '/markets', '/screener', '/news', '/compare', '/about', ...coins.map(c => `/coin/${c.ticker}`)]; // /portfolio is noindex, so it is not listed
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
 }
 

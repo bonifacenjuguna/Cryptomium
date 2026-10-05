@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Crypto News Headlines from Leading Publishers | {{BRAND}}</title>
+  <meta name="description" content="Latest crypto headlines from CoinDesk, Cointelegraph, Decrypt and Bitcoin Magazine, sorted by coin and topic, with links to the original articles.">
+  <link rel="canonical" href="{{SITE_URL}}/news">
+  <meta property="og:title" content="Crypto News | {{BRAND}}">
+  <meta property="og:description" content="Headlines from leading crypto publishers, by coin and topic.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{SITE_URL}}/news">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body data-page="news">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top">
+      <h1>News</h1>
+      <p class="lede">Headlines from the publishers' own public feeds. We show the headline and a short excerpt, then send you to the original article.</p>
+    </div>
+
+    <div class="nw-filters">
+      <div class="segs nw-cats" role="group" aria-label="Topic" id="nw-cats"></div>
+      <div class="nw-row">
+        <input class="sheet-search nw-q" id="nw-q" type="search" placeholder="Search headlines" aria-label="Search headlines" autocomplete="off">
+        <select class="nw-pub" id="nw-pub" aria-label="Publisher"><option value="">All publishers</option></select>
+      </div>
+    </div>
+
+    <p class="s-hint" id="nw-status" aria-live="polite"></p>
+    <ol class="nw-list" id="nw-list"></ol>
+    <p class="empty" id="nw-none" hidden>No headlines match. Try another topic or clear the search.</p>
+    <p class="s-hint nw-foot" id="nw-foot">Headlines and excerpts belong to their publishers. {{BRAND}} only links to them. Topic and coin tags are matched automatically from the headline, so a few will be imperfect.</p>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/news.js"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Crypto Market Overview: Gainers, Losers and Market Cap | {{BRAND}}</title>
+  <meta name="description" content="What is happening across crypto right now: total market cap, volume, Bitcoin dominance, top gainers and losers, most active coins and distance from all-time highs.">
+  <link rel="canonical" href="{{SITE_URL}}/markets">
+  <meta property="og:title" content="Crypto Market Overview | {{BRAND}}">
+  <meta property="og:description" content="Total market cap, volume, dominance, gainers, losers and all-time-high distance, live.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{SITE_URL}}/markets">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"Crypto Market Overview","url":"{{SITE_URL}}/markets","isPartOf":{"@type":"WebSite","name":"{{BRAND}}","url":"{{SITE_URL}}/"}}</script>
+</head>
+<body data-page="markets">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top">
+      <h1>Markets</h1>
+      <p class="lede" id="mk-lede">The state of crypto right now, in one screen.</p>
+    </div>
+
+    <section class="mk-pulse panel" aria-label="Market pulse" id="pulse">
+      <div class="pu"><span class="pu-l">Market cap</span><b class="pu-v num" id="pu-cap">–</b><span class="num chg flat" id="pu-cap-ch">&nbsp;</span></div>
+      <div class="pu"><span class="pu-l">24h volume</span><b class="pu-v num" id="pu-vol">–</b><span class="pu-s num" id="pu-vol-s">&nbsp;</span></div>
+      <div class="pu"><span class="pu-l">BTC dominance</span><b class="pu-v num" id="pu-btc">–</b><span class="pu-s num" id="pu-eth">&nbsp;</span></div>
+      <div class="pu"><span class="pu-l">Fear &amp; Greed</span><b class="pu-v num" id="pu-fng">–</b><span class="pu-s" id="pu-fng-s">&nbsp;</span></div>
+      <div class="pu"><span class="pu-l">Stablecoins</span><b class="pu-v num" id="pu-stable">–</b><span class="pu-s" id="pu-stable-s">&nbsp;</span></div>
+      <div class="pu"><span class="pu-l">Assets</span><b class="pu-v num" id="pu-assets">–</b><span class="pu-s" id="pu-assets-s">&nbsp;</span></div>
+    </section>
+
+    <section class="mk-breadth" aria-labelledby="br-h">
+      <div class="sec-head"><h2 id="br-h">Breadth</h2><p id="br-note">How the tracked coins are moving today.</p></div>
+      <div class="panel br-panel">
+        <div class="br-bar" id="br-bar" role="img" aria-label="Share of tracked coins up, flat and down over 24 hours"></div>
+        <div class="br-legend num" id="br-legend"></div>
+        <div class="br-chart"><div class="br-chart-h"><b>Tracked market, 7 days</b><span class="num chg flat" id="br-ch7">&nbsp;</span></div><div id="br-spark" class="br-spark"></div><p class="s-hint">Built from the circulating-supply value of every tracked coin except stablecoins. It is the coins we list, not the whole market.</p></div>
+      </div>
+    </section>
+
+    <section class="mk-movers" aria-labelledby="mv-h">
+      <div class="sec-head">
+        <h2 id="mv-h">Movers</h2>
+        <div class="mv-controls">
+          <div class="segs" role="group" aria-label="Ranking" id="mv-kind">
+            <button class="seg" type="button" data-k="moves" aria-pressed="true">Gainers &amp; losers</button>
+            <button class="seg" type="button" data-k="active" aria-pressed="false">Most active</button>
+            <button class="seg" type="button" data-k="ath" aria-pressed="false">Highs &amp; lows</button>
+          </div>
+          <div class="segs" role="group" aria-label="Period" id="mv-period">
+            <button class="seg" type="button" data-p="c1h" aria-pressed="false">1H</button>
+            <button class="seg" type="button" data-p="c24" aria-pressed="true">24H</button>
+            <button class="seg" type="button" data-p="c7" aria-pressed="false">7D</button>
+            <button class="seg" type="button" data-p="c30" aria-pressed="false">30D</button>
+          </div>
+        </div>
+      </div>
+      <p class="s-hint" id="mv-explain"></p>
+      <div class="mv-grid" id="mv-grid" aria-live="polite"></div>
+    </section>
+
+    <p class="s-hint mk-foot">Numbers cover the coins {{BRAND}} tracks. Market totals come from CoinGecko; direction signs are measured, never predicted. <a href="/screener">Filter every coin in the Screener</a>.</p>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/markets.js"></script>
+</body>
+</html>

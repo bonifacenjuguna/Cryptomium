@@ -39,12 +39,23 @@
         <form id="pf-form" class="pf-form" autocomplete="off">
           <div class="fld"><span>Coin</span><button class="cpk" id="pf-coin" type="button"></button></div>
           <label class="fld"><span>Amount</span><input id="pf-amount" type="text" inputmode="decimal" placeholder="0.00" aria-label="Amount you hold"></label>
+          <label class="fld"><span>Price paid each <em>(optional)</em></span><input id="pf-cost" type="text" inputmode="decimal" placeholder="Price you paid" aria-label="Price you paid per coin, optional"></label>
           <button class="btn btn-accent" type="submit">Add</button>
         </form>
         <p class="s-error" id="pf-error" role="alert" hidden></p>
-        <p class="s-hint">Adding a coin you already hold increases that amount.</p>
+        <p class="s-hint">Adding a coin you already hold increases that amount, and blends the price you paid. Enter the price in your selected currency. Leave it empty to skip profit and loss for that coin.</p>
       </section>
     </div>
+
+    <section class="pf-an" id="pf-an" aria-labelledby="pf-an-h" hidden>
+      <div class="sec-head"><h2 id="pf-an-h">Analytics</h2><p>Calculated from your holdings and live prices, in this browser only.</p></div>
+      <div class="panel pf-stats" id="pf-stats"></div>
+      <div class="pf-two">
+        <div class="panel pf-perf"><h3>Performance</h3><div class="pf-periods" id="pf-periods"></div><p class="s-hint">Each period applies that coin's price change to what you hold today. It is not a record of your trades.</p></div>
+        <div class="panel pf-chart"><h3>Last 7 days</h3><div id="pf-spark" class="br-spark"></div><p class="s-hint">Today's holdings valued at each point of the past week.</p></div>
+      </div>
+      <p class="pf-extremes s-hint" id="pf-extremes"></p>
+    </section>
 
     <section class="pf-holdings">
       <div class="sec-head"><h2>Your holdings</h2></div>
@@ -52,6 +63,7 @@
         <ul class="pf-list" id="pf-list"></ul>
         <p class="empty" id="pf-none">Nothing here yet. Add your first coin above.</p>
       </div>
+      <p class="s-hint pf-local">Stored only in this browser on this device. Clearing site data or switching browsers removes it, and nothing is uploaded. Realized profit from sales is not tracked.</p>
     </section>
   </div>
 </main>

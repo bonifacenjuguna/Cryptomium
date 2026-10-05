@@ -3,7 +3,7 @@ import {
   API, initChrome, pollPrices, getJSON, store, prefs, PREF_DEFAULTS, currency, onCurrency, setCurrency, currencySymbol, CURRENCY_NAMES,
   money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings, setLive,
 } from './common.js';
-import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime } from './targets.js';
+import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime, describe } from './targets.js';
 import { openSheet, coinPicker } from './ui.js';
 import { createChart } from './chart.js';
 import { LESSONS, CATS, TERMS } from './learn-content.js';
@@ -253,14 +253,13 @@ function renderTargets() {
     const li = el('li', 'al-row' + (t.firedAt ? ' reached' : ''));
     const logo = el('span', 'wl-logo'); logo.append(logoEl(l || { ticker: t.ticker, logo: null }));
     const body = el('span', 'al-body');
-    const verb = t.dir === 'above' ? 'rises to or above' : 'falls to or below';
-    body.append(el('b', '', `${t.ticker} ${verb} ${money(t.price, { stable })}`));
+    body.append(el('b', '', `${t.ticker} ${describe(t, stable)}`));
     const meta = el('span', 'al-meta');
     meta.dataset.ticker = t.ticker; meta.dataset.price = t.price;
-    if (!t.firedAt) meta.dataset.live = '1';
+    if (!t.firedAt && (t.dir === 'above' || t.dir === 'below')) meta.dataset.live = '1';
     if (t.firedAt) {
       meta.textContent = `Reached ${ago(new Date(t.firedAt).toISOString())} at ${money(t.firedPrice, { stable })}`;
-    } else if (l?.price) {
+    } else if (l?.price && (t.dir === 'above' || t.dir === 'below')) {
       const away = ((t.price - l.price) / l.price) * 100;
       meta.textContent = `${Math.abs(away).toFixed(2)}% away. Now ${money(l.price, { stable })}`;
     } else meta.textContent = 'Watching';
@@ -310,6 +309,14 @@ function initAlerts() {
   document.addEventListener('cm:targets', renderTargets);
   setInterval(renderTargets, 30000);
 
+  const syncKind = () => {
+    const k = $('al-dir').value;
+    $('al-price-fld').hidden = k === 'ath' || k === 'atl';
+    $('al-price-l').textContent = k === 'move' ? 'Move in 24h (%)' : `Price in ${currency.code}`;
+    $('al-price').placeholder = k === 'move' ? 'e.g. 5' : 'Price';
+  };
+  $('al-dir').addEventListener('change', syncKind);
+  syncKind();
   $('al-form').addEventListener('submit', e => {
     e.preventDefault();
     const err = $('al-error');
@@ -317,10 +324,17 @@ function initAlerts() {
     const ticker = alPick.get();
     const dir = $('al-dir').value;
     const shown = parseNum($('al-price').value);
+    if (dir === 'ath' || dir === 'atl') { addTarget({ ticker, dir, price: 0 }); return; }
     if (!(shown > 0)) { err.textContent = 'Enter a price greater than zero.'; err.hidden = false; return; }
     const usd = shown / currency.rate;
     const l = live.get(ticker);
-    if (l?.price) {
+    if (dir === 'move') {
+      if (!(shown >= 0.5 && shown <= 100)) { err.textContent = 'Enter a 24h move between 0.5 and 100 percent.'; err.hidden = false; return; }
+      addTarget({ ticker, dir, price: shown });
+      $('al-price').value = '';
+      return;
+    }
+    if (l?.price && (dir === 'above' || dir === 'below')) {
       if (dir === 'above' && l.price >= usd) { err.textContent = `${ticker} is already at or above that price. Pick a higher one.`; err.hidden = false; return; }
       if (dir === 'below' && l.price <= usd) { err.textContent = `${ticker} is already at or below that price. Pick a lower one.`; err.hidden = false; return; }
     }
@@ -389,7 +403,7 @@ async function importData(file) {
     if (typeof data.currency === 'string' && CURRENCY_NAMES[data.currency]) store.set('cm-currency', data.currency);
     if (Array.isArray(data.favs)) store.set(FAV_KEY, JSON.stringify(data.favs.filter(t => tickers.has(t))));
     if (Array.isArray(data.targets)) {
-      const ok = data.targets.filter(t => t && tickers.has(t.ticker) && (t.dir === 'above' || t.dir === 'below') && t.price > 0).slice(0, 50)
+      const ok = data.targets.filter(t => t && tickers.has(t.ticker) && (['above', 'below', 'move', 'ath', 'atl'].includes(t.dir)) && (t.price > 0 || t.dir === 'ath' || t.dir === 'atl')).slice(0, 50)
         .map(t => ({ id: String(t.id || Math.random().toString(36).slice(2)).slice(0, 20), ticker: t.ticker, dir: t.dir, price: Number(t.price), created: Number(t.created) || Date.now(), firedAt: t.firedAt ? Number(t.firedAt) : undefined, firedPrice: t.firedPrice ? Number(t.firedPrice) : undefined }));
       store.set('cm-targets', JSON.stringify(ok));
     }

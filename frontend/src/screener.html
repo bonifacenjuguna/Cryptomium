@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Crypto Screener: Filter by Market Cap, Volume and ATH | {{BRAND}}</title>
+  <meta name="description" content="Filter crypto by market cap, price, 24h and 7d change, volume, volume to market cap, distance from all-time high and low, supply and more. Free, no account.">
+  <link rel="canonical" href="{{SITE_URL}}/screener">
+  <meta property="og:title" content="Crypto Screener | {{BRAND}}">
+  <meta property="og:description" content="Discover coins by market cap, volume, momentum and all-time-high distance.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{SITE_URL}}/screener">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body data-page="screener">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top">
+      <h1>Screener</h1>
+      <p class="lede">Filter the coins {{BRAND}} tracks by size, movement, volume, supply and distance from all-time highs. Your filters live in the address, so you can bookmark or share a screen.</p>
+    </div>
+
+    <div class="segs sc-presets" role="group" aria-label="Quick views" id="sc-presets"></div>
+
+    <details class="panel sc-filters" id="sc-filters" open>
+      <summary><span>Filters</span><span class="sc-count num" id="sc-active"></span></summary>
+      <div class="sc-grid" id="sc-grid"></div>
+      <div class="sc-actions"><button class="btn btn-ghost btn-sm" type="button" id="sc-reset">Reset filters</button></div>
+    </details>
+
+    <div class="sc-bar">
+      <input class="sheet-search sc-q" id="sc-q" type="search" placeholder="Name or symbol" aria-label="Filter by name or symbol" autocomplete="off">
+      <span class="s-hint num" id="sc-result" aria-live="polite"></span>
+    </div>
+
+    <div class="table-wrap sc-table">
+      <table id="sc-t">
+        <thead><tr id="sc-head"></tr></thead>
+        <tbody id="sc-body"></tbody>
+      </table>
+      <p class="empty" id="sc-none" hidden>No coin matches these filters. Loosen one of them or reset.</p>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/screener.js"></script>
+</body>
+</html>

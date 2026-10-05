@@ -29,9 +29,9 @@
           <form id="al-form" class="al-form" autocomplete="off" novalidate>
             <div class="fld"><span>Coin</span><button class="cpk" id="al-coin" type="button"></button></div>
             <label class="fld"><span>When it</span>
-              <select id="al-dir"><option value="above">Rises to or above</option><option value="below">Falls to or below</option></select>
+              <select id="al-dir"><option value="above">Rises to or above</option><option value="below">Falls to or below</option><option value="move">Moves by % in 24h</option><option value="ath">Hits a new all-time high</option><option value="atl">Hits a new all-time low</option></select>
             </label>
-            <label class="fld"><span>Price in <b id="al-code">USD</b></span><input id="al-price" type="text" inputmode="decimal" placeholder="Price" aria-label="Target price"></label>
+            <label class="fld" id="al-price-fld"><span id="al-price-l">Price in <b id="al-code">USD</b></span><input id="al-price" type="text" inputmode="decimal" placeholder="Price" aria-label="Target price"></label>
             <button class="btn btn-accent" type="submit">Add alert</button>
           </form>
           <p class="s-hint" id="al-now">&nbsp;</p>

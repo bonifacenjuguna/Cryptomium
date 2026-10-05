@@ -2,6 +2,8 @@
 //
 //   GET /api/prices            live prices + 24h change for every coin
 //   GET /api/market            market cap, volume, 24h range, 7d change, 7d sparkline
+//   GET /api/global            whole-market totals, dominance and breadth of the tracked coins
+//   GET /api/news              latest headlines from publishers' public RSS feeds (links to the originals)
 //   GET /api/sentiment         Fear & Greed: overall market (alternative.me) and a reading per coin
 //   GET /api/stream            the same prices, pushed every couple of seconds (server-sent events)
 //   GET /api/history/BTC?range=7d   price history for one coin (24h|7d|30d|90d|1y);
@@ -24,6 +26,8 @@ import { fetchChartData } from './chartData.js';
 import { fetchMarket, fetchRates } from './marketData.js';
 import { createLoader, createKeyedLoader, downsample } from './cache.js';
 import { buildSentiment } from './sentiment.js';
+import { fetchGlobal, buildBreadth } from './globalData.js';
+import { fetchNews } from './news.js';
 
 // History ranges offered to the website, with how long each reading is reused.
 // Longer ranges change slowly, so they are cached much longer.
@@ -174,6 +178,8 @@ export function createApiHandler({
   getMarket = null,
   getRates = null,
   getSentiment = null,
+  getGlobal = null,
+  getNews = null,
   getHistory = null, // (ticker, rangeKey) -> { value, stale }
   getAlerts = null, //  ({ limit, ticker }) -> rows
   proxyHops = 1,
@@ -297,6 +303,14 @@ export function createApiHandler({
 
     if (url.pathname === '/api/market' && getMarket) {
       return cached(getMarket, (v, stale) => ({ ...v, stale }), 'public, max-age=60');
+    }
+
+    if (url.pathname === '/api/global' && getGlobal) {
+      return cached(getGlobal, (v, stale) => ({ ...v, stale }), 'public, max-age=120');
+    }
+
+    if (url.pathname === '/api/news' && getNews) {
+      return cached(getNews, (v, stale) => ({ ...v, stale }), 'public, max-age=300');
     }
 
     if (url.pathname === '/api/sentiment' && getSentiment) {
@@ -480,6 +494,19 @@ export function startApi({ recentAlerts }) {
     ttlMs: 10 * 60_000,
     failTtlMs: 60_000,
   });
+  // Global totals and breadth share the market loader, so this adds one CoinGecko call per window.
+  const globalLoader = createLoader({
+    load: async () => {
+      const mk = (await market()).value;
+      let g = null;
+      try { g = await fetchGlobal(); } catch { /* breadth and tracked totals still work */ }
+      if (!g && !mk) throw new Error('No global data');
+      return { ...(g ?? { updatedAt: new Date().toISOString() }), breadth: buildBreadth(mk, g), complete: Boolean(g) };
+    },
+    ttlMs: 3 * 60_000,
+    failTtlMs: 60_000,
+  });
+  const news = createLoader({ load: fetchNews, ttlMs: 10 * 60_000, failTtlMs: 2 * 60_000 });
   const rates = createLoader({ load: fetchRates, ttlMs: 60 * 60_000, failTtlMs: 5 * 60_000 });
   const history = createKeyedLoader({
     load: key => {
@@ -511,6 +538,8 @@ export function startApi({ recentAlerts }) {
     getMarket: market,
     getRates: rates,
     getSentiment: sentiment,
+    getGlobal: globalLoader,
+    getNews: news,
     getHistory: (ticker, rangeKey, style) => history(`${ticker}:${rangeKey}:${style}`),
     maxStreams: CONFIG.apiMaxStreams,
     getAlerts: async ({ ticker, limit }) => (await alerts(`${ticker ?? '*'}:${limit}`)).value,

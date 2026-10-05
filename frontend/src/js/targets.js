@@ -2,6 +2,7 @@
 // every price reading is checked against them; a target that is reached shows a message
 // and, if the visitor allowed it, a browser notification. They are never sent anywhere.
 import { store, money, toast, prefs } from './common.js';
+import { loadMarket } from './intel.js';
 
 const KEY = 'cm-targets';
 
@@ -18,7 +19,7 @@ function save(list) {
   document.dispatchEvent(new CustomEvent('cm:targets'));
 }
 
-/** `price` is in US dollars. Returns the new target. */
+/** dir: 'above' | 'below' (price is in US dollars), 'move' (price is a 24h change in percent), 'ath' | 'atl' (new all-time high / low, price unused). Returns the new target. */
 export function addTarget({ ticker, dir, price }) {
   const list = loadTargets();
   const target = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ticker, dir, price, created: Date.now() };
@@ -50,11 +51,19 @@ export function chime() {
   } catch { /* sound is optional */ }
 }
 
+export function describe(t, stable = false) {
+  if (t.dir === 'move') return `moves ${t.price}% or more in 24 hours`;
+  if (t.dir === 'ath') return 'reaches a new all-time high';
+  if (t.dir === 'atl') return 'reaches a new all-time low';
+  return `${t.dir === 'above' ? 'rises to or above' : 'falls to or below'} ${money(t.price, { stable })}`;
+}
+
 function announce(t, coin) {
   if (prefs.get('sound')) chime();
-  const word = t.dir === 'above' ? 'is above' : 'is below';
-  const text = `${t.ticker} ${word} ${money(t.price, { stable: coin.stable })}. Now ${money(coin.price, { stable: coin.stable })}.`;
-  toast(text, { kind: t.dir === 'above' ? 'up' : 'down', ms: 12000, href: '/coin/' + t.ticker });
+  const text = t.dir === 'above' || t.dir === 'below'
+    ? `${t.ticker} ${t.dir === 'above' ? 'is above' : 'is below'} ${money(t.price, { stable: coin.stable })}. Now ${money(coin.price, { stable: coin.stable })}.`
+    : `${t.ticker} ${describe(t)}. Now ${money(coin.price, { stable: coin.stable })}.`;
+  toast(text, { kind: t.dir === 'above' || t.dir === 'ath' || (t.dir === 'move' && coin.change24h > 0) ? 'up' : 'down', ms: 12000, href: '/coin/' + t.ticker });
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Cryptomium price alert', { body: text, tag: 'cm-' + t.id });
@@ -62,16 +71,27 @@ function announce(t, coin) {
   } catch { /* notifications are optional */ }
 }
 
+let market = null;
+function reached(t, coin) {
+  if (t.dir === 'above') return coin.price >= t.price;
+  if (t.dir === 'below') return coin.price <= t.price;
+  if (t.dir === 'move') return typeof coin.change24h === 'number' && Math.abs(coin.change24h) >= t.price;
+  const m = market?.[t.ticker];
+  if (t.dir === 'ath') return m?.ath > 0 && coin.price >= m.ath;
+  if (t.dir === 'atl') return m?.atl > 0 && coin.price <= m.atl;
+  return false;
+}
+
 function check(data) {
   const list = loadTargets();
   if (!list.some(t => !t.firedAt)) return;
+  if (!market && list.some(t => !t.firedAt && (t.dir === 'ath' || t.dir === 'atl'))) loadMarket().then(m => { market = m.coins; }).catch(() => {});
   let changed = false;
   for (const t of list) {
     if (t.firedAt) continue;
     const coin = data.coins.find(c => c.ticker === t.ticker);
     if (!coin || !(coin.price > 0)) continue;
-    const hit = t.dir === 'above' ? coin.price >= t.price : coin.price <= t.price;
-    if (hit) {
+    if (reached(t, coin)) {
       t.firedAt = Date.now();
       t.firedPrice = coin.price;
       changed = true;

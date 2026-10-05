@@ -5,7 +5,8 @@ import {
 import { createChart } from './chart.js';
 import { coinPicker } from './ui.js';
 import { createGauge, moodClass } from './gauge.js';
-import { loadTargets, addTarget, removeTarget } from './targets.js';
+import { loadTargets, addTarget, removeTarget, describe } from './targets.js';
+import { buildRows, insights, tag, distText, dateText, RULES } from './intel.js';
 import { ABOUT } from './about-coins.js';
 
 const $ = id => document.getElementById(id);
@@ -44,6 +45,44 @@ function paintHead() {
   $('c-chg').textContent = ch.text === '–' ? '' : ch.text + ' in 24 hours';
   $('c-chg').className = 'chg num ' + ch.cls;
   setChg($('p-24h'), c.change24h);
+}
+
+function paintInsights() {
+  const r = buildRows(state.coins, state.live, state.market).find(x => x.ticker === ticker);
+  const i = insights(r);
+  const sec = $('coin-insights');
+  if (!i || !r.price) { sec.hidden = true; return; }
+  const dl = $('ci-dl');
+  const rows = [];
+  const add = (label, v, extra = '') => { if (!v) return; const dd = el('dd'); dd.append(tag(v[0], v[1])); if (extra) dd.append(el('span', 'cp-x num', ' ' + extra)); rows.push(el('dt', '', label), dd); };
+  add('Momentum', i.momentum);
+  add('7-day trend', i.trend, r.c7 != null ? (r.c7 > 0 ? '+' : '−') + Math.abs(r.c7).toFixed(1) + '%' : '');
+  add('Volatility', i.volatility, i.range != null ? i.range.toFixed(1) + '% 24h range' : '');
+  add('Volume activity', i.activity, r.volCap != null ? r.volCap.toFixed(1) + '% of cap' : '');
+  rows.push(el('dt', '', 'From all-time high'), el('dd', 'num', `${distText(r.athDist)} (high on ${dateText(r.athDate)})`));
+  rows.push(el('dt', '', 'Above all-time low'), el('dd', 'num', `${distText(r.atlUp)} (low on ${dateText(r.atlDate)})`));
+  dl.replaceChildren(...rows);
+  $('ci-rules').replaceChildren(...Object.values(RULES).map(v => el('li', '', v)));
+  sec.hidden = false;
+}
+
+let newsLoaded = false;
+async function loadCoinNews() {
+  if (newsLoaded) return;
+  newsLoaded = true;
+  try {
+    const data = await getJSON('/api/news', { timeoutMs: 20000 });
+    const mine = data.items.filter(n => n.coins.includes(ticker)).slice(0, 4);
+    if (!mine.length) return;
+    $('cn-list').replaceChildren(...mine.map(n => {
+      const li = el('li', 'nw-item');
+      const a = el('a', 'nw-title', n.title); a.href = n.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      const meta = el('div', 'nw-meta'); meta.append(el('b', '', n.publisher), el('span', '', ago(n.at)));
+      li.append(meta, a);
+      return li;
+    }));
+    $('coin-news').hidden = false;
+  } catch { /* optional */ }
 }
 
 function paintStats() {
@@ -245,7 +284,8 @@ function paintAlertList() {
   $('ac-list').replaceChildren(...mine.map(t => {
     const li = el('li', 'ac-item' + (t.firedAt ? ' reached' : ''));
     const text = el('span', 'ac-item-t');
-    text.append(el('b', 'num', money(t.price, { stable: state.coin?.stable })), el('span', '', t.firedAt ? 'Reached ' + ago(new Date(t.firedAt).toISOString()) : (t.dir === 'above' ? 'Rises to' : 'Falls to')));
+    if (t.dir !== 'above' && t.dir !== 'below') text.append(el('b', '', describe(t)), el('span', '', t.firedAt ? 'Reached ' + ago(new Date(t.firedAt).toISOString()) : 'Watching'));
+    else text.append(el('b', 'num', money(t.price, { stable: state.coin?.stable })), el('span', '', t.firedAt ? 'Reached ' + ago(new Date(t.firedAt).toISOString()) : (t.dir === 'above' ? 'Rises to' : 'Falls to')));
     const del = el('button', 'icon-btn');
     del.type = 'button';
     del.setAttribute('aria-label', 'Delete this alert');
@@ -394,10 +434,12 @@ async function boot() {
       state.market = (await getJSON('/api/market')).coins;
       state.marketRef = state.coin?.price ?? null; // market size follows the live price from here
       paintStats();
+      paintInsights();
     } catch { /* optional */ }
   };
   loadMarket();
   setInterval(loadMarket, 5 * 60 * 1000);
+  if (window.requestIdleCallback) window.requestIdleCallback(loadCoinNews, { timeout: 4000 }); else setTimeout(loadCoinNews, 1500);
 
   const loadAlerts = async () => {
     try { state.alerts = (await getJSON(`/api/alerts?ticker=${ticker}&limit=8`)).alerts; paintAlerts(); } catch { /* keep */ }
