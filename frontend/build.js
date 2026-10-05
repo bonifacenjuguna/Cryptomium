@@ -60,10 +60,27 @@ const tokens = {
 const fill = (text, extra = {}) =>
   text.replace(/\{\{([A-Z_]+)\}\}/g, (whole, key) => (key in extra ? extra[key] : key in tokens ? tokens[key] : whole));
 
+// Installable app: viewport that reaches the screen edges, theme colour, manifest and home-screen icons on every page.
+const pwaHead = [
+  '<meta name="theme-color" content="#090f15">',
+  '<link rel="manifest" href="/manifest.webmanifest">',
+  '<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">',
+  '<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">',
+  '<meta name="mobile-web-app-capable" content="yes">',
+  '<meta name="apple-mobile-web-app-capable" content="yes">',
+  `<meta name="apple-mobile-web-app-title" content="${tokens.BRAND}">`,
+  '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
+  `<meta name="application-name" content="${tokens.BRAND}">`,
+].join('\n  ');
+const withPwa = html => {
+  html = html.replace('content="width=device-width, initial-scale=1"', 'content="width=device-width, initial-scale=1, viewport-fit=cover"');
+  return /<meta name="theme-color"[^>]*>/.test(html) ? html.replace(/<meta name="theme-color"[^>]*>/, pwaHead) : html.replace('</head>', `  ${pwaHead}\n</head>`);
+};
+
 const header = fs.readFileSync(path.join(src, 'partials/header.html'), 'utf8');
 const footer = fs.readFileSync(path.join(src, 'partials/footer.html'), 'utf8');
 const settingsNav = fs.readFileSync(path.join(src, 'partials/settings-nav.html'), 'utf8');
-const compose = html => html.replace('<!--@header-->', header).replace('<!--@footer-->', footer).replace('<!--@settings-nav-->', settingsNav);
+const compose = html => withPwa(html.replace('<!--@header-->', header).replace('<!--@footer-->', footer).replace('<!--@settings-nav-->', settingsNav));
 
 // Only this site, Google Fonts, and the backend may be used by the pages. Two public icon sets are
 // allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
@@ -118,6 +135,36 @@ for (const name of pageFiles) {
 }
 
 write('coins.json', JSON.stringify(coins));
+
+// Web app manifest and service worker (the worker is stamped so every deploy refreshes its cache).
+const manifest = {
+  id: '/',
+  name: tokens.BRAND,
+  short_name: tokens.BRAND,
+  description: 'Live crypto prices, charts, market overview and price alerts.',
+  lang: 'en',
+  start_url: '/?source=app',
+  scope: '/',
+  display: 'standalone',
+  display_override: ['standalone', 'minimal-ui'],
+  background_color: '#090f15',
+  theme_color: '#090f15',
+  categories: ['finance', 'news'],
+  icons: [
+    { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
+  shortcuts: [
+    { name: 'Market overview', short_name: 'Overview', url: '/markets', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'Screener', short_name: 'Screener', url: '/screener', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'News', short_name: 'News', url: '/news', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'Portfolio', short_name: 'Portfolio', url: '/portfolio', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+  ],
+};
+if (siteUrl) { manifest.related_applications = [{ platform: 'webapp', url: `${siteUrl}/manifest.webmanifest` }]; manifest.prefer_related_applications = false; }
+write('manifest.webmanifest', JSON.stringify(manifest, null, 2));
+write('sw.js', fs.readFileSync(path.join(src, 'sw.js'), 'utf8').replace(/__VERSION__/g, ver));
 
 // Coin pages: one per coin, plus a generic fallback used for any other /coin/<x> address.
 const coinTemplate = withCsp(compose(fs.readFileSync(path.join(src, 'coin.html'), 'utf8')));

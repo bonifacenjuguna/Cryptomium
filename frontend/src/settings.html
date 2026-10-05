@@ -47,6 +47,33 @@
         <li><a class="hub-card" href="/settings/advanced"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg></span><span class="hub-t">Advanced</span><span class="hub-d">Live updates, number precision and shortcuts.</span><span class="hub-v" id="hv-advanced">&nbsp;</span></a></li>
         <li><a class="hub-card" href="/settings/experimental"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></span><span class="hub-t">Experimental</span><span class="hub-d">Early features you can try.</span><span class="hub-v" id="hv-experimental">&nbsp;</span></a></li>
       </ul>
+      <section class="install" id="install" aria-labelledby="install-t" hidden>
+        <div class="install-glow" aria-hidden="true"></div>
+        <div id="install-body">
+          <div class="install-top">
+            <img class="install-icon" src="/icons/icon-192.png" width="76" height="76" alt="">
+            <div class="install-head">
+              <p class="install-kick">Get the app</p>
+              <h2 id="install-t">Install {{BRAND}}</h2>
+            </div>
+          </div>
+          <p class="install-sub" id="install-sub">Add it to your home screen and open it like any other app.</p>
+          <ul class="install-perks">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>Full screen, no browser bars</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Opens instantly from your home screen</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>Same prices, alerts and settings, still free</li>
+          </ul>
+          <button class="btn install-btn" id="install-btn" type="button">Install app</button>
+          <div class="install-how" id="install-how" hidden><ol id="install-steps"></ol></div>
+          <p class="install-note" id="install-note"></p>
+          <button class="install-added" id="install-added" type="button" hidden>I have already added it</button>
+        </div>
+        <div class="install-done" id="install-done" hidden>
+          <span class="install-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg></span>
+          <h2>{{BRAND}} is installed</h2>
+          <p>Find it on your home screen and open it from there.</p>
+        </div>
+      </section>
   </div>
 </main>
 <!--@footer-->

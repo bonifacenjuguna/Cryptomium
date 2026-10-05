@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.2.0
+
+**Cryptomium is now an installable app (PWA). Redeploy the frontend (the backend is unchanged).**
+- **Install card** at the bottom of Settings. Android and desktop Chrome/Edge: one tap opens the browser's own install dialog. iPhone/iPad: a "Show me how" panel with the Share > Add to Home Screen steps (Safari only). Other browsers: generic steps. The card disappears once the app is installed (with a short "installed" confirmation) and while you are inside the app, and comes back if the app is removed (the browser offers the install again, which clears the "installed" note).
+- **App look**: opens full screen with no browser bars; content reaches the screen edges and keeps clear of the notch, status bar and home bar; the status bar colour follows the light/dark theme; on phones a bottom tab bar (Home, Overview, Screener, News, Portfolio) appears inside the installed app; page changes fade smoothly; long-press the app icon for shortcuts (Overview, Screener, News, Portfolio).
+- **Icon**: the cube on a dark background with a soft glow, as a standard icon, a full-bleed maskable icon for Android's shaped icons, and an iOS home-screen icon. Browser tab icon unchanged.
+- **Offline**: pages and files open fast from a cache, and a friendly "You are offline" page shows when there is no connection. Prices and news are never cached by the app.
+- **Fix**: the phone menu and the search results could sit a little off-centre after 3.1.1. Fixed.
+- New files: `manifest.webmanifest` and `sw.js` (both generated at build), `offline.html`, `icons/`, `js/pwa.js`. `vercel.json` has headers for the manifest and the worker.
+
 ## 3.1.5
 
 **A more inviting Market overview entry on the home page. Redeploy the frontend (the backend is unchanged).**

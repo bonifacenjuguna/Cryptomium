@@ -1,3 +1,4 @@
+import './pwa.js';
 // Shared pieces: config, storage, preferences, currency, favourites, the live price
 // connection, formatting, the header (menu, search, price tape) and small DOM helpers.
 

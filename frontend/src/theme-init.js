@@ -11,6 +11,11 @@
   var resolved = t === 'light' || t === 'dark' ? t : dark ? 'dark' : 'light';
   var root = document.documentElement;
   root.setAttribute('data-theme', resolved);
+  var tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', resolved === 'dark' ? '#090f15' : '#e8ecef');
+  var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (app) root.classList.add('is-app');
+  if (window.navigator.standalone === true) root.classList.add('ios-app');
   root.setAttribute('data-accent', p.accent || 'citrine');
   var d = p.density;
   var migrated = false;
