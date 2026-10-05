@@ -34,6 +34,25 @@ function paintPulse() {
   }
 }
 
+// The day's standouts, moved here from the home page: the leading gainer and the biggest drop (stablecoins left out).
+function paintSpotlight() {
+  const host = $('mk-spot');
+  const r = rows().filter(x => !x.stable && x.price && typeof x.c24 === 'number');
+  if (!host || !r.length) return;
+  const sorted = r.slice().sort((a, b) => b.c24 - a.c24);
+  const chips = [];
+  const chip = (x, label, cls) => {
+    const a = el('a', 'alert-chip ' + cls);
+    a.href = '/coin/' + x.ticker;
+    a.append(el('span', 'ac-dot'), el('span', 'ac-text', `${x.ticker}: ${label} · ${pct(x.c24).text}`), el('span', 'ac-time num', money(x.price)));
+    return a;
+  };
+  if (sorted[0].c24 > 0) chips.push(chip(sorted[0], 'Leading gainer', 'up'));
+  if (sorted.at(-1).c24 < 0) chips.push(chip(sorted.at(-1), 'Biggest drop', 'down'));
+  host.hidden = chips.length === 0;
+  host.replaceChildren(...chips);
+}
+
 function paintFng(s) {
   const o = s?.overall;
   if (!o) return;
@@ -121,7 +140,7 @@ function paintMovers() {
   }
 }
 
-function repaint() { paintPulse(); paintBreadth(); paintMovers(); }
+function repaint() { paintPulse(); paintSpotlight(); paintBreadth(); paintMovers(); }
 
 async function boot() {
   state.coins = await initChrome();

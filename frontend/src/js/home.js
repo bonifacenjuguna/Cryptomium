@@ -485,14 +485,6 @@ function buildMoves() {
 
 function paintMoves() {
   moves = buildMoves();
-  const chip = $('hero-alert');
-  const first = moves[0];
-  if (!first) { chip.hidden = true; } else {
-    chip.hidden = false;
-    chip.className = 'alert-chip ' + (first.down ? 'down' : 'up');
-    $('ac-text').textContent = first.alert ? `${first.ticker} ${first.verb.toLowerCase()} ${money(first.price, { stable: first.stable })}` : `${first.ticker}: ${first.verb}`;
-    $('ac-time').textContent = first.alert ? first.time : 'Live';
-  }
   const list = $('alert-list');
   $('alert-empty').hidden = moves.length > 0;
   list.replaceChildren(...moves.map(a => {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.1.4
+
+**The home page opens on the markets, and the "leading gainer" highlight lives in the Market overview. Redeploy the frontend (the backend is unchanged).**
+- **Home**: the "Leading gainer / Live" chip under the title is removed. The Market overview page now opens with two standout chips instead: the leading gainer and the biggest drop (stablecoins left out), each linking to the coin.
+- **Phones**: the top of the home page is tighter (smaller title, compact snapshot tiles, a one-line Market overview row, less spacing) so the first screen ends with the Markets heading, the tap hint and the All / Starred / Gainers / Losers tabs.
+
 ## 3.1.3
 
 **A shorter top of the home page, so the markets start sooner. Redeploy the frontend (the backend is unchanged).**
