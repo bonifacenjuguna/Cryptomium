@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.5.2
+
+**Installed app polish. Redeploy the frontend (the backend is unchanged apart from its version number). The website is untouched.**
+
+- **Settings icons are calmer:** a neutral tile with the glyph in the theme's accent colour, instead of a solid yellow block. The menu drawer uses the same glyph colour.
+- **Social icons:** one slim row of four small neutral icons at the bottom of About, with the brand colour showing only while pressed. "Telegram channel" no longer wraps.
+- **One Touch feedback setting** (Settings > Experimental, off by default) now covers both the chart and the app's tabs, switches and controls.
+- **Smoother bottom tabs:** no page fade between tabs, header and bar stay fixed, the tab indicator moves on the tap itself, the next tab is warmed as soon as a finger touches it, and the Home tiles no longer animate in.
+- **Dead space at the bottom of pages removed:** the end-of-page block and extra padding are gone, leaving just the bar plus a small gap (including Portfolio).
+
 ## 3.5.1
 
 **Fix: the installed app's menu opened as a short bar showing only the logo and version. Redeploy the frontend (the backend is unchanged).** The new translucent header trapped the side menu inside its own height. The header is solid again, and the menu opens full height as before.

@@ -30,8 +30,9 @@ export function initAppFeel() {
       { rootMargin: '-64px 0px 0px 0px', threshold: 0 }).observe(h1);
   }
 
-  // 3. Haptics: a short tick on switches, tabs, segmented controls and the bottom bar (where the device allows it)
-  const tick = () => { if (!motionOff() && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* not allowed */ } } };
+  // 3. Haptics (one setting: Settings > Experimental > Touch feedback, off by default; it also drives the chart): a short tick on switches, tabs, segmented controls and the bottom bar (where the device allows it)
+  const hapticsOn = () => { try { return JSON.parse(localStorage.getItem('cm-prefs') || '{}').haptics === true; } catch { return false; } };
+  const tick = () => { if (hapticsOn() && !motionOff() && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* not allowed */ } } };
   document.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse') return;
     if (e.target.closest('.switch, [role="switch"], [role="tab"], [role="radio"], .seg, .app-tabbar a, .theme-card, .cur-chip')) tick();

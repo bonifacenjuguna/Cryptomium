@@ -265,6 +265,15 @@ function initTabBar() {
   };
   mark(committed());
   let revert = 0;
+  // Warm the next screen the moment a finger lands, so the tap opens it almost instantly
+  const warmed = new Set();
+  bar.addEventListener('pointerdown', e => {
+    const a = e.target.closest('a[data-tab]');
+    const href = a && a.getAttribute('href');
+    if (!href || warmed.has(href) || href === (location.pathname.replace(/\/+$/, '') || '/')) return;
+    warmed.add(href);
+    const l = document.createElement('link'); l.rel = 'prefetch'; l.href = href; document.head.appendChild(l);
+  }, { passive: true });
   const here = () => location.pathname.replace(/\/+$/, '') || '/';
   bar.addEventListener('click', e => {
     const a = e.target.closest('a[data-tab]');
