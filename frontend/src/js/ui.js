@@ -111,6 +111,67 @@ export function openSheet({ title, items, value = null, searchLabel = 'Search', 
   return { close: done };
 }
 
+
+/**
+ * A plain bottom sheet (drops in centred on wide screens) that shows whatever `build(body, api)` puts in it.
+ * Same close behaviour as the coin sheet: Back, Escape, tapping outside, pulling the header down.
+ * Returns { close, body, title(text) }.
+ */
+export function openPanel({ title, build, onClose = () => {}, wide = false }) {
+  const back = el('div', 'sheet-back');
+  const sheet = el('div', 'sheet panel-sheet' + (wide ? ' wide' : ''));
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  const head = el('div', 'sheet-head');
+  const h = el('h2', '', title);
+  head.append(h);
+  const close = el('button', 'icon-btn');
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close');
+  close.innerHTML = X_SVG;
+  head.append(close);
+  const body = el('div', 'panel-body');
+  sheet.append(head, body);
+  back.append(sheet);
+  document.body.append(back);
+  document.body.classList.add('sheet-open');
+  let closed = false, release = null;
+  const hide = () => {
+    if (closed) return;
+    closed = true;
+    document.body.classList.remove('sheet-open');
+    document.removeEventListener('keydown', onKey);
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'off';
+    if (calm) back.remove(); else { back.classList.add('out'); setTimeout(() => back.remove(), 190); }
+    onClose();
+  };
+  const done = () => { const r = release; release = null; hide(); r?.(); };
+  release = pushLayer(() => { release = null; hide(); });
+  const onKey = e => { if (e.key === 'Escape') done(); };
+  document.addEventListener('keydown', onKey);
+  back.addEventListener('pointerdown', e => { if (e.target === back) done(); });
+  close.addEventListener('click', done);
+  let y0 = 0, dy = 0, pulling = false;
+  head.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; dy = 0; pulling = true; }, { passive: true });
+  head.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    sheet.style.animation = 'none'; sheet.style.transition = 'none';
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  const let_go = () => {
+    if (!pulling) return;
+    pulling = false;
+    sheet.style.transition = ''; sheet.style.transform = ''; sheet.style.animation = '';
+    if (dy > 90) done();
+  };
+  head.addEventListener('touchend', let_go, { passive: true });
+  head.addEventListener('touchcancel', let_go, { passive: true });
+  const api = { close: done, body, title: t => { h.textContent = t; } };
+  build(body, api);
+  return api;
+}
+
 /**
  * A coin chooser: a button showing the chosen coin that opens a searchable sheet with logos and
  * live prices. Replaces a plain <select>. Returns { set(ticker), get(), refresh() }.

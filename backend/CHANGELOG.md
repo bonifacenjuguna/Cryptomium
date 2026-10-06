@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.4.0
+
+**Portfolio rebuilt as a real ledger, and the installed app's Home loses its web headline. Redeploy the frontend. The backend is unchanged apart from its version number and a new test.**
+
+- **Portfolio is now a ledger of buys and sells.** Record what you bought or sold, at what price, with fees, on which date, with an optional note. Profit uses average cost with fees included. You now see **unrealized** profit (what you hold) and **realized** profit (what sales locked in), cost basis, and each coin's average buy price. Coins added without a price still count in value but never distort profit.
+- **Several portfolios** (up to 8), for example Long term and Trading, switched from a row of chips at the top. Rename, set a goal or delete each one from Options.
+- **Value chart you can scrub.** Touch or hover to read the value at any point. 7D shows today's holdings across the past week; "Mine" is your own history, saved on this device each time the app is open.
+- **Allocation donut** (tap a legend row to focus a coin), **What moved today** (each coin's contribution in money, biggest first), **Holdings** sortable by value, today, profit or name, and an **Activity** list.
+- **Tap a holding** for its own sheet: amount, average buy, cost basis, unrealized and realized profit, fees, every transaction, and Buy or Sell buttons. Tap any transaction to edit or delete it. A sale larger than what you held on that date is refused with a clear message.
+- **Goal** progress bar per portfolio, **Hide amounts** (eye button) for screenshots and public places, **Export and Import CSV** (columns: date, type, ticker, amount, price_usd, fee_usd, note).
+- Still no accounts and no uploads: everything stays in this browser. Holdings saved by 3.3.x become opening buys automatically on the first visit. Settings > Data and privacy backups now include the whole ledger.
+- **Installed app, Home:** the headline and tagline are gone. A small status line (Crypto market, Live) sits above one big market-cap card with its trend line, a slim volume row and the Market overview row. The website keeps its headline.
+- New files: `js/ledger.js` (pure logic), `backend/test/ledger.test.js` (11 tests). `openPanel` added to `js/ui.js` for bottom sheets.
+
 ## 3.3.0
 
 **Native-app pass: the installed app now behaves, works offline and updates like an app. Redeploy the frontend. The backend only changes its default banner watermark.**

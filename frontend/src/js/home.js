@@ -640,3 +640,12 @@ async function boot() {
 }
 
 boot();
+
+// The installed app has no headline; its small status line mirrors the live indicator in the Markets section.
+(() => {
+  const src = document.getElementById('live'), dst = document.getElementById('ap-live');
+  if (!src || !dst) return;
+  const sync = () => { dst.textContent = src.textContent; dst.dataset.state = src.dataset.state || ''; };
+  sync();
+  new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
+})();

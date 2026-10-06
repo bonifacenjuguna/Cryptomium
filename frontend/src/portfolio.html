@@ -11,62 +11,91 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>Portfolio | {{BRAND}}</title>
-  <meta name="description" content="Track what you hold and see its live value.">
+  <meta name="description" content="Track what you hold, what you paid and what you have earned. Kept on your device.">
   <meta name="robots" content="noindex">
   <link rel="canonical" href="{{SITE_URL}}/portfolio">
 </head>
 <body data-page="portfolio">
 <!--@header-->
 <main id="main">
-  <div class="wrap">
-    <div class="page-top">
-      <h1>Portfolio</h1>
-      <p class="fresh-note" data-fresh hidden></p>
-      <p class="lede">Add what you hold and watch its value move with the market. It is saved on this device only, and nothing needs an account.</p>
-    </div>
-
-    <div class="pf-grid">
-      <section class="panel pf-sum" aria-label="Portfolio value">
-        <span class="pf-label">Total value</span>
-        <b class="pf-total num" id="pf-total">–</b>
-        <span class="pf-chg num chg flat" id="pf-chg">&nbsp;</span>
-        <div class="alloc" id="alloc" aria-hidden="true"></div>
-        <ul class="alloc-legend" id="alloc-legend"></ul>
-        <p class="pf-empty" id="pf-intro">Your total, daily change and a breakdown of what you hold appear here once you add a coin.</p>
-      </section>
-
-      <section class="panel pf-add" aria-labelledby="pf-add-h">
-        <h2 id="pf-add-h">Add a holding</h2>
-        <form id="pf-form" class="pf-form" autocomplete="off">
-          <div class="fld"><span>Coin</span><button class="cpk" id="pf-coin" type="button"></button></div>
-          <label class="fld"><span>Amount</span><input id="pf-amount" type="text" inputmode="decimal" placeholder="0.00" aria-label="Amount you hold"></label>
-          <label class="fld"><span>Price paid each <em>(optional)</em></span><input id="pf-cost" type="text" inputmode="decimal" placeholder="Price you paid" aria-label="Price you paid per coin, optional"></label>
-          <button class="btn btn-accent" type="submit">Add</button>
-        </form>
-        <p class="s-error" id="pf-error" role="alert" hidden></p>
-        <p class="s-hint">Adding a coin you already hold increases that amount, and blends the price you paid. Enter the price in your selected currency. Leave it empty to skip profit and loss for that coin.</p>
-      </section>
-    </div>
-
-    <section class="pf-an" id="pf-an" aria-labelledby="pf-an-h" hidden>
-      <div class="sec-head"><h2 id="pf-an-h">Analytics</h2><p>Calculated from your holdings and live prices, in this browser only.</p></div>
-      <div class="panel pf-stats" id="pf-stats"></div>
-      <div class="pf-two">
-        <div class="panel pf-perf"><h3>Performance</h3><div class="pf-periods" id="pf-periods"></div><p class="s-hint">Each period applies that coin's price change to what you hold today. It is not a record of your trades.</p></div>
-        <div class="panel pf-chart"><h3>Last 7 days</h3><div id="pf-spark" class="br-spark"></div><p class="s-hint">Today's holdings valued at each point of the past week.</p></div>
+  <div class="wrap px">
+    <header class="px-top">
+      <div class="px-title">
+        <h1>Portfolio</h1>
+        <p class="px-sub web-only">Track what you hold, what you paid and what you have earned. Kept on this device, with no account.</p>
       </div>
-      <p class="pf-extremes s-hint" id="pf-extremes"></p>
+      <div class="px-tools">
+        <button class="icon-btn" id="px-eye" type="button" aria-pressed="false" aria-label="Hide amounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="icon-btn" id="px-more" type="button" aria-haspopup="dialog" aria-label="Portfolio options"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button>
+      </div>
+    </header>
+    <p class="fresh-note" data-fresh hidden></p>
+
+    <nav class="px-folios" id="px-folios" aria-label="Portfolios"></nav>
+
+    <section class="px-empty panel" id="px-empty" hidden>
+      <div class="px-empty-art" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12A9 9 0 1 1 12 3v9zM15 3.5A9 9 0 0 1 20.5 9H15z"/></svg></div>
+      <h2>Start your portfolio</h2>
+      <p>Record a buy and Cryptomium tracks its value live, your profit, and how your money is spread. Add sales later and your realized profit is kept too.</p>
+      <div class="px-empty-cta">
+        <button class="btn btn-accent" type="button" id="px-first">Add a transaction</button>
+        <label class="btn btn-ghost px-file">Import CSV<input type="file" id="px-import-empty" accept=".csv,text/csv" hidden></label>
+      </div>
     </section>
 
-    <section class="pf-holdings">
-      <div class="sec-head"><h2>Your holdings</h2></div>
-      <div class="panel feed">
-        <ul class="pf-list" id="pf-list"></ul>
-        <p class="empty" id="pf-none">Nothing here yet. Add your first coin above.</p>
+    <div id="px-body">
+      <section class="px-hero panel" aria-label="Portfolio value">
+        <div class="px-hero-top">
+          <span class="px-label">Total value</span>
+          <div class="px-range" id="px-range" role="tablist" aria-label="Chart range">
+            <button class="px-r" role="tab" data-r="7d" aria-selected="true" type="button">7D</button>
+            <button class="px-r" role="tab" data-r="all" aria-selected="false" type="button">Mine</button>
+          </div>
+        </div>
+        <b class="px-total num hv" id="px-total">–</b>
+        <div class="px-chg-row"><span class="px-chg num chg flat" id="px-chg">&nbsp;</span><span class="px-scrub num" id="px-scrub" aria-live="off"></span></div>
+        <div class="px-chart" id="px-chart" role="img" aria-label="Portfolio value over time"></div>
+        <div class="px-stats" id="px-stats"></div>
+        <div class="px-goal" id="px-goal" hidden></div>
+      </section>
+
+      <div class="px-two">
+        <section class="panel px-card" id="px-alloc-card" aria-labelledby="px-alloc-h">
+          <h2 id="px-alloc-h">Allocation</h2>
+          <div class="px-alloc">
+            <div class="px-donut" id="px-donut"></div>
+            <ul class="px-legend" id="px-legend"></ul>
+          </div>
+        </section>
+        <section class="panel px-card" id="px-moves-card" aria-labelledby="px-moves-h">
+          <h2 id="px-moves-h">What moved today</h2>
+          <ul class="px-moves" id="px-moves"></ul>
+        </section>
       </div>
-      <p class="s-hint pf-local">Stored only in this browser on this device. Clearing site data or switching browsers removes it, and nothing is uploaded. Realized profit from sales is not tracked.</p>
-    </section>
+
+      <section class="px-sec" aria-labelledby="px-hold-h">
+        <div class="px-sec-head">
+          <h2 id="px-hold-h">Holdings</h2>
+          <div class="px-sort" id="px-sort" role="tablist" aria-label="Sort holdings">
+            <button class="px-r" role="tab" data-s="value" aria-selected="true" type="button">Value</button>
+            <button class="px-r" role="tab" data-s="day" aria-selected="false" type="button">Today</button>
+            <button class="px-r" role="tab" data-s="pl" aria-selected="false" type="button">Profit</button>
+            <button class="px-r" role="tab" data-s="az" aria-selected="false" type="button">A–Z</button>
+          </div>
+        </div>
+        <div class="panel feed"><ul class="px-list" id="px-list"></ul></div>
+      </section>
+
+      <section class="px-sec" id="px-act-sec" aria-labelledby="px-act-h">
+        <div class="px-sec-head"><h2 id="px-act-h">Activity</h2><button class="px-link" id="px-act-all" type="button" hidden>Show all</button></div>
+        <div class="panel feed"><ul class="px-act" id="px-act"></ul></div>
+      </section>
+    </div>
+
+    <p class="s-hint px-local">Saved only in this browser on this device. Nothing is uploaded and there is no account, so use Export in the options menu to keep a copy. Profit uses the average cost of what you bought, fees included. Not financial or tax advice.</p>
   </div>
+
+  <button class="px-fab" id="px-add" type="button" aria-label="Add a transaction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button>
 </main>
 <!--@footer-->
 <script src="/config.js"></script>

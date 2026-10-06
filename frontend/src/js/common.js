@@ -1,3 +1,4 @@
+import { sanitize, fromLegacy, positions } from './ledger.js';
 import { isApp, updates, takeUpdatedNote } from './pwa.js';
 import { pushLayer, leave } from './backstack.js';
 import * as net from './net.js';
@@ -410,6 +411,42 @@ export const holdings = {
   save(list) {
     store.set('cm-portfolio', JSON.stringify(list.slice(0, 60)));
     document.dispatchEvent(new CustomEvent('cm:holdings'));
+  },
+};
+
+// ---------- Portfolio ledger (v3.4: folios, buys and sells, saved on this device) ----------
+export const ledger = {
+  KEY: 'cm-pf2',
+  SNAPS: 'cm-pf2-snaps',
+  load(tickers = null) {
+    let state = null;
+    try { state = JSON.parse(store.get('cm-pf2') || 'null'); } catch { /* start fresh below */ }
+    if (state) return sanitize(state, tickers);
+    // First visit on 3.4: holdings saved by older versions become opening buys.
+    let old = [];
+    try { old = JSON.parse(store.get('cm-portfolio') || '[]'); } catch { /* none */ }
+    return fromLegacy(old, tickers);
+  },
+  save(state) {
+    store.set('cm-pf2', JSON.stringify(state));
+    document.dispatchEvent(new CustomEvent('cm:holdings'));
+  },
+  /** Number of different coins held across all folios (for the Data screen). */
+  count() {
+    try {
+      const raw = store.get('cm-pf2');
+      if (!raw) return holdings.load().length;
+      const set = new Set();
+      for (const f of sanitize(JSON.parse(raw)).folios) for (const p of positions(f.tx).values()) if (p.amount > 0) set.add(f.id + p.ticker);
+      return set.size;
+    } catch { return 0; }
+  },
+  snaps(id) { try { const all = JSON.parse(store.get('cm-pf2-snaps') || '{}'); return Array.isArray(all[id]) ? all[id] : []; } catch { return []; } },
+  saveSnaps(id, list) {
+    let all = {};
+    try { all = JSON.parse(store.get('cm-pf2-snaps') || '{}') || {}; } catch { /* reset */ }
+    all[id] = list;
+    store.set('cm-pf2-snaps', JSON.stringify(all));
   },
 };
 

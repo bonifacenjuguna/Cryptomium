@@ -1,13 +1,14 @@
 // Settings: the hub, Preferences, Watchlist, Price alerts, Data and privacy.
 import {
   API, initChrome, pollPrices, getJSON, store, prefs, PREF_DEFAULTS, currency, onCurrency, setCurrency, currencySymbol, CURRENCY_NAMES,
-  money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings, setLive,
+  money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings, ledger, setLive,
 } from './common.js';
 import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime, describe } from './targets.js';
 import { openSheet, coinPicker } from './ui.js';
 import { createChart } from './chart.js';
 import { LESSONS, CATS, TERMS } from './learn-content.js';
 import { updates } from './pwa.js';
+import { sanitize as sanitizeLedger } from './ledger.js';
 import * as net from './net.js';
 
 const $ = id => document.getElementById(id);
@@ -36,7 +37,7 @@ function paintHub() {
   set('hv-watchlist', favCount() === 1 ? '1 coin starred' : `${favCount()} coins starred`);
   const active = loadTargets().filter(t => !t.firedAt).length;
   set('hv-alerts', active === 1 ? '1 alert watching' : `${active} alerts watching`);
-  const held = holdings.load().length;
+  const held = ledger.count();
   set('hv-portfolio', held ? (held === 1 ? '1 holding' : `${held} holdings`) : 'Nothing added yet');
   set('hv-learn', `${TERMS.length} words explained`);
   set('hv-sources', 'Live from the exchanges');
@@ -364,7 +365,7 @@ function renderStore() {
     ['Currency', `Showing ${currency.code}`, store.get('cm-currency')],
     ['Starred coins', favCount() === 1 ? '1 coin' : `${favCount()} coins`, store.get(FAV_KEY)],
     ['Price alerts', `${loadTargets().length} saved`, store.get('cm-targets')],
-    ['Portfolio', `${holdings.load().length} holdings`, store.get('cm-portfolio')],
+    ['Portfolio', `${ledger.count()} holdings`, store.get('cm-pf2') || store.get('cm-portfolio')],
   ];
   $('store-list').replaceChildren(...rows.map(([name, note, raw]) => {
     const li = el('li', 'store-row');
@@ -382,7 +383,7 @@ function exportData() {
     currency: currency.code,
     favs: (() => { try { return JSON.parse(store.get(FAV_KEY) || '[]'); } catch { return []; } })(),
     targets: loadTargets(),
-    portfolio: holdings.load(),
+    portfolio2: ledger.load(),
     updateMode: updates.mode(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -397,7 +398,7 @@ function exportData() {
 }
 async function importData(file) {
   try {
-    if (file.size > 200_000) throw new Error('size');
+    if (file.size > 3_000_000) throw new Error('size');
     const data = JSON.parse(await file.text());
     if (data?.app !== 'cryptomium') throw new Error('not ours');
     const tickers = new Set(coins.map(c => c.ticker));
@@ -410,6 +411,11 @@ async function importData(file) {
       const ok = data.targets.filter(t => t && tickers.has(t.ticker) && (['above', 'below', 'move', 'ath', 'atl'].includes(t.dir)) && (t.price > 0 || t.dir === 'ath' || t.dir === 'atl')).slice(0, 50)
         .map(t => ({ id: String(t.id || Math.random().toString(36).slice(2)).slice(0, 20), ticker: t.ticker, dir: t.dir, price: Number(t.price), created: Number(t.created) || Date.now(), firedAt: t.firedAt ? Number(t.firedAt) : undefined, firedPrice: t.firedPrice ? Number(t.firedPrice) : undefined }));
       store.set('cm-targets', JSON.stringify(ok));
+    }
+    if (data.portfolio2 && data.portfolio2.v === 2) {
+      store.set('cm-pf2', JSON.stringify(sanitizeLedger(data.portfolio2, tickers)));
+    } else if (Array.isArray(data.portfolio)) {
+      store.set('cm-pf2', ''); // an older backup: the new portfolio is rebuilt from these holdings
     }
     if (Array.isArray(data.portfolio)) {
       const ok = data.portfolio.filter(h => h && tickers.has(h.ticker) && Number(h.amount) > 0).slice(0, 40)
@@ -445,6 +451,8 @@ function initData() {
     store.set(FAV_KEY, '[]');
     store.set('cm-targets', '[]');
     store.set('cm-portfolio', '[]');
+    store.set('cm-pf2', '');
+    store.set('cm-pf2-snaps', '');
     store.set('cm-theme', 'auto');
     flashSaved('Everything was cleared');
     setTimeout(() => location.reload(), 600);
