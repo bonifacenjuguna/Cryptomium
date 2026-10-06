@@ -16,13 +16,20 @@ After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site addres
 (for example `https://cryptomium.com`). If you use both a custom domain and the
 `*.vercel.app` address, list both separated by a comma.
 
+## Environment variables
+
+| Variable | Needed | Meaning |
+|---|---|---|
+| `API_URL` | yes | Your backend address (https://...). The only place it is set. The build stops without it. |
+| `SITE_URL` | no | Public address of the site, for the sitemap and link previews. |
+
 ## Settings
 
 `site.config.json` (everything is public on the website):
 
 | Key | Meaning |
 |---|---|
-| `apiUrl` | Your Railway backend address, no trailing slash. The `API_URL` environment variable in Vercel overrides it. |
+| (none) | The backend address is NOT stored here. It comes only from the `API_URL` environment variable, and the build stops if it is missing. |
 | `brand` | Site name |
 | `channelHandle`, `channelUrl` | Telegram channel shown on every Join button |
 | `botHandle` | Mentioned on the About page as the account that posts alerts (it is not linked, because the bot only answers its owner) |
@@ -31,7 +38,8 @@ After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site addres
 ## What is where
 
 - `src/` pages (`index.html`, `coin.html`, `about.html`, `404.html`), `style.css`, `js/`
-- `src/partials/` shared header and footer, inserted at build time
+- `src/partials/` shared header, footer and bottom bar, inserted at build time
+- `src/sw.js` service worker (offline app shell, versioned caches, updates only when the app asks); `src/js/net.js` connection health, last-known-good data and the offline banner; `src/js/pwa.js` install card, update manager and bottom bar
 - `coins.json` the 31 coins (used for search and for building one static page per coin)
 - `build.js` builds `dist/`: fills in the brand, writes `dist/coin/BTC.html` and the other
   coin pages, the sitemap, `config.js` and a Content-Security-Policy that allows only

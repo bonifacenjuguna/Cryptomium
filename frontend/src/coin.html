@@ -43,6 +43,7 @@
           <button class="big num" id="c-price" type="button" title="Tap to copy the price">–</button>
           <div class="chg flat num" id="c-chg">&nbsp;</div>
         </div>
+        <p class="fresh-note" data-fresh hidden></p>
       </div>
 
       <div class="panel chart-card" id="chart-card">
@@ -88,7 +89,7 @@
         <div class="perf-cell"><span>1 year</span><b class="num chg flat" id="p-1y">–</b></div>
       </div>
 
-      <dl class="stats" id="stats">
+      <dl class="stats" id="stats" data-selectable>
         <div class="stat"><dt>Market cap</dt><dd class="num" id="s-cap">–</dd></div>
         <div class="stat"><dt>24h volume</dt><dd class="num" id="s-vol">–</dd></div>
         <div class="stat"><dt>Circulating supply</dt><dd class="num" id="s-circ">–</dd></div>
@@ -173,7 +174,7 @@
       <div class="sec-head"><h2>{{COIN_NAME}} insights</h2><p>Readings from today's numbers. They describe what has happened and are not predictions or advice.</p></div>
       <div class="panel ci-panel">
         <p class="ci-empty" id="ci-empty">Insights appear once today's market numbers have loaded.</p>
-        <div id="ci-panel-body" hidden><dl class="cp-dl ci-dl" id="ci-dl"></dl>
+        <div id="ci-panel-body" hidden><dl class="cp-dl ci-dl" id="ci-dl" data-selectable></dl>
         <details class="cp-rules"><summary>How these are calculated</summary><ul id="ci-rules"></ul></details></div>
       </div>
     </div>

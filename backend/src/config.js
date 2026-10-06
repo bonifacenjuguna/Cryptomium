@@ -147,7 +147,7 @@ export const CONFIG = {
   botToken: process.env.BOT_TOKEN,
   databaseUrl: process.env.DATABASE_URL,
   redisUrl: process.env.REDIS_URL,
-  watermark: process.env.WATERMARK_HANDLE || '@cryptomiumx',
+  watermark: process.env.WATERMARK_HANDLE || '@CryptomiumApp',
   defaultTimezone: process.env.DEFAULT_TIMEZONE || 'Africa/Nairobi',
   // How often the price loop checks for milestone crossings.
   pollIntervalMs: envNumber('POLL_INTERVAL_MS', 30_000, { min: 5_000 }),

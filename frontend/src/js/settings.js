@@ -7,6 +7,8 @@ import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime, descr
 import { openSheet, coinPicker } from './ui.js';
 import { createChart } from './chart.js';
 import { LESSONS, CATS, TERMS } from './learn-content.js';
+import { updates } from './pwa.js';
+import * as net from './net.js';
 
 const $ = id => document.getElementById(id);
 const page = document.body.dataset.page;
@@ -41,6 +43,7 @@ function paintHub() {
   set('hv-about', 'About ' + (window.CRYPTOMIUM?.brand || 'Cryptomium'));
   set('hv-data', 'Stays on this device');
   set('hv-advanced', prefs.get('liveMode') === 'saver' ? 'Data saver on' : 'Auto updates');
+  set('hv-updates', `Version ${window.CRYPTOMIUM?.version || ''} \u00b7 ${updates.mode() === 'auto' ? 'Automatic' : 'Manual'}`);
   set('hv-experimental', prefs.get('sound') || prefs.get('haptics') ? 'Some on' : 'All off');
 }
 
@@ -380,6 +383,7 @@ function exportData() {
     favs: (() => { try { return JSON.parse(store.get(FAV_KEY) || '[]'); } catch { return []; } })(),
     targets: loadTargets(),
     portfolio: holdings.load(),
+    updateMode: updates.mode(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = el('a');
@@ -412,6 +416,7 @@ async function importData(file) {
         .map(h => ({ id: String(h.id || Math.random().toString(36).slice(2)).slice(0, 20), ticker: h.ticker, amount: Number(h.amount) }));
       store.set('cm-portfolio', JSON.stringify(ok));
     }
+    if (data.updateMode === 'auto' || data.updateMode === 'manual') updates.setMode(data.updateMode);
     flashSaved('Backup loaded');
     setTimeout(() => location.reload(), 700);
   } catch {
@@ -512,6 +517,86 @@ function initExperimental() {
   $('test-sound')?.addEventListener('click', () => chime());
 }
 
+// ---------------------------------------------------------------- app updates
+const ERR = {
+  offline: ["You're offline", "Updates need a connection. Cryptomium keeps working with the version you have, and you can check again when you're back online."],
+  network: ["We couldn't check for updates", 'The update service could not be reached. Cryptomium will continue using the current version.'],
+  timeout: ["We couldn't complete the update", 'It took too long. Cryptomium will continue using the current version.'],
+  install: ["We couldn't complete the update", 'The new version did not download completely. Cryptomium will continue using the current version.'],
+  activate: ["We couldn't complete the update", 'Cryptomium will continue using the current version.'],
+  unsupported: ['Updates are not available here', 'This browser does not support app updates. Reload the page to get the newest version.'],
+};
+function paintUpdates() {
+  const u = updates.get();
+  const root = $('upd');
+  root.dataset.state = u.status;
+  $('upd-ver').textContent = u.version || '';
+  $('upd-build').textContent = u.build ? `(build ${u.build})` : '';
+  const main = $('upd-main'), alt = $('upd-alt');
+  let title = `You're running version ${u.version}`, sub = u.checkedAt ? 'Last checked ' + ago(new Date(u.checkedAt).toISOString()) + '.' : '';
+  let label = 'Check for updates', action = () => updates.check(), busy = false, bar = false;
+  alt.hidden = true;
+  switch (u.status) {
+    case 'checking': title = 'Checking for updates\u2026'; sub = 'Looking for a newer version.'; label = 'Checking\u2026'; busy = true; bar = true; break;
+    case 'downloading': title = 'Updating Cryptomium\u2026'; sub = 'Downloading the latest app version. You can keep using the app.'; label = 'Downloading\u2026'; busy = true; bar = true; break;
+    case 'applying': title = 'Updating Cryptomium\u2026'; sub = 'Switching to the new version. The app will restart on this screen.'; label = 'Updating\u2026'; busy = true; bar = true; break;
+    case 'ready':
+      title = 'A new version of Cryptomium is available.';
+      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded and ready. ` : 'It is downloaded and ready. ') + (u.mode === 'auto' ? 'It will install by itself next time you open or leave the app.' : 'Tap Update now when you are ready.');
+      label = 'Update now'; action = () => updates.apply(); break;
+    case 'uptodate': title = "Cryptomium is up to date."; sub = `You're running the latest version (${u.version}).`; break;
+    case 'failed': {
+      const e = ERR[u.error] || ERR.activate;
+      title = e[0]; sub = e[1]; label = 'Try again'; action = () => (u.error === 'activate' && u.latest ? updates.apply() : updates.check());
+      break;
+    }
+    default: if (u.checkedAt) sub = "You're running the latest version we know of. Last checked " + ago(new Date(u.checkedAt).toISOString()) + '.';
+  }
+  $('upd-title').textContent = title;
+  $('upd-sub').textContent = sub;
+  $('upd-bar').hidden = !bar;
+  main.textContent = label;
+  main.disabled = busy;
+  main.onclick = action;
+  document.querySelectorAll('#upd-mode [data-value]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === u.mode)));
+}
+async function paintNet() {
+  const i = net.info();
+  const prices = net.loadPrices();
+  const when = net.lastUpdatedLabel();
+  const rows = [
+    ['Connection', i.status === 'offline' ? "Offline. Showing what is saved on this device." : i.status === 'api' ? 'Online, but live data is temporarily unavailable.' : 'Online', i.status === 'live' ? 'OK' : i.status === 'offline' ? 'Offline' : 'Delayed'],
+    ['Prices', prices ? `Last saved copy ${net.agoText(prices.savedAt)}` : 'Nothing saved yet', i.status === 'live' ? 'Live' : when || '\u2013'],
+    ['Saved answers', 'Market details, charts, news and sentiment you have opened', String(await net.goodCount())],
+    ['Partly unavailable', i.degraded.length ? i.degraded.join(', ') : 'Nothing right now', i.degraded.length ? String(i.degraded.length) : 'None'],
+  ];
+  $('net-list').replaceChildren(...rows.map(([name, note, v]) => {
+    const li = el('li', 'store-row');
+    const t = el('span', 'sr-t'); t.append(el('b', '', name), el('span', '', note));
+    li.append(t, el('span', 'sr-size', v));
+    return li;
+  }));
+}
+function initUpdates() {
+  paintUpdates();
+  updates.on(paintUpdates);
+  document.querySelectorAll('#upd-mode [data-value]').forEach(b => b.addEventListener('click', () => { updates.setMode(b.dataset.value); flashSaved(b.dataset.value === 'auto' ? 'Automatic updates on' : 'Manual updates on'); }));
+  // Opening this screen from the menu's "Update app" looks for a new version at once.
+  if (updates.get().status === 'idle' && updates.get().supported) updates.check();
+  paintNet();
+  net.onChange(paintNet);
+  setInterval(paintNet, 30000);
+  $('net-clear').addEventListener('click', async () => { await net.clearGood(); flashSaved('Saved market data cleared'); paintNet(); });
+  const repair = $('upd-repair');
+  let armed = 0;
+  repair.addEventListener('click', () => {
+    if (!armed) { repair.textContent = 'Tap again to confirm'; armed = setTimeout(() => { armed = 0; repair.textContent = 'Repair'; }, 4000); return; }
+    clearTimeout(armed);
+    repair.disabled = true; repair.textContent = 'Repairing\u2026';
+    updates.repair();
+  });
+}
+
 // ---------------------------------------------------------------- boot
 async function boot() {
   coins = await initChrome();
@@ -533,6 +618,7 @@ async function boot() {
   if (page === 'learn') initLearn();
   if (page === 'sources') initSources();
   if (page === 'advanced') initAdvanced();
+  if (page === 'updates') initUpdates();
   if (page === 'experimental') initExperimental();
 
   if (API && ['appearance', 'preferences', 'home', 'watchlist', 'alerts'].includes(page)) {

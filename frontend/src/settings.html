@@ -33,7 +33,7 @@
       <ul class="hub">
         <li><a class="hub-card" href="/settings/watchlist"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span><span class="hub-t">Watchlist</span><span class="hub-d">Choose the coins you follow and keep them one tap away.</span><span class="hub-v" id="hv-watchlist">&nbsp;</span></a></li>
         <li><a class="hub-card" href="/settings/alerts"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></span><span class="hub-t">Price alerts</span><span class="hub-d">Get told when a coin reaches the price you set.</span><span class="hub-v" id="hv-alerts">&nbsp;</span></a></li>
-        <li><a class="hub-card" href="/portfolio"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg></span><span class="hub-t">Portfolio</span><span class="hub-d">See what your coins are worth, live.</span><span class="hub-v" id="hv-portfolio">&nbsp;</span></a></li>
+        <li class="web-only"><a class="hub-card" href="/portfolio"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg></span><span class="hub-t">Portfolio</span><span class="hub-d">See what your coins are worth, live.</span><span class="hub-v" id="hv-portfolio">&nbsp;</span></a></li>
       </ul>
       <h2 class="hub-group">Learn and info</h2>
       <ul class="hub">
@@ -44,6 +44,7 @@
       <h2 class="hub-group">System</h2>
       <ul class="hub">
         <li><a class="hub-card" href="/settings/data"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span class="hub-t">Data and privacy</span><span class="hub-d">Back up, move or clear what is stored on this device.</span><span class="hub-v" id="hv-data">&nbsp;</span></a></li>
+        <li class="if-app"><a class="hub-card" href="/settings/updates"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4M5 19h14"/></svg></span><span class="hub-t">App updates</span><span class="hub-d">Check for a new version and choose how updates install.</span><span class="hub-v" id="hv-updates">&nbsp;</span></a></li>
         <li><a class="hub-card" href="/settings/advanced"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg></span><span class="hub-t">Advanced</span><span class="hub-d">Live updates, number precision and shortcuts.</span><span class="hub-v" id="hv-advanced">&nbsp;</span></a></li>
         <li><a class="hub-card" href="/settings/experimental"><span class="hub-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></span><span class="hub-t">Experimental</span><span class="hub-d">Early features you can try.</span><span class="hub-v" id="hv-experimental">&nbsp;</span></a></li>
       </ul>
@@ -77,9 +78,10 @@
       <section class="app-about app-only" aria-labelledby="ab-t">
         <h2 class="hub-group" id="ab-t">About this app</h2>
         <div class="ab-card">
-          <div class="ab-row"><span>Version</span><b>{{VERSION}}</b></div>
+          <a class="ab-row" href="/settings/updates"><span>Version</span><b id="ab-ver">{{VERSION}}</b></a>
           <a class="ab-row" href="{{CHANNEL_URL}}" target="_blank" rel="noopener"><span>Telegram alerts channel</span><b>{{CHANNEL_HANDLE}}</b></a>
           <a class="ab-row" href="/about#faq"><span>Questions and answers</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+          <div class="ab-row ab-social"><span>Follow {{BRAND}}</span><span class="ab-links"><a href="{{X_URL}}" target="_blank" rel="noopener">X</a><a href="{{INSTAGRAM_URL}}" target="_blank" rel="noopener">Instagram</a><a href="{{YOUTUBE_URL}}" target="_blank" rel="noopener">YouTube</a><a href="{{TIKTOK_URL}}" target="_blank" rel="noopener">TikTok</a></span></div>
         </div>
         <p class="ab-note">Market information only, not financial advice. Prices can differ between exchanges. &copy; {{YEAR}} {{BRAND}}</p>
       </section>

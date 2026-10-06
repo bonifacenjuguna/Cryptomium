@@ -1,6 +1,6 @@
 import {
   API, initChrome, getJSON, pollPrices, setLive, currency, onCurrency, money, compactMoney, pct, ago,
-  isFav, toggleFav, onFavs, el, logoEl, DIR_SVG, prefs, setNum,
+  isFav, toggleFav, onFavs, el, logoEl, DIR_SVG, prefs, setNum, onRecover,
 } from './common.js';
 import { createGauge, moodClass } from './gauge.js';
 
@@ -598,7 +598,9 @@ async function boot() {
       setLive($('live'), s);
       if (s !== 'live' && !state.live.size) {
         $('board-note').hidden = false;
-        $('board-note').textContent = 'Prices are taking longer than usual to load. We keep trying, so this page will fill in on its own.';
+        $('board-note').textContent = s === 'offline'
+          ? "You're offline and no prices are saved on this device yet. They will appear on their own as soon as you're back online."
+          : 'Prices are taking longer than usual to load. We keep trying, so this page will fill in on its own.';
       }
     }
   );
@@ -632,6 +634,7 @@ async function boot() {
   setInterval(loadAlerts, 20 * 1000);
   loadNews();
   setInterval(loadNews, 10 * 60 * 1000);
+  onRecover(() => { loadMarket(); loadSentiment(); loadAlerts(); loadNews(); }); // connection is back: refresh in place, no reload
   setInterval(paintMoves, 30 * 1000); // keeps "5 min ago" honest between fetches
   new ResizeObserver(() => paintHeatmap(true)).observe($('heatmap'));
 }

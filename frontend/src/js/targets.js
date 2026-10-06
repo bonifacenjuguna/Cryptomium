@@ -105,5 +105,5 @@ let started = false;
 export function start() {
   if (started) return;
   started = true;
-  document.addEventListener('cm:prices', e => check(e.detail));
+  document.addEventListener('cm:prices', e => { if (!e.detail.stale) check(e.detail); }); // never judge a target by a saved, old price
 }

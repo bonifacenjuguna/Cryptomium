@@ -1,5 +1,7 @@
-import { isApp } from './pwa.js';
+import { isApp, updates, takeUpdatedNote } from './pwa.js';
 import { pushLayer, leave } from './backstack.js';
+import * as net from './net.js';
+export { onRecover } from './net.js';
 // Shared pieces: config, storage, preferences, currency, favourites, the live price
 // connection, formatting, the header (menu, search, price tape) and small DOM helpers.
 
@@ -31,12 +33,30 @@ export const store = {
 })();
 
 // ---------- API ----------
-export async function getJSON(path, { timeoutMs = 12000 } = {}) {
+/**
+ * Fetches an answer from the price service. A good answer is saved; if the request fails (offline,
+ * service down) the last good copy is returned instead of an error, so a screen is never emptied because
+ * one request failed (`keep: false` opts out: the live price poll must never mistake an old copy for a new reading). `getJSON.savedAt(path)` tells when a copy came from the saved one.
+ */
+const servedOld = new Map();
+export async function getJSON(path, { timeoutMs = 12000, keep = true } = {}) {
   if (!API) throw new Error('No API address configured.');
-  const res = await fetch(API + path, { signal: AbortSignal.timeout(timeoutMs) });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  try {
+    const res = await fetch(API + path, { signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    servedOld.delete(path);
+    net.fetchOk(path, data);
+    if (keep) net.saveGood(path, data);
+    return data;
+  } catch (err) {
+    net.fetchFailed(path);
+    const good = keep ? await net.loadGood(path) : null;
+    if (good && good.data) { servedOld.set(path, good.savedAt); return good.data; }
+    throw err;
+  }
 }
+getJSON.savedAt = path => servedOld.get(path) || 0;
 
 export async function getCoinList() {
   const res = await fetch('/coins.json');
@@ -60,18 +80,32 @@ function ensureFeed() {
   let es = null;
   let watchdog = null;
   let lastMsg = 0;
-  let everOk = 0;
+  let resumedAt = Date.now();
   let busy = false;
-  const setState = st => { feed.state = st; feed.stateFns.forEach(fn => fn(st)); };
+  const setState = st => { if (feed.state === st) return; feed.state = st; feed.stateFns.forEach(fn => fn(st)); };
+  // What the pages are told: the connection health decides, then how long the stream has been quiet.
+  const syncState = () => {
+    const h = net.status();
+    if (h === 'offline') return setState('offline');
+    if (h === 'api') return setState('delayed');
+    if (!lastMsg) return setState(feed.last ? 'delayed' : 'connecting'); // only a saved copy so far: say so
+    return setState(Date.now() - Math.max(lastMsg, resumedAt) > 25000 ? 'reconnecting' : 'live');
+  };
+  net.onChange(syncState);
 
-  const deliver = data => {
+  const deliver = (data, saved = 0) => {
     if (!data || !Array.isArray(data.coins)) return;
-    lastMsg = Date.now();
-    everOk = lastMsg;
-    feed.last = data;
-    document.dispatchEvent(new CustomEvent('cm:prices', { detail: data }));
-    feed.dataFns.forEach(fn => fn(data));
-    setState('live');
+    if (!saved) {
+      lastMsg = Date.now();
+      net.feedOk(data);
+      net.savePrices(data);
+    }
+    // A saved copy is flagged so alerts never fire on old numbers and pages can label it.
+    const out = saved ? { ...data, stale: true, savedAt: saved } : data;
+    feed.last = out;
+    document.dispatchEvent(new CustomEvent('cm:prices', { detail: out }));
+    feed.dataFns.forEach(fn => fn(out));
+    syncState();
   };
   const closeStream = () => { if (es) { es.close(); es = null; } };
   const openStream = () => {
@@ -84,18 +118,20 @@ function ensureFeed() {
   async function fetchOnce() {
     if (busy) return;
     busy = true;
-    try { deliver(await getJSON('/api/prices', { timeoutMs: 8000 })); } catch { /* the watchdog tries again */ } finally { busy = false; }
+    try { deliver(await getJSON('/api/prices', { timeoutMs: 8000, keep: false })); } catch { /* the watchdog tries again */ } finally { busy = false; }
   }
   function check() {
     if (document.hidden) return;
-    const quiet = Date.now() - lastMsg;
+    const quiet = Date.now() - Math.max(lastMsg, resumedAt);
     if (quiet > 7000) fetchOnce();
     if (quiet > 7000 && es && es.readyState === 2) openStream();
-    if (quiet > 25000) setState(everOk ? 'reconnecting' : 'connecting');
+    if (quiet > 25000) net.feedQuiet(quiet);
+    syncState();
   }
   const saver = prefData.liveMode === 'saver';
   const start = () => {
     clearInterval(watchdog);
+    resumedAt = Date.now(); // coming back from the background is not an outage
     if (saver) {
       // Data saver: no always-open connection, one plain request every fifteen seconds.
       watchdog = setInterval(() => { if (!document.hidden) fetchOnce(); }, 15000);
@@ -108,8 +144,18 @@ function ensureFeed() {
   };
   const stop = () => { closeStream(); clearInterval(watchdog); };
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
-  window.addEventListener('online', () => { if (!document.hidden) start(); });
+  net.onRecover(() => { if (!document.hidden) start(); });
   start();
+
+  // Last known good: with no connection the saved prices appear at once; online, they only fill in if the
+  // live ones are slow, so nobody sees yesterday's numbers flash before today's.
+  const showSaved = () => {
+    if (lastMsg || feed.last) return;
+    const saved = net.loadPrices();
+    if (saved) deliver(saved.data, saved.savedAt);
+  };
+  if (net.status() === 'offline') showSaved(); else setTimeout(showSaved, 2500);
+  net.onChange(s => { if (s !== 'live') showSaved(); });
 }
 
 export function pollPrices(onData, onState = () => {}) {
@@ -120,10 +166,12 @@ export function pollPrices(onData, onState = () => {}) {
   onState(feed.state);
 }
 
+const LIVE_TEXT = { live: 'Live', connecting: 'Connecting', reconnecting: 'Reconnecting', offline: 'Offline', delayed: 'Delayed' };
 export function setLive(el, state) {
   if (!el) return;
   el.dataset.state = state;
-  el.textContent = state === 'live' ? 'Live' : state === 'reconnecting' ? 'Reconnecting' : 'Connecting';
+  const t = state === 'offline' || state === 'delayed' ? net.lastUpdatedLabel() : '';
+  el.textContent = (LIVE_TEXT[state] || 'Connecting') + (t ? ' \u00b7 ' + t : '');
 }
 
 // ---------- Preferences ----------
@@ -557,19 +605,20 @@ function initSearch(coins) {
 
   input.addEventListener('input', run);
   input.addEventListener('focus', run);
-  input.addEventListener('blur', () => { close(); box.classList.remove('open'); toggle?.setAttribute('aria-expanded', 'false'); });
+  input.addEventListener('blur', () => { close(); box.classList.remove('open'); toggle?.setAttribute('aria-expanded', 'false'); const r = releaseSearch; releaseSearch = null; r?.(); });
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown' && results.length) { e.preventDefault(); active = (active + 1) % results.length; paint(); }
     else if (e.key === 'ArrowUp' && results.length) { e.preventDefault(); active = (active - 1 + results.length) % results.length; paint(); }
     else if (e.key === 'Enter' && results[active]) { e.preventDefault(); go(results[active]); }
     else if (e.key === 'Escape') { input.value = ''; close(); input.blur(); }
   });
-  toggle?.addEventListener('click', () => {
-    const open = !box.classList.contains('open');
+  let releaseSearch = null;
+  const setOpen = open => {
     box.classList.toggle('open', open);
     toggle.setAttribute('aria-expanded', String(open));
-    if (open) input.focus();
-  });
+    if (open) { input.focus(); if (!releaseSearch) releaseSearch = pushLayer(() => { releaseSearch = null; input.value = ''; close(); input.blur(); }); }
+  };
+  toggle?.addEventListener('click', () => setOpen(!box.classList.contains('open')));
   document.addEventListener('keydown', e => {
     if (prefData.shortcuts === false) return;
     if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -675,6 +724,36 @@ function initMenu() {
   // Mark where you are in the drawer.
   const here = location.pathname.replace(/\/+$/, '') || '/';
   menu.querySelectorAll('.menu-app a').forEach(a => { if (a.origin === location.origin && a.pathname.replace(/\/+$/, '') === here) a.setAttribute('aria-current', 'page'); });
+}
+
+// ---------- Menu: "Update app" shows what is going on without opening it ----------
+function initUpdateBadge() {
+  const badge = document.getElementById('ma-update');
+  const paint = u => {
+    if (!badge) return;
+    const text = { ready: 'Update ready', checking: 'Checking\u2026', downloading: 'Downloading\u2026', applying: 'Updating\u2026', uptodate: 'Up to date' }[u.status] || '';
+    badge.textContent = text;
+    badge.dataset.state = u.status;
+  };
+  paint(updates.get());
+  updates.on(paint);
+  const note = takeUpdatedNote();
+  if (note) toast(`Cryptomium updated${/^\d/.test(note) ? ' to version ' + note : ''}.`, { ms: 4000 });
+}
+
+// ---------- Header: the brand is the app's name, not a reload button ----------
+// In the installed app a tap on the logo never reloads or re-opens the page: on a phone it scrolls the
+// screen to the top (the link itself is switched off in CSS); in a wide window it goes Home only when
+// you are somewhere else.
+function initBrand() {
+  if (!isApp()) return;
+  const top = () => window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  document.querySelectorAll('.site-header .brand').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if ((location.pathname.replace(/\/+$/, '') || '/') === '/' || matchMedia('(max-width: 820px)').matches) top(); else location.assign('/');
+  }));
+  // Tapping the empty part of the top bar also returns to the top, like the status bar on a phone.
+  document.querySelector('.site-header .bar')?.addEventListener('click', e => { if (e.target === e.currentTarget || e.target.closest('.brand')) top(); });
 }
 
 // ---------- Header: back arrow inside the app (pages below the main tabs) ----------
@@ -844,6 +923,9 @@ export async function initChrome() {
   initCurrency();
   initMenu();
   initAppBack();
+  initBrand();
+  net.mountStatus();
+  initUpdateBadge();
   const path = location.pathname.replace(/\/$/, '');
   if (path === '/about') document.querySelector('[data-nav="about"]')?.setAttribute('aria-current', 'page');
   if (path.startsWith('/settings')) document.querySelector('[data-nav="settings"]')?.setAttribute('aria-current', 'page');

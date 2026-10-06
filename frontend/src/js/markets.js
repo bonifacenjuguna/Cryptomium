@@ -1,5 +1,5 @@
 // Markets: the whole-market pulse, breadth, and ranked movers.
-import { initChrome, pollPrices, getJSON, el, compactMoney, pct, money, setNum, onCurrency, API } from './common.js';
+import { initChrome, pollPrices, getJSON, el, compactMoney, pct, money, setNum, onCurrency, onRecover, API } from './common.js';
 import { loadMarket, buildRows, coinCell, changeSpan, distText, dateText, sparkLine, insights, tag } from './intel.js';
 
 const $ = id => document.getElementById(id);
@@ -163,6 +163,8 @@ async function boot() {
   const loadGlobal = () => getJSON('/api/global').then(g => { state.glob = g; paintPulse(); }).catch(() => {});
   loadGlobal(); setInterval(loadGlobal, 3 * 60_000);
   getJSON('/api/sentiment').then(paintFng).catch(() => {});
-  setInterval(() => loadMarket(true).then(m => { state.market = m.coins; repaint(); }).catch(() => {}), 5 * 60_000);
+  const refreshMarket = () => loadMarket(true).then(m => { state.market = m.coins; repaint(); }).catch(() => {});
+  setInterval(refreshMarket, 5 * 60_000);
+  onRecover(() => { refreshMarket(); loadGlobal(); getJSON('/api/sentiment').then(paintFng).catch(() => {}); });
 }
 boot();

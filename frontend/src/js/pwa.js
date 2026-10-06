@@ -17,9 +17,137 @@ let graceOver = false;    // we wait a moment for that prompt before showing man
 const listeners = new Set();
 const notify = () => listeners.forEach(fn => fn());
 
-// 1. Service worker
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+// 1. Service worker and app updates
+// A new version downloads quietly and waits. It is switched on only when the visitor taps Update now, or
+// (automatic mode) at a moment nobody is using the screen: the app was just opened or has been put away.
+import { onRecover } from './net.js';
+const CFG = window.CRYPTOMIUM || {};
+const MODE_KEY = 'cm-update-mode';
+const CHECKED_KEY = 'cm-update-checked';
+const sw = 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost');
+const pageOpened = Date.now();
+let interacted = false;
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, () => { interacted = true; }, { once: true, passive: true, capture: true }));
+
+const U = { status: 'idle', error: '', latest: null, checkedAt: Number(flagGet(CHECKED_KEY)) || 0 };
+let reg = null, waitingWorker = null, applying = false;
+const hadController = sw && Boolean(navigator.serviceWorker.controller);
+const updateListeners = new Set();
+function flagGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function flagSet(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
+const snap = () => ({ ...U, version: CFG.version || '', build: CFG.build || '', mode: updates.mode(), supported: sw, online: navigator.onLine !== false });
+function setU(patch) { Object.assign(U, patch); updateListeners.forEach(fn => fn(snap())); }
+
+const dirtyForm = () => [...document.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=search]):not([type=file]), textarea')].some(i => i.value && i.value !== i.defaultValue);
+
+function askVersion(worker) {
+  return new Promise(resolve => {
+    try {
+      const ch = new MessageChannel();
+      const t = setTimeout(() => resolve(null), 1500);
+      ch.port1.onmessage = e => { clearTimeout(t); resolve(e.data); };
+      worker.postMessage({ type: 'GET_VERSION' }, [ch.port2]);
+    } catch { resolve(null); }
+  });
+}
+
+async function markReady(worker) {
+  waitingWorker = worker;
+  setU({ status: 'ready', error: '', latest: null });
+  askVersion(worker).then(v => { if (v) setU({ latest: v }); });
+  autoApply('ready');
+}
+
+function watch(worker) {
+  if (!worker || !navigator.serviceWorker.controller) return; // the very first install has nothing to replace
+  if (U.status !== 'checking') setU({ status: 'downloading', error: '' });
+  worker.addEventListener('statechange', () => {
+    if (worker.state === 'installed') markReady(worker);
+    else if (worker.state === 'redundant' && U.status === 'downloading') setU({ status: 'failed', error: 'install' });
+  });
+}
+
+function autoApply(reason) {
+  if (updates.mode() !== 'auto' || U.status !== 'ready' || applying || dirtyForm()) return;
+  const justOpened = !interacted && Date.now() - pageOpened < 8000;
+  if (reason === 'hidden' || (reason === 'ready' && (document.hidden || justOpened))) updates.apply();
+}
+
+if (sw) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return; // first install taking control: nothing to reload
+    if (applying) { try { sessionStorage.setItem('cm-updated', (U.latest && U.latest.version) || CFG.version || '1'); } catch { /* ignore */ } location.reload(); return; }
+    // Another window (or the old worker) switched versions under this page: reload when nobody is looking.
+    const go = () => { if (document.hidden) location.reload(); };
+    if (document.hidden) location.reload(); else document.addEventListener('visibilitychange', go, { once: true });
+  });
+  window.addEventListener('load', async () => {
+    try {
+      reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+    } catch { return; }
+    reg.addEventListener('updatefound', () => watch(reg.installing));
+    if (reg.waiting && navigator.serviceWorker.controller) markReady(reg.waiting);
+    else if (reg.installing) watch(reg.installing);
+    if (updates.mode() === 'auto') setTimeout(() => updates.check({ silent: true }), 3000);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { autoApply('hidden'); return; }
+    if (updates.mode() === 'auto' && Date.now() - U.checkedAt > 15 * 60 * 1000) updates.check({ silent: true });
+  });
+  setInterval(() => { if (!document.hidden && updates.mode() === 'auto') updates.check({ silent: true }); }, 30 * 60 * 1000);
+  onRecover(() => { if (updates.mode() === 'auto') updates.check({ silent: true }); });
+}
+
+export const updates = {
+  get: snap,
+  on(fn) { updateListeners.add(fn); return () => updateListeners.delete(fn); },
+  mode() { return flagGet(MODE_KEY) === 'manual' ? 'manual' : 'auto'; },
+  setMode(m) { flagSet(MODE_KEY, m === 'manual' ? 'manual' : 'auto'); updateListeners.forEach(fn => fn(snap())); },
+  /** Look for a new version. silent: background check, shows nothing unless an update is found. */
+  async check({ silent = false } = {}) {
+    if (!sw) { if (!silent) setU({ status: 'failed', error: 'unsupported' }); return; }
+    if (['checking', 'downloading', 'applying', 'ready'].includes(U.status)) return;
+    if (!reg) { try { reg = await navigator.serviceWorker.getRegistration(); } catch { /* none */ } }
+    if (!reg) { if (!silent) setU({ status: 'failed', error: 'unsupported' }); return; }
+    if (navigator.onLine === false) { if (!silent) setU({ status: 'failed', error: 'offline' }); return; }
+    if (!silent) setU({ status: 'checking', error: '' });
+    try {
+      await Promise.race([reg.update(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000))]);
+    } catch (err) {
+      if (!silent) setU({ status: 'failed', error: err && err.message === 'timeout' ? 'timeout' : 'network' });
+      return;
+    }
+    U.checkedAt = Date.now();
+    flagSet(CHECKED_KEY, String(U.checkedAt));
+    if (reg.waiting && navigator.serviceWorker.controller) { markReady(reg.waiting); return; }
+    if (reg.installing) {
+      watch(reg.installing);
+      if (U.status !== 'downloading') setU({ status: 'downloading', error: '' });
+      // Never an endless spinner: if the download does not finish, say so.
+      setTimeout(() => { if (U.status === 'downloading') setU({ status: 'failed', error: 'timeout' }); }, 90000);
+      return;
+    }
+    setU({ status: silent && U.status === 'idle' ? 'idle' : 'uptodate', error: '' });
+  },
+  /** Switch to the downloaded version and reload the current screen (same address, saved data untouched). */
+  apply() {
+    const w = waitingWorker || (reg && reg.waiting);
+    if (!w) { setU({ status: 'failed', error: 'activate' }); return; }
+    applying = true;
+    setU({ status: 'applying', error: '' });
+    try { w.postMessage({ type: 'SKIP_WAITING' }); } catch { /* handled by the timeout */ }
+    setTimeout(() => { if (applying && U.status === 'applying') { applying = false; setU({ status: 'failed', error: 'activate' }); } }, 10000);
+  },
+  /** Last resort for a stuck copy: forget every saved app file and start fresh. Settings and saved items stay. */
+  async repair() {
+    try { (await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister()); } catch { /* ignore */ }
+    try { for (const k of await caches.keys()) if (k.startsWith('cm-') || k.startsWith('cm3-')) await caches.delete(k); } catch { /* ignore */ }
+    location.reload();
+  },
+};
+/** Set once after an update reloaded the app: the version it moved to, then forgotten. */
+export function takeUpdatedNote() {
+  try { const v = sessionStorage.getItem('cm-updated'); sessionStorage.removeItem('cm-updated'); return v; } catch { return null; }
 }
 
 // 2. Keep the browser/status bar colour in step with the chosen theme
@@ -117,34 +245,41 @@ function initCard() {
   paint();
 }
 
-// 5. Phone tab bar. The bar itself is plain HTML in every page (so it is there on the very first
-// frame and never pops in), and the highlighted tab is decided by <html data-tab> which theme-init.js sets
-// before the page paints. This only adds the instant tap response and keeps assistive text in step.
-const TAB_OF = { '': 'home', coin: 'home', markets: 'markets', screener: 'screener', news: 'news', portfolio: 'portfolio' };
+// 5. Phone tab bar. The bar is plain HTML in every page and the current tab is decided once, before the
+// first paint, by theme-init.js (<html data-tab>, with the same value copied to data-tab-at).
+// This file only adds the instant answer to a tap, and puts the highlight back to that committed value if the
+// page we left is shown again (Back, cancelled navigation), so no stale tab can ever linger.
 function initTabBar() {
   const bar = document.querySelector('.app-tabbar');
-  if (!bar) return;
   const root = document.documentElement;
+  const committed = () => root.dataset.tabAt || '';
+  // Remember the tab for the next screen (a coin opened from Overview keeps Overview lit), per history entry.
+  try {
+    sessionStorage.setItem('cm-tab-last', committed());
+    if (location.pathname.startsWith('/coin') && !(history.state && history.state.cmTab != null)) history.replaceState({ ...(history.state || {}), cmTab: committed() }, '');
+  } catch { /* ignore */ }
+  if (!bar) return;
   const mark = tab => {
     root.dataset.tab = tab;
-    bar.querySelectorAll('a').forEach(a => { if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    bar.querySelectorAll('a').forEach(a => { if (a.dataset.tab === tab && tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   };
-  mark(root.dataset.tab || '');
+  mark(committed());
+  let revert = 0;
+  const here = () => location.pathname.replace(/\/+$/, '') || '/';
   bar.addEventListener('click', e => {
     const a = e.target.closest('a[data-tab]');
-    if (!a) return;
-    if (a.dataset.tab === root.dataset.tab) {
-      // Tapping the tab you are already on: back to the top of that screen (like a native app), no reload.
+    if (!a || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (here() === a.getAttribute('href')) {
+      // The tab's own main screen: back to the top, like a native app. No reload.
       e.preventDefault();
-      const here = location.pathname.replace(/\/+$/, '') || '/';
-      const own = a.getAttribute('href');
-      if (here === own || (own === '/' && here.startsWith('/coin'))) {
-        window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-        return;
-      }
+      window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      return;
     }
-    mark(a.dataset.tab); // answer the tap now; the page follows
+    mark(a.dataset.tab); // answer the tap now; the screen follows
+    clearTimeout(revert);
+    revert = setTimeout(() => mark(committed()), 6000); // the navigation never happened: undo the guess
   });
+  window.addEventListener('pageshow', e => { clearTimeout(revert); if (e.persisted) { mark(committed()); try { sessionStorage.setItem('cm-tab-last', committed()); } catch { /* ignore */ } } });
   // The on-screen keyboard pushes fixed bars up over the form: tuck the bar away while typing.
   const typing = el => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(checkbox|radio|button|submit|range)$/.test(el.type || '');
   document.addEventListener('focusin', e => { if (typing(e.target)) root.classList.add('kb-open'); });

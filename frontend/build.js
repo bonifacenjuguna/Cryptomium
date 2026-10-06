@@ -4,13 +4,9 @@
 //  - inserts the shared header and footer into every page
 //  - writes one real page per coin (dist/coin/BTC.html ...) so search engines and
 //    link previews see the right title, plus a fallback coin page
-//  - writes config.js (the backend address, public by nature), sitemap.xml and a
+//  - writes config.js (the backend address from API_URL, public by nature), sitemap.xml and a
 //    Content-Security-Policy that only allows this site and your backend
 //
-// The backend address comes from the API_URL environment variable if set
-// (Vercel > Project > Settings > Environment Variables), otherwise from
-// site.config.json. SITE_URL (optional) is the public address of this website,
-// used for sitemap and link previews; Vercel's own address is used if it is not set.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,11 +26,16 @@ function readJson(file, fallback) {
 const site = readJson('site.config.json', {});
 const coins = readJson('coins.json', []);
 
+// The backend address comes ONLY from the API_URL environment variable
+// (Vercel > Project > Settings > Environment Variables). There is no fallback and no address in
+// site.config.json: the build stops if API_URL is missing. SITE_URL (optional) is the public address
+// of this website, used for sitemap and link previews; Vercel's own address is used if it is not set.
 const apiUrl = String(process.env.API_URL || '').trim().replace(/\/+$/, '');
 if (!apiUrl) {
-  console.error('[build] Missing required API_URL environment variable. Set API_URL in Vercel/local environment before building.');
+  console.error('[build] API_URL is not set. Set the API_URL environment variable to your backend address (https://...) and build again.');
   process.exit(1);
-} else if (!/^https?:\/\//.test(apiUrl)) {
+}
+if (!/^https?:\/\//.test(apiUrl)) {
   console.error(`[build] The API address must start with https:// (got "${apiUrl}").`);
   process.exit(1);
 }
@@ -48,8 +49,8 @@ const pkgVersion = readJson('package.json', {}).version || '';
 const tokens = {
   VERSION: pkgVersion,
   BRAND: site.brand || 'Cryptomium',
-  CHANNEL_HANDLE: site.channelHandle || '@cryptomiumx',
-  CHANNEL_URL: site.channelUrl || 'https://t.me/cryptomiumx',
+  CHANNEL_HANDLE: site.channelHandle || '@CryptomiumApp',
+  CHANNEL_URL: site.channelUrl || 'https://t.me/CryptomiumApp',
   BOT_HANDLE: site.botHandle || '@cryptomiumxbot',
   SITE_URL: siteUrl,
   YEAR: String(new Date().getFullYear()),
@@ -88,7 +89,7 @@ const compose = html => withPwa(html.replace('<!--@header-->', header).replace('
 
 // Only this site, Google Fonts, and the backend may be used by the pages. Two public icon sets are
 // allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
-const apiOrigin = apiUrl ? new URL(apiUrl).origin : '';
+const apiOrigin = new URL(apiUrl).origin;
 const csp = [
   "default-src 'self'",
   "script-src 'self'",
@@ -110,6 +111,37 @@ fs.cpSync(src, dist, {
   recursive: true,
   filter: file => !file.includes(`${path.sep}partials`) && !file.endsWith('.html'),
 });
+// Hover effects only where a pointer can really hover: on a touch screen a tap would leave them stuck on.
+// Top-level rules that mention :hover are moved into @media (hover: hover); everything else is untouched.
+function hoverOnly(css) {
+  let out = '', i = 0;
+  const n = css.length;
+  while (i < n) {
+    if (css.startsWith('/*', i)) { const e = css.indexOf('*/', i + 2); const end = e < 0 ? n : e + 2; out += css.slice(i, end); i = end; continue; }
+    const open = css.indexOf('{', i);
+    if (open < 0) { out += css.slice(i); break; }
+    let depth = 1, j = open + 1;
+    while (j < n && depth) {
+      if (css.startsWith('/*', j)) { const e = css.indexOf('*/', j + 2); j = e < 0 ? n : e + 2; continue; }
+      if (css[j] === '{') depth++; else if (css[j] === '}') depth--;
+      j++;
+    }
+    const prelude = css.slice(i, open), body = css.slice(open, j);
+    const head = prelude.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+    if (head.startsWith('@') || !head.includes(':hover')) { out += prelude + body; }
+    else {
+      const sels = []; let d = 0, cur = '';
+      for (const ch of head) { if (ch === '(' || ch === '[') d++; if (ch === ')' || ch === ']') d--; if (ch === ',' && !d) { sels.push(cur.trim()); cur = ''; } else cur += ch; }
+      sels.push(cur.trim());
+      const hov = sels.filter(x => x.includes(':hover')), rest = sels.filter(x => !x.includes(':hover'));
+      if (rest.length) out += rest.join(', ') + body + '\n';
+      out += '@media (hover: hover) { ' + hov.join(', ') + body + ' }';
+    }
+    i = j;
+  }
+  return out;
+}
+fs.writeFileSync(path.join(dist, 'style.css'), hoverOnly(fs.readFileSync(path.join(src, 'style.css'), 'utf8')));
 const pageFiles = [];
 (function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -119,13 +151,18 @@ const pageFiles = [];
   }
 })(src);
 
-// Version stamp for css/js so a redeploy always reaches phones immediately.
+// Build id: a hash of every input (pages, scripts, styles, coin list, settings, API address, version), so any
+// change at all gives a new id. It names the service-worker caches and busts css/js addresses.
 import crypto from 'node:crypto';
 const stamp = crypto.createHash('sha1');
-for (const f of ['style.css', 'theme-init.js', 'sw.js', ...fs.readdirSync(path.join(src, 'js')).sort().map(n => 'js/' + n), ...fs.readdirSync(path.join(src, 'partials')).sort().map(n => 'partials/' + n)]) {
-  try { stamp.update(fs.readFileSync(path.join(src, f))); } catch { /* optional */ }
-}
-stamp.update(pkgVersion);
+(function hashDir(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((x, y) => x.name.localeCompare(y.name))) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) hashDir(full);
+    else { stamp.update(path.relative(src, full)); stamp.update(fs.readFileSync(full)); }
+  }
+})(src);
+stamp.update(JSON.stringify([coins, site, apiUrl, siteUrl, pkgVersion]));
 const ver = stamp.digest('hex').slice(0, 8);
 const bust = html => html.replace(/(href|src)="\/(style\.css|theme-init\.js|config\.js|js\/[a-z]+\.js)"/g, `$1="/$2?v=${ver}"`);
 
@@ -140,6 +177,7 @@ for (const name of pageFiles) {
 }
 
 write('coins.json', JSON.stringify(coins));
+write('version.json', JSON.stringify({ version: pkgVersion, build: ver }));
 
 // Web app manifest and service worker (the worker is stamped so every deploy refreshes its cache).
 const manifest = {
@@ -169,7 +207,6 @@ const manifest = {
 };
 if (siteUrl) { manifest.related_applications = [{ platform: 'webapp', url: `${siteUrl}/manifest.webmanifest` }]; manifest.prefer_related_applications = false; }
 write('manifest.webmanifest', JSON.stringify(manifest, null, 2));
-write('sw.js', fs.readFileSync(path.join(src, 'sw.js'), 'utf8').replace(/__VERSION__/g, ver));
 
 // Coin pages: one per coin, plus a generic fallback used for any other /coin/<x> address.
 const coinTemplate = withCsp(compose(fs.readFileSync(path.join(src, 'coin.html'), 'utf8')));
@@ -192,7 +229,27 @@ write(
     brand: tokens.BRAND,
     channelUrl: tokens.CHANNEL_URL,
     channelHandle: tokens.CHANNEL_HANDLE,
+    version: pkgVersion,
+    build: ver,
   })};\n`
 );
 
-console.log(`[build] Done. API: ${apiUrl || '(not set)'} | site: ${siteUrl || '(not set)'} | ${coins.length} coin pages`);
+// Service worker: knows exactly which files make one complete version of the app.
+const cleanUrl = rel => '/' + rel.replace(/\.html$/, '').replace(/(^|\/)index$/, '$1').replace(/\/$/, '');
+const walkFiles = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walkFiles(path.join(dir, e.name)) : [path.relative(dist, path.join(dir, e.name))]));
+const built = walkFiles(dist).map(f => f.split(path.sep).join('/'));
+const pagesList = built.filter(f => f.endsWith('.html') && !f.startsWith('coin/')).map(f => (f === 'index.html' ? '/' : cleanUrl(f)));
+const assetsList = built.filter(f => /\.(css|js|json|svg|webmanifest)$/.test(f) && !['sw.js', 'version.json'].includes(f)).map(f => '/' + f);
+const precache = [...new Set([...pagesList, ...assetsList])].sort();
+const optional = [...coins.map(c => `/coin/${c.ticker}`), ...built.filter(f => /\.png$/.test(f) && f.startsWith('icons/')).map(f => '/' + f)];
+write(
+  'sw.js',
+  fs.readFileSync(path.join(src, 'sw.js'), 'utf8')
+    .replace(/__VERSION__/g, ver)
+    .replace(/__APP_VERSION__/g, pkgVersion)
+    .replace(/__API_ORIGIN__/g, apiOrigin)
+    .replace('__PRECACHE__', JSON.stringify(precache))
+    .replace('__OPTIONAL__', JSON.stringify(optional))
+);
+
+console.log(`[build] Done. API: ${apiUrl} | site: ${siteUrl || '(not set)'} | ${coins.length} coin pages | v${pkgVersion} build ${ver} | ${precache.length} files saved for offline`);

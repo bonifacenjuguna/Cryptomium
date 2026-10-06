@@ -16,11 +16,22 @@
   var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
   if (app) root.classList.add('is-app');
   if (window.navigator.standalone === true) root.classList.add('ios-app');
-  // Which bottom tab is current, known before the page paints so the bar never changes after it appears.
+  // Which bottom tab is current, decided here once, before the page paints, from the address alone:
+  // a main screen lights its own tab; a coin page keeps the tab it was opened from (remembered per history
+  // entry, so Back and reload agree); everything else lights none. pwa.js only ever reverts to this value.
   var path = (location.pathname.replace(/\/+$/, '') || '/'), first = path.split('/')[1] || '';
-  var tabs = { '': 'home', coin: 'home', markets: 'markets', screener: 'screener', news: 'news', portfolio: 'portfolio' };
-  root.setAttribute('data-tab', Object.prototype.hasOwnProperty.call(tabs, first) ? tabs[first] : '');
-  root.setAttribute('data-depth', path === '/' || (tabs[first] && first !== 'coin' && path === '/' + first) ? 'root' : 'sub');
+  var tabs = { '': 'home', markets: 'markets', screener: 'screener', news: 'news', portfolio: 'portfolio' };
+  var main = Object.prototype.hasOwnProperty.call(tabs, first) && first !== 'coin';
+  var tab = main ? tabs[first] : '';
+  if (first === 'coin') {
+    var from = null;
+    try { from = history.state && history.state.cmTab; } catch (e) {}
+    if (from == null) { try { from = sessionStorage.getItem('cm-tab-last'); } catch (e) {} }
+    tab = ['', 'home', 'markets', 'screener', 'news', 'portfolio'].indexOf(from) >= 0 && from !== null ? from : 'home';
+  }
+  root.setAttribute('data-tab', tab);
+  root.setAttribute('data-tab-at', tab);
+  root.setAttribute('data-depth', path === '/' || (main && path === '/' + first) ? 'root' : 'sub');
   root.setAttribute('data-accent', p.accent || 'citrine');
   var d = p.density;
   var migrated = false;

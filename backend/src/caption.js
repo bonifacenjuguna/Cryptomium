@@ -5,7 +5,7 @@ import { formatPrice } from './priceFormat.js';
 export const CAPTION_MARKERS = { up: '▲', down: '▼' };
 
 /**
- * Caption under a banner, e.g. "▲ BTC $81,385 @cryptomiumx".
+ * Caption under a banner, e.g. "▲ BTC $81,385 @CryptomiumApp".
  * `changePct` (optional, used by "Post prices") adds the 24h change, and a
  * missing `direction` omits the marker.
  */

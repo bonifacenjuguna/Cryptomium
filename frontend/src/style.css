@@ -1623,11 +1623,14 @@ html.is-app { overscroll-behavior-y: contain; }
 html.is-app body { overscroll-behavior-y: contain; }
 html.ios-app[data-theme="light"] body::before { content: ""; position: fixed; z-index: 60; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #090f15; }
 
-/* Touch screens: long-press does not select text unless the visitor turns "Select text" on in Preferences.
-   Text fields, code and anything marked data-selectable always stay selectable. */
+/* Touch screens: interface controls and headings never start a text selection on long-press, so the app feels
+   like an app. Content people actually copy stays selectable: anything marked data-selectable (prices and stats
+   on a coin page, lessons, the glossary, FAQ answers), text fields and code. "Select text" in Preferences
+   turns selection back on everywhere. */
 @media (pointer: coarse) {
   html:not([data-select="on"]) body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   html:not([data-select="on"]) :is(input, textarea, [contenteditable="true"], [data-selectable], pre, code) { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  html:not([data-select="on"]) :is([data-selectable] summary, [data-selectable] button, [data-selectable] a) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 }
 html.is-app img, html.is-app svg { -webkit-user-drag: none; -webkit-touch-callout: none; }
 /* No 300ms tap delay, no double-tap zoom on controls */
@@ -1669,7 +1672,7 @@ html.is-app main { padding-bottom: 8px; }
   html[data-tab="screener"] .app-tabbar [data-tab="screener"],
   html[data-tab="news"] .app-tabbar [data-tab="news"],
   html[data-tab="portfolio"] .app-tabbar [data-tab="portfolio"] { color: var(--ink); background: color-mix(in srgb, var(--accent) 22%, transparent); }
-  html.is-app .app-tabbar a { transition: color .12s, background-color .12s; }
+  html.is-app .app-tabbar a { transition: none; } /* the highlight moves on the tap itself, never after it */
   html.is-app .app-tabbar a:active { transform: scale(.94); }
   html.is-app .toasts { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
   html.is-app .to-top { display: none; }
@@ -1745,3 +1748,75 @@ html[data-motion="off"].is-app .menu, html[data-motion="off"].is-app .menu-scrim
   .cp-t thead th:first-child, .cp-t th.cp-l { width: 98px; min-width: 98px; max-width: 98px; padding-inline: 10px; font-size: .8rem; white-space: normal; line-height: 1.2; }
   .cp-t thead th:not(:first-child), .cp-t td { min-width: 132px; }
 }
+
+/* =====================================================================
+   v3.3.0: native-app pass: menu, status, offline, updates
+   ===================================================================== */
+html:not(.is-app) .if-app { display: none !important; }
+html.is-app .web-only { display: none !important; }
+
+/* Brand: an app name, not a link that reloads the page (phones; wide windows keep it as Home) */
+@media (max-width: 820px) {
+  html.is-app .site-header .brand { pointer-events: none; }
+  html.is-app .crumb { display: none; } /* the top bar already has a Back arrow */
+}
+
+/* Menu rows: icon, label, state, chevron */
+.menu-app a { gap: 14px; }
+.ma-ic { width: 22px; height: 22px; flex: none; color: var(--muted); }
+.ma-l { flex: 1 1 auto; min-width: 0; }
+.ma-chev { width: 16px; height: 16px; flex: none; color: var(--muted); opacity: .7; }
+.ma-end { flex: none; font-size: .78rem; font-weight: 700; color: var(--muted); }
+.ma-end:empty { display: none; }
+.ma-end[data-state="ready"] { padding: 4px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+.menu-app a[aria-current="page"] .ma-ic { color: var(--ink); }
+
+/* Connection chip in the top bar and the offline banner (never blocks the screen) */
+.net-chip { order: 2; display: inline-flex; align-items: center; gap: 7px; flex: none; height: 30px; padding: 0 11px; border: 1px solid color-mix(in srgb, #e0a100 55%, var(--line)); border-radius: 999px; background: color-mix(in srgb, #e0a100 14%, var(--surface)); color: var(--ink); font: 800 .76rem/1 var(--text); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.net-chip[hidden] { display: none; }
+.net-chip i { width: 8px; height: 8px; border-radius: 50%; background: #e0a100; }
+.net-chip[data-state="api"] i { animation: pulse 2.4s ease-out infinite; }
+.net-banner { position: fixed; z-index: 45; left: 16px; bottom: 16px; width: min(420px, calc(100% - 32px)); display: flex; align-items: flex-start; gap: 12px; padding: 14px 14px 14px 16px; border: 1px solid color-mix(in srgb, #e0a100 50%, var(--line)); border-radius: 16px; background: var(--surface); box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .55); opacity: 0; transform: translate3d(0, 14px, 0); visibility: hidden; pointer-events: none; transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s; }
+.net-banner.show { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .18s ease, transform .18s ease, visibility 0s; }
+.net-banner.calm, html[data-motion="off"] .net-banner { transition: none; }
+.nb-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, #e0a100 22%, var(--surface)); color: var(--ink); }
+.nb-icon svg { width: 20px; height: 20px; }
+.net-banner[data-state="ok"] { border-color: color-mix(in srgb, var(--up-fill) 55%, var(--line)); }
+.net-banner[data-state="ok"] .nb-icon { background: var(--up-fill); color: #fff; }
+.nb-text { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.nb-text b { font-size: .98rem; }
+.nb-body { color: var(--muted); font-size: .86rem; line-height: 1.4; }
+.nb-fresh { color: var(--ink); font-weight: 700; font-size: .8rem; }
+.nb-fresh:empty { display: none; }
+.nb-x { flex: none; align-self: center; min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: 700 .84rem var(--text); cursor: pointer; }
+.nb-x[hidden] { display: none; }
+@media (max-width: 820px) { html.is-app .net-banner { left: 12px; width: calc(100% - 24px); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); } }
+html[data-net].is-app .toasts { bottom: calc(190px + env(safe-area-inset-bottom, 0px)); }
+.fresh-note { margin: 8px 0 0; padding: 7px 12px; width: fit-content; max-width: 100%; border-radius: 10px; background: color-mix(in srgb, #e0a100 14%, var(--surface)); border: 1px solid color-mix(in srgb, #e0a100 40%, var(--line)); color: var(--ink); font-size: .84rem; font-weight: 600; }
+.fresh-note[hidden] { display: none; }
+.live[data-state="offline"], .live[data-state="delayed"] { color: var(--ink); }
+.live[data-state="offline"]::before, .live[data-state="delayed"]::before { background: #e0a100; }
+
+/* App updates screen */
+.upd { gap: 16px; }
+.upd-top { display: flex; align-items: center; gap: 14px; }
+.upd-icon { width: 56px; height: 56px; border-radius: 16px; flex: none; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .5), 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent); }
+.upd-id h2 { font-size: 1.25rem; }
+.upd-id p { margin: 2px 0 0; color: var(--muted); }
+.upd-build { font-size: .8rem; }
+.upd-status { display: grid; gap: 4px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.upd-status b { font-size: 1.02rem; }
+.upd-status span { color: var(--muted); font-size: .92rem; }
+.upd-status span:empty { display: none; }
+.upd[data-state="ready"] .upd-status { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.upd[data-state="failed"] .upd-status { border-color: color-mix(in srgb, var(--down) 45%, var(--line)); }
+.upd[data-state="uptodate"] .upd-status { border-color: color-mix(in srgb, var(--up-fill) 45%, var(--line)); }
+.upd-bar { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.upd-bar[hidden] { display: none; }
+.upd-bar i { display: block; height: 100%; width: 38%; border-radius: inherit; background: var(--accent); animation: upd-slide 1.2s ease-in-out infinite; transform: translate3d(-100%, 0, 0); }
+@keyframes upd-slide { to { transform: translate3d(280%, 0, 0); } }
+html[data-motion="off"] .upd-bar i { animation: none; transform: none; width: 100%; }
+@media (prefers-reduced-motion: reduce) { .upd-bar i { animation: none; transform: none; width: 100%; } }
+.ab-social { flex-wrap: wrap; }
+.ab-links { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.ab-links a { color: var(--muted); font-weight: 700; text-decoration: none; padding: 6px 0; }

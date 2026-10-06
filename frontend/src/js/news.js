@@ -1,5 +1,5 @@
 // News: headlines from the backend's feed reader. Titles, a short excerpt and a link to the original.
-import { initChrome, getJSON, el, ago, API } from './common.js';
+import { initChrome, getJSON, el, ago, onRecover, API } from './common.js';
 
 const $ = id => document.getElementById(id);
 const CATS = [['', 'All'], ['bitcoin', 'Bitcoin'], ['ethereum', 'Ethereum'], ['altcoins', 'Altcoins'], ['defi', 'DeFi'], ['regulation', 'Regulation'], ['etf', 'ETFs'], ['exchanges', 'Exchanges'], ['security', 'Security'], ['network', 'Network'], ['macro', 'Macro']];
@@ -64,14 +64,22 @@ async function boot() {
   $('nw-pub').addEventListener('change', e => { state.pub = e.target.value; paint(); });
   if (!API) return;
   $('nw-status').textContent = 'Loading headlines…';
-  try {
-    const data = await getJSON('/api/news', { timeoutMs: 20000 });
-    state.items = data.items;
-    for (const p of data.publishers) { const o = el('option', '', p.name); o.value = p.id; $('nw-pub').append(o); }
-    $('nw-status').textContent = `${data.items.length} headlines from ${data.publishers.map(p => p.name).join(', ')}, updated ${ago(data.updatedAt)}.` + (data.unavailable.length ? ` ${data.unavailable.join(', ')} could not be reached right now.` : '') + (data.stale ? ' Showing the last good copy.' : '');
-    paint();
-  } catch {
-    $('nw-status').textContent = 'The news feeds are not reachable right now. Try again in a few minutes.';
-  }
+  const load = async () => {
+    try {
+      const data = await getJSON('/api/news', { timeoutMs: 20000 });
+      state.items = data.items;
+      const keep = $('nw-pub').value;
+      $('nw-pub').replaceChildren($('nw-pub').firstElementChild);
+      for (const p of data.publishers) { const o = el('option', '', p.name); o.value = p.id; $('nw-pub').append(o); }
+      $('nw-pub').value = keep;
+      const saved = getJSON.savedAt('/api/news');
+      $('nw-status').textContent = `${data.items.length} headlines from ${data.publishers.map(p => p.name).join(', ')}, updated ${ago(data.updatedAt)}.` + (data.unavailable.length ? ` ${data.unavailable.join(', ')} could not be reached right now.` : '') + (data.stale ? ' Showing the last good copy.' : '') + (saved ? ' Offline or unreachable: showing the copy saved ' + ago(new Date(saved).toISOString()) + '.' : '');
+      paint();
+    } catch {
+      if (!state.items.length) $('nw-status').textContent = 'The news feeds are not reachable right now and nothing is saved yet. Headlines will load when you are back online.';
+    }
+  };
+  await load();
+  onRecover(load);
 }
 boot();

@@ -101,7 +101,7 @@ comments, is in `.env.example`.
 | `API_SLOW_REFRESH_MS` | 30000 | Website refresh rate for Auto, CoinGecko only, CoinPaprika, Average |
 | `API_RATE_LIMIT_PER_MIN` | 240 | Requests per visitor per minute |
 | `TRUSTED_PROXY_HOPS` | 1 | Reverse proxies in front of the API (Railway = 1) |
-| `WATERMARK_HANDLE` | @cryptomiumx | Handle printed on banners, charts and captions |
+| `WATERMARK_HANDLE` | @CryptomiumApp | Handle printed on banners, charts and captions |
 
 Settings changed in Telegram (steps, modes, mutes, data source, logo style) are
 saved in the database and are separate from these.
@@ -160,7 +160,7 @@ bot (only `/start` is a slash command). The menu:
 - **📣 Post prices** — post the *current* price of one coin, or of all coins,
   to the channel. You confirm first. Each banner uses the live price, and the
   chip shows the 24h direction (green up / red down); the caption adds the 24h
-  change, e.g. `▲ BTC $81,385 · 24h +1.23% @cryptomiumx`. If the 24h change isn't
+  change, e.g. `▲ BTC $81,385 · 24h +1.23% @CryptomiumApp`. If the 24h change isn't
   available the banner simply has no chip
 - **📊 Chart** (inside 📣 Post prices) — a price-history chart for one coin:
   pick the coin, a time range (24H/7D/30D/90D/1Y or a custom day count), then

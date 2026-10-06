@@ -1,5 +1,5 @@
 import {
-  API, initChrome, getJSON, pollPrices, currency, currencySymbol, onCurrency, money, compactMoney, pct, ago,
+  API, initChrome, getJSON, pollPrices, onRecover, currency, currencySymbol, onCurrency, money, compactMoney, pct, ago,
   isFav, toggleFav, onFavs, el, logoEl, tileEl, paintTile, DIR_SVG, prefs, setNum, copyText, toast,
 } from './common.js';
 import { createChart } from './chart.js';
@@ -468,6 +468,7 @@ async function boot() {
   loadAlerts();
   setInterval(loadAlerts, 20 * 1000);
   setInterval(paintAlerts, 30 * 1000);
+  onRecover(() => { loadMarket(); loadAlerts(); loadChart(); }); // connection is back: refresh in place, no reload
 }
 
 boot();

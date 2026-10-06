@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.3.0
+
+**Native-app pass: the installed app now behaves, works offline and updates like an app. Redeploy the frontend. The backend only changes its default banner watermark.**
+
+Frontend build change to know about: `API_URL` is now the only source of the backend address. `site.config.json` no longer has `apiUrl`, and `node build.js` stops with a clear message if `API_URL` is not set (set it in Vercel > Settings > Environment Variables). The Telegram channel is now `@CryptomiumApp`.
+
+- **Bottom bar, fixed at the cause.** The active tab is now decided in one place before first paint (`theme-init.js`) and the tap handler only reverts to that value. This removes three ways a wrong tab could show: a page restored by Back still showing the tab that had been tapped, a coin page always lighting Home even when opened from Overview or Screener (it now keeps the tab it was opened from, remembered per history entry), and tapping Home while on a coin page only scrolling. The 120 ms colour fade on the bar is gone, so the highlight moves on the tap itself. A guess is undone if the navigation never happens.
+- **Menu reorganised** by how often things are used: Your coins (Watchlist, Compare, Converter), Alerts (Price alerts, Telegram channel), App (Update app, Settings), Learn and info (Learn, Help and about, Data sources, Data and privacy). Icons, chevrons, and an "Update ready" badge. Nothing already in the bottom bar is repeated (Portfolio is hidden from Settings inside the app). The old website footer's items now live in the menu and in Settings > About this app (including the social links).
+- **Android Back** rebuilt as a queue: opening and closing a menu, sheet or search in quick succession, or pressing Back repeatedly, can no longer close the wrong thing or leave a stray history entry. The phone search box now closes on Back too.
+- **Logo tap no longer reloads.** On a phone it scrolls to the top (the link is switched off); in a wide installed window it only goes Home when you are somewhere else.
+- **Long-press and selection.** Controls and headings never select. Content worth copying stays selectable: coin stats, lessons, the glossary, FAQ answers, fields and code (`data-selectable`). Preferences > Select text still turns it on everywhere.
+- **Hover effects only on devices that can hover** (applied when building the CSS), so nothing sticks after a tap.
+- **Offline, properly.** The service worker saves a whole version of the app (every page, script, coin page, fonts, coin logos) all-or-nothing and opens it without a network. The last good copy of prices, market details, charts, sentiment and news is kept and shown, labelled with its age, instead of an empty screen. A non-blocking banner explains what is happening and can be dismissed to a small chip in the top bar. Three cases are told apart: **offline** ("Offline, showing last available data"), **online but the live service is not delivering** ("Live data temporarily unavailable"), and **one source failing** (everything else carries on, no global error). When the connection returns the app refreshes in place, keeps the current screen, and says "Back online". Price alerts never fire on a saved price.
+- **App updates.** New Settings > App updates screen (also the menu's Update app): current version and build, Check for updates, Update now, and clear states (checking, downloading, ready, up to date, could not complete with Try again, offline). A new version downloads quietly and only switches on when asked, or in Automatic mode (the default) when the app is opened or put away, never mid-use. Manual mode installs nothing until you tap Update now. A release that fails to download completely is discarded and the current version keeps running. Settings, watchlist, alerts and portfolio are untouched. "Repair app files" clears a stuck copy.
+- Installs from 3.2.x upgrade by themselves on the next visit.
+- Versioning: one number (`package.json`) feeds the menu, Settings, `config.js`, `version.json`, the service worker and its cache names. The build id is now a hash of every input, so any change gets a new cache.
+- New files: `js/net.js`, `settings/updates.html`, `version.json` (generated). Backend: default watermark `@CryptomiumApp`.
+
 ## 3.2.2
 
 **Long-press no longer selects text, and Compare scrolls sideways. Redeploy the frontend (the backend is unchanged).**
