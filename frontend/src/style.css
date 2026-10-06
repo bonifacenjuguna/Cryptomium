@@ -2253,7 +2253,7 @@ html.is-app .hub-v { max-width: 27vw; font-size: .84rem; }
 html.is-app .hub-t { flex-shrink: 0; }
 
 /* =====================================================================
-   v3.8.0
+   v3.8.1
    ===================================================================== */
 /* Menu drawer icons: back to their original calm look */
 html.is-app .ma-ic { color: var(--muted); }
@@ -2413,10 +2413,7 @@ html.in-shell.splash::after { display: none; }
 html.cm-instant .menu, html.cm-instant .menu-scrim, html.cm-instant .search-list, html.cm-instant .sheet-back, html.cm-instant .sheet, html.cm-instant .search { transition: none !important; animation: none !important; }
 html.cm-instant .menu-scrim { opacity: 0 !important; }
 /* top bar: the brand fades as you scroll, and below the main screens the back arrow and title replace it */
-html.is-app[data-depth="root"] .site-header .brand { opacity: var(--brand-o, 1); }
 html.is-app[data-depth="sub"] .site-header .brand { display: none; }
-html.is-app[data-depth="sub"] .ab-title { opacity: 1; transform: none; }
-html.is-app[data-depth="sub"].coin-collapsed .ab-title { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .tab-frame.enter, .tab-frame.leave { animation: none; } }
 
 
@@ -2477,3 +2474,11 @@ html.is-app[data-depth="sub"].coin-collapsed .ab-title { opacity: 0; }
 .src-node .src-tag { align-self: start; }
 .src-foot { margin: 22px 2px 0; color: var(--muted); font-size: .84rem; line-height: 1.45; }
 @media (prefers-reduced-motion: reduce) { .sh-pulse::after { animation: none; } }
+
+
+/* ---------- v3.8.1 one header rule for the whole app ----------
+   Main screens (the five tabs): brand, search, menu. The brand stays; when the page's big title scrolls away the title takes its place.
+   Screens opened from them: back arrow only. The title appears in the bar once the big title scrolls away. No menu, no search, no price strip. */
+html.in-shell[data-depth="sub"] :is(.search, .menu-toggle, .tape, .net-chip) { display: none !important; }
+html.in-shell[data-depth="sub"] .crumb { display: none; }
+html.in-shell[data-depth="sub"] .site-header .bar { min-height: 52px; }

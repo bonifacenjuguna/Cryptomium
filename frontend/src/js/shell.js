@@ -125,12 +125,11 @@ try {
 const startIsRoot = startPath.split(/[?#]/)[0].replace(/\/+$/, '') === (ROOTS[start] === '/' ? '' : ROOTS[start]) && !/[?]/.test(startPath);
 active = start;
 stacks[start].push(makeFrame(start, startIsRoot ? ROOTS[start] : ROOTS[start], false));
-if (!startIsRoot) { // opened on a coin or another screen: its tab's main screen sits underneath so Back has somewhere to go
-  show();
-  pushScreen(startPath, { animate: false, record: false });
-}
 show();
 try { history.replaceState({ cmShell: snap() }, ''); } catch { /* ignore */ }
+if (!startIsRoot) { // opened on a coin or another screen: its tab's main screen sits underneath, and Back has a real history step to use
+  pushScreen(startPath, { animate: false, record: true });
+}
 
 // Load the other tabs one at a time once the app is idle.
 const rest = ORDER.filter(t => t !== start);

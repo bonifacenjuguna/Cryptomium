@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.8.1
+
+**Header consistency fixes for the installed app. Redeploy the frontend (the backend is unchanged apart from its version number).**
+
+- **The brand no longer disappears when you scroll** on Home (it left an empty bar). Main screens keep Cryptomium, search and the menu; where a page has a big title, that title replaces the brand only once it has scrolled out of view.
+- **Screens opened from a tab now have a back arrow only.** The menu button, search button, price strip and the "Settings" / "All markets" text links are gone there, so nothing sits next to the arrow and nothing leads out of the stack by accident. The page title appears in the bar once its big title scrolls away.
+- A screen opened from outside (a link or notification) now has its main tab underneath it, and the back arrow returns there instead of leaving the app.
+
 ## 3.8.0
 
 **The installed app now navigates like a native app, plus a new Watchlist and Data sources page. Redeploy the frontend (the backend is unchanged apart from its version number).**
