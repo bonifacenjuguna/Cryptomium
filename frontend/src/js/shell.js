@@ -50,7 +50,9 @@ function show() {
   }));
   root.dataset.tab = active;
   bar.querySelectorAll('a').forEach(a => { if (a.dataset.tab === active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  root.classList.remove('shell-away', 'kb-open');
+  const ui = (topOf(active) && topOf(active)._ui) || {}; // a screen that comes back with its menu open brings the bar's state back too
+  root.classList.toggle('shell-away', !!ui.away);
+  root.classList.toggle('kb-open', !!ui.kb);
   try { topOf(active).contentWindow.focus(); } catch { /* ignore */ }
 }
 
@@ -166,9 +168,9 @@ addEventListener('message', e => {
   const [from, frame] = fromFrame;
   const m = e.data;
   const isTop = from === active && frame === topOf(active);
-  if (m.cm === 'ui' && isTop) {                                   // a menu, sheet or the keyboard is open: the bar steps aside
-    root.classList.toggle('shell-away', !!m.away);
-    root.classList.toggle('kb-open', !!m.kb);
+  if (m.cm === 'ui') {                                            // a menu, sheet or the keyboard is open: the bar steps aside
+    frame._ui = { away: !!m.away, kb: !!m.kb };
+    if (isTop) { root.classList.toggle('shell-away', !!m.away); root.classList.toggle('kb-open', !!m.kb); }
   } else if (m.cm === 'tab' && ORDER.includes(m.tab) && isTop) {   // a link to another tab
     if (m.tab === active) reselect(m.tab); else switchTo(m.tab);
   } else if (m.cm === 'push' && isTop && typeof m.url === 'string') {

@@ -718,6 +718,11 @@ function initMenu() {
     if (drawer() && !a.target && a.origin === location.origin && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       if (a.pathname === location.pathname && !a.hash) { close(); return; }
+      // Like a native drawer: the screen opens over the menu and the menu stays open underneath, so Back lands right here.
+      // (A main tab is the exception: the menu closes, since you are switching to another tab.)
+      const pth = a.pathname.replace(/\/+$/, '') || '/';
+      const isTab = !a.search && ['/', '/markets', '/screener', '/news', '/portfolio'].includes(pth);
+      if (inShell() && !isTab) { navTo(a.href); return; }
       root.classList.add('cm-instant');
       release = null;
       paint(false);

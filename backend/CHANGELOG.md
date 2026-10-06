@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.8.2
+
+**The menu now behaves like a native drawer. Redeploy the frontend (the backend is unchanged apart from its version number).**
+
+- Choosing an item in the menu (Watchlist, Compare, Converter, Price alerts, Settings, Learn, Help, Data sources, Data and privacy...) opens that screen over the menu, which stays open underneath. Back, from the arrow or the phone's Back button, returns to the open menu; Back again closes it. Inside those screens Back still goes one level at a time (for example Appearance, Settings, menu).
+- The bottom bar stays hidden while you are back on the open menu, as before.
+- Picking a main tab (Overview, Screener, News, Portfolio) from the menu still closes it, since you are switching tabs.
+
 ## 3.8.1
 
 **Header consistency fixes for the installed app. Redeploy the frontend (the backend is unchanged apart from its version number).**
