@@ -92,7 +92,7 @@ const compose = html => withPwa(html.replace('<!--@header-->', header).replace('
 const apiOrigin = new URL(apiUrl).origin;
 const csp = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'inline-speculation-rules'",
   "style-src 'self' https://fonts.googleapis.com",
   "font-src https://fonts.gstatic.com",
   `img-src 'self' data: ${apiOrigin} https://cdn.jsdelivr.net https://assets.coincap.io`.trim(),

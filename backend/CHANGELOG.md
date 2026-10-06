@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.5.3
+
+**Installed app: instant tabs, white Settings icons, a cleaner App updates page, and no pull-to-refresh. Redeploy the frontend (the backend is unchanged apart from its version number). The website is untouched.**
+
+- **Bottom tabs are prepared in the background.** Home, Overview, Screener, News and Portfolio load quietly after the app opens, so a tap shows a ready screen with its place kept, with no loading. (Android Chrome; other browsers keep the fast cached loading.) The content-security policy now allows the browser's page-preparation rules.
+- **Settings icons are white by default** (the theme's text colour) and take the colour of any other accent you pick under Appearance. The menu drawer icons are back to their original look.
+- **Pull-to-refresh is gone.** The app already keeps itself up to date.
+- **App updates page redesigned:** one status card (icon, version, a state badge, a short message, one button), a compact install-mode row, a tidy offline-data list, and a quiet Troubleshooting row. All messages are shorter.
+- Tab and settings code no longer writes the "last tab" memory from a page that is only being prepared in the background.
+
 ## 3.5.2
 
 **Installed app polish. Redeploy the frontend (the backend is unchanged apart from its version number). The website is untouched.**

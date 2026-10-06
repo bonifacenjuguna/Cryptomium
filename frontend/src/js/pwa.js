@@ -254,10 +254,25 @@ function initTabBar() {
   const root = document.documentElement;
   const committed = () => root.dataset.tabAt || '';
   // Remember the tab for the next screen (a coin opened from Overview keeps Overview lit), per history entry.
-  try {
-    sessionStorage.setItem('cm-tab-last', committed());
-    if (location.pathname.startsWith('/coin') && !(history.state && history.state.cmTab != null)) history.replaceState({ ...(history.state || {}), cmTab: committed() }, '');
-  } catch { /* ignore */ }
+  // A page that is only being prepared in the background must not write this: it waits until it is shown.
+  const remember = () => {
+    try {
+      sessionStorage.setItem('cm-tab-last', committed());
+      if (location.pathname.startsWith('/coin') && !(history.state && history.state.cmTab != null)) history.replaceState({ ...(history.state || {}), cmTab: committed() }, '');
+    } catch { /* ignore */ }
+  };
+  if (document.prerendering) document.addEventListener('prerenderingchange', remember, { once: true }); else remember();
+  // All five tabs are prepared in the background, so a tap shows a ready screen instead of loading one.
+  if (isStandalone() && !document.prerendering && HTMLScriptElement.supports && HTMLScriptElement.supports('speculationrules')) {
+    try {
+      const here0 = location.pathname.replace(/\/+$/, '') || '/';
+      const urls = ['/', '/markets', '/screener', '/news', '/portfolio'].filter(u => u !== here0);
+      const sr = document.createElement('script');
+      sr.type = 'speculationrules';
+      sr.textContent = JSON.stringify({ prerender: [{ source: 'list', urls, eagerness: 'eager' }] });
+      document.head.appendChild(sr);
+    } catch { /* fall back to the warm-up below */ }
+  }
   if (!bar) return;
   const mark = tab => {
     root.dataset.tab = tab;
@@ -267,7 +282,7 @@ function initTabBar() {
   let revert = 0;
   // Warm the next screen the moment a finger lands, so the tap opens it almost instantly
   const warmed = new Set();
-  bar.addEventListener('pointerdown', e => {
+  if (!(HTMLScriptElement.supports && HTMLScriptElement.supports('speculationrules'))) bar.addEventListener('pointerdown', e => {
     const a = e.target.closest('a[data-tab]');
     const href = a && a.getAttribute('href');
     if (!href || warmed.has(href) || href === (location.pathname.replace(/\/+$/, '') || '/')) return;

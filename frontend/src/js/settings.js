@@ -541,24 +541,24 @@ function paintUpdates() {
   $('upd-ver').textContent = u.version || '';
   $('upd-build').textContent = u.build ? `(build ${u.build})` : '';
   const main = $('upd-main'), alt = $('upd-alt');
-  let title = `You're running version ${u.version}`, sub = u.checkedAt ? 'Last checked ' + ago(new Date(u.checkedAt).toISOString()) + '.' : '';
+  let title = `Version ${u.version}`, sub = u.checkedAt ? 'Checked ' + ago(new Date(u.checkedAt).toISOString()) + '.' : '';
   let label = 'Check for updates', action = () => updates.check(), busy = false, bar = false;
   alt.hidden = true;
   switch (u.status) {
-    case 'checking': title = 'Checking for updates\u2026'; sub = 'Looking for a newer version.'; label = 'Checking\u2026'; busy = true; bar = true; break;
-    case 'downloading': title = 'Updating Cryptomium\u2026'; sub = 'Downloading the latest app version. You can keep using the app.'; label = 'Downloading\u2026'; busy = true; bar = true; break;
-    case 'applying': title = 'Updating Cryptomium\u2026'; sub = 'Switching to the new version. The app will restart on this screen.'; label = 'Updating\u2026'; busy = true; bar = true; break;
+    case 'checking': title = 'Checking\u2026'; sub = ''; label = 'Checking\u2026'; busy = true; bar = true; break;
+    case 'downloading': title = 'Downloading update\u2026'; sub = 'You can keep using the app.'; label = 'Downloading\u2026'; busy = true; bar = true; break;
+    case 'applying': title = 'Installing\u2026'; sub = 'The app restarts on this screen.'; label = 'Updating\u2026'; busy = true; bar = true; break;
     case 'ready':
-      title = 'A new version of Cryptomium is available.';
-      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded and ready. ` : 'It is downloaded and ready. ') + (u.mode === 'auto' ? 'It will install by itself next time you open or leave the app.' : 'Tap Update now when you are ready.');
+      title = 'Update ready';
+      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs when you next open or leave the app.' : 'Tap Update now when you are ready.');
       label = 'Update now'; action = () => updates.apply(); break;
-    case 'uptodate': title = "Cryptomium is up to date."; sub = `You're running the latest version (${u.version}).`; break;
+    case 'uptodate': title = "You're up to date"; sub = `Version ${u.version} is the latest.`; break;
     case 'failed': {
       const e = ERR[u.error] || ERR.activate;
       title = e[0]; sub = e[1]; label = 'Try again'; action = () => (u.error === 'activate' && u.latest ? updates.apply() : updates.check());
       break;
     }
-    default: if (u.checkedAt) sub = "You're running the latest version we know of. Last checked " + ago(new Date(u.checkedAt).toISOString()) + '.';
+    default: if (u.checkedAt) { title = "You're up to date"; sub = 'Checked ' + ago(new Date(u.checkedAt).toISOString()) + '.'; }
   }
   $('upd-title').textContent = title;
   $('upd-sub').textContent = sub;
