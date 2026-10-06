@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.8.3
+
+**New app icon, with Android themed icon support. Redeploy the frontend (the backend is unchanged apart from its version number).**
+
+- **Cleaner icon:** a larger, crisper cube made of three flat faces with thin seams, on one solid dark background (the old muddy gradient is gone). The same artwork is used for the home screen, the iOS icon, the browser tab and the website icon.
+- **Themed icons:** a new single-colour icon (`icon-monochrome-512.png`, listed in the manifest as `monochrome`) lets Android 13+ recolour the app to match your wallpaper theme. The three faces keep their depth through three levels of shade.
+- Android only refreshes an installed app's icon when it regenerates it. If the old icon is still showing, remove the app from the home screen and install it again.
+
 ## 3.8.2
 
 **The menu now behaves like a native drawer. Redeploy the frontend (the backend is unchanged apart from its version number).**

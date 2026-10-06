@@ -2253,7 +2253,7 @@ html.is-app .hub-v { max-width: 27vw; font-size: .84rem; }
 html.is-app .hub-t { flex-shrink: 0; }
 
 /* =====================================================================
-   v3.8.2
+   v3.8.3
    ===================================================================== */
 /* Menu drawer icons: back to their original calm look */
 html.is-app .ma-ic { color: var(--muted); }
