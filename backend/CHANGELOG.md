@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.7.0
+
+**Coin header redone as a hero, and the Screener now looks like a scanner instead of a second Home. Redeploy the frontend (the backend is unchanged apart from its version number). The website on a computer keeps its table.**
+
+- **Coin header hero:** a soft glow behind the header that turns green or red with the coin's 24h direction, a glowing ring around the logo, the name with small TICKER and Rank chips, round glass star and share buttons, a very large price whose cents fade back, and one capsule that shows the arrow, the 24h percent, the dollar move and "24H" together. The coin still slides into the top bar when the price scrolls away.
+- **Screener on a phone:** a market pulse strip (how many coins are rising and falling, the average move, and a split bar), round view chips (Largest, Gainers, Losers, Volume, Near ATH...), a one-line caption that says what the view shows, and a card for every coin that puts the one number the view is about (market cap, 24h move, volume, distance from ATH...) in large type with a bar under it to compare coins at a glance. Home keeps its price lists; the Screener shows what Home cannot.
+
 ## 3.6.0
 
 **Installed app: all five tabs now live at once, and a redesigned coin header. Redeploy the frontend (the backend is unchanged apart from its version number). The website in a browser tab is untouched.**

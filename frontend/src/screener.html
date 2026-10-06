@@ -29,7 +29,11 @@
       <p class="lede">Filter the coins {{BRAND}} tracks by size, movement, volume, supply and distance from all-time highs. Your filters live in the address, so you can bookmark or share a screen.</p>
     </div>
 
+    <div class="sc-pulse" id="sc-pulse" aria-label="Market pulse"></div>
+
     <div class="segs sc-presets" role="group" aria-label="Quick views" id="sc-presets"></div>
+
+    <p class="sc-lens" id="sc-lens" aria-live="polite"></p>
 
     <details class="panel sc-filters" id="sc-filters" open>
       <summary><span>Filters</span><span class="sc-count num" id="sc-active"></span></summary>
@@ -41,6 +45,8 @@
       <input class="sheet-search sc-q" id="sc-q" type="search" placeholder="Name or symbol" aria-label="Filter by name or symbol" autocomplete="off">
       <span class="s-hint num" id="sc-result" aria-live="polite"></span>
     </div>
+
+    <div class="sc-cards" id="sc-cards"></div>
 
     <div class="table-wrap sc-table">
       <table id="sc-t">

@@ -1,6 +1,6 @@
 // Screener: filter and sort every tracked coin. Runs entirely in the browser on the one shared
 // market reading, so changing a filter costs no request. Filters are kept in the address bar.
-import { initChrome, dragScroll, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
+import { initChrome, logoEl, dragScroll, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
 import { loadMarket, buildRows, coinCell, changeSpan, distText, supplyText } from './intel.js';
 
 const $ = id => document.getElementById(id);
@@ -14,9 +14,9 @@ export function parseAmount(text) {
 }
 
 const FILTERS = [
-  { id: 'cap', label: 'Market cap', unit: '$', get: r => r.cap },
+  { id: 'cap', label: 'Market cap', d: 'Biggest coins by market value', unit: '$', get: r => r.cap },
   { id: 'price', label: 'Price', unit: '$', get: r => r.price },
-  { id: 'vol', label: '24h volume', unit: '$', get: r => r.vol },
+  { id: 'vol', label: '24h volume', d: 'Where the trading is happening', unit: '$', get: r => r.vol },
   { id: 'volCap', label: 'Volume / market cap', unit: '%', get: r => r.volCap },
   { id: 'c24', label: '24h change', unit: '%', get: r => r.c24 },
   { id: 'c7', label: '7d change', unit: '%', get: r => r.c7 },
@@ -28,12 +28,12 @@ const FILTERS = [
 
 const PRESETS = [
   { id: 'cap', label: 'Largest', sort: 'cap', dir: -1 },
-  { id: 'gain', label: 'Gainers', sort: 'c24', dir: -1 },
-  { id: 'lose', label: 'Losers', sort: 'c24', dir: 1 },
+  { id: 'gain', label: 'Gainers', d: 'Strongest risers in the last 24 hours', sort: 'c24', dir: -1 },
+  { id: 'lose', label: 'Losers', d: 'Biggest fallers in the last 24 hours', sort: 'c24', dir: 1 },
   { id: 'vol', label: 'Volume', sort: 'vol', dir: -1 },
-  { id: 'near', label: 'Near ATH', sort: 'athDist', dir: -1, f: { stable: 'no' } },
-  { id: 'far', label: 'Far from ATH', sort: 'athDist', dir: 1, f: { stable: 'no' } },
-  { id: 'rec', label: 'ATL recovery', sort: 'atlUp', dir: -1, f: { stable: 'no' } },
+  { id: 'near', label: 'Near ATH', d: 'Closest to their all-time high', sort: 'athDist', dir: -1, f: { stable: 'no' } },
+  { id: 'far', label: 'Far from ATH', d: 'Furthest below their all-time high', sort: 'athDist', dir: 1, f: { stable: 'no' } },
+  { id: 'rec', label: 'ATL recovery', d: 'Rebounding most from their lows', sort: 'atlUp', dir: -1, f: { stable: 'no' } },
 ];
 
 const COLS = [
@@ -151,6 +151,40 @@ function markPreset() {
   }
 }
 
+// Phone view: every coin is a card that shows the one number this view is about, with a bar to compare at a glance.
+function paintCards(list) {
+  const lens = state.sort === 'rank' ? COLS.find(c => c.id === 'cap') : COLS.find(c => c.id === state.sort);
+  const vals = list.map(r => lens.get(r)).filter(v => typeof v === 'number' && Number.isFinite(v));
+  const top = Math.max(1e-9, ...vals.map(v => Math.abs(v)));
+  const signed = lens.id === 'c24' || lens.id === 'c7';
+  const up = list.filter(r => r.c24 > 0).length, down = list.filter(r => r.c24 < 0).length;
+  const known = list.filter(r => typeof r.c24 === 'number');
+  const avg = known.length ? known.reduce((a, r) => a + r.c24, 0) / known.length : null;
+  const tile = (cls, label, text) => { const d = el('div', 'pl ' + cls); d.append(el('span', '', label), el('b', 'num', text)); return d; };
+  const split = el('div', 'sc-split'); const u = el('i', 'u'), dn = el('i', 'd');
+  u.style.width = (up + down ? (up / (up + down)) * 100 : 0) + '%'; dn.style.width = (up + down ? (down / (up + down)) * 100 : 0) + '%';
+  split.append(u, dn);
+  const a = avg == null ? null : Math.round(avg * 100) / 100;
+  $('sc-pulse').replaceChildren(tile('up', 'Rising', String(up)), tile('down', 'Falling', String(down)),
+    tile(a == null ? '' : a > 0 ? 'up' : a < 0 ? 'down' : '', 'Average 24h', a == null ? '–' : (a > 0 ? '+' : a < 0 ? '−' : '') + Math.abs(a).toFixed(2) + '%'), split);
+  const preset = PRESETS.find(p => p.sort === state.sort && p.dir === state.dir && (p.f?.stable || '') === (state.f.stable || ''));
+  const cap = $('sc-lens'); cap.replaceChildren();
+  cap.append(el('b', '', preset ? preset.label : 'Sorted by ' + lens.label), document.createTextNode(' · ' + (preset ? preset.d : 'your own view') + ' · ' + list.length + ' coins'));
+  $('sc-cards').replaceChildren(...list.map((r, i) => {
+    const v = lens.get(r);
+    const a = el('a', 'sc-card'); a.href = '/coin/' + r.ticker;
+    const id = el('span', 'sc-id'); id.append(el('b', '', r.ticker), el('small', '', lens.id === 'price' ? r.name : money(r.price, { stable: r.stable }) + ' · ' + r.name));
+    const val = el('span', 'sc-val'); const num = lens.cell(r); num.className = ''; 
+    const b = el('b', 'num', num.textContent); if (signed && typeof v === 'number') b.classList.add(v > 0 ? 'up' : v < 0 ? 'down' : 'flat');
+    val.append(b, el('small', '', lens.label));
+    let w = 0;
+    if (typeof v === 'number' && Number.isFinite(v)) w = lens.id === 'athDist' ? Math.max(0, Math.min(1, 1 + v / 100)) : Math.abs(v) / top;
+    const m = el('i', 'sc-meter' + (signed && typeof v === 'number' ? (v > 0 ? ' up' : ' down') : '')); const bar = el('u'); bar.style.setProperty('--w', Math.max(2, w * 100).toFixed(1) + '%'); m.append(bar);
+    a.append(el('span', 'sc-rk', String(i + 1)), logoEl({ ticker: r.ticker, logo: r.logo, color: r.color }), id, val, m);
+    return a;
+  }));
+}
+
 function paint() {
   const col = COLS.find(c => c.id === state.sort);
   const list = rows().filter(r => passes(r, state.f, state.q)).sort((a, b) => {
@@ -162,6 +196,7 @@ function paint() {
   $('sc-result').textContent = `${list.length} of ${state.coins.length} coins`;
   $('sc-none').hidden = list.length > 0;
   $('sc-t').hidden = list.length === 0;
+  paintCards(list);
   $('sc-body').replaceChildren(...list.map(r => {
     const tr = el('tr');
     for (const c of COLS) {

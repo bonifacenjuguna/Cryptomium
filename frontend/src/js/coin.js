@@ -37,14 +37,30 @@ function setChg(node, change) {
   node.className = 'num chg ' + ch.cls;
 }
 
+// "$85,276.40": the cents fade back so the dollars read first.
+function dimTail(node) {
+  const t = node.textContent;
+  const i = t.lastIndexOf('.');
+  if (i < 0 || t.length - i > 4 || /[^\d]/.test(t.slice(i + 1))) return;
+  node.replaceChildren(document.createTextNode(t.slice(0, i)), el('span', 'dim', t.slice(i)));
+}
+
 function paintHead() {
   const c = state.coin;
   if (!c) return;
   setNum($('c-price'), money(c.price, { stable: c.stable }), c.price);
+  dimTail($('c-price'));
   if (prefs.get('tabPrice') !== false) document.title = `${money(c.price, { stable: c.stable })} ${c.name} (${ticker}) | ${window.CRYPTOMIUM?.brand || 'Cryptomium'}`;
   const ch = pct(c.change24h);
-  $('c-chg').textContent = ch.text === '–' ? '' : ch.text + ' 24h';
-  $('c-chg').className = 'chg num ' + ch.cls;
+  const chg = $('c-chg');
+  chg.className = 'chg num ' + ch.cls;
+  chg.closest('.coin-head').dataset.dir = ch.cls; // the header glows with the coin's direction
+  if (ch.text === '–') chg.replaceChildren();
+  else {
+    const delta = c.price - c.price / (1 + c.change24h / 100);
+    const money24 = Number.isFinite(delta) && delta !== 0 ? (delta > 0 ? '+' : '−') + money(Math.abs(delta), { stable: c.stable }) : '';
+    chg.replaceChildren(el('span', 'cg-pct', ch.text), ...(money24 ? [el('span', 'cg-abs', money24)] : []), el('span', 'cg-t', '24h'));
+  }
   setChg($('p-24h'), c.change24h);
 }
 
