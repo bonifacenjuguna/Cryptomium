@@ -12,9 +12,13 @@
   var root = document.documentElement;
   root.setAttribute('data-theme', resolved);
   var tc = document.querySelector('meta[name="theme-color"]');
-  if (tc) tc.setAttribute('content', resolved === 'dark' ? '#090f15' : '#e8ecef');
   var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
-  if (app) root.classList.add('is-app');
+  if (tc) tc.setAttribute('content', resolved === 'dark' ? '#090f15' : app ? '#f1f3f6' : '#e8ecef');
+  if (app) {
+    root.classList.add('is-app');
+    // Launch splash: once per app launch (per session), pure CSS
+    try { if (!sessionStorage.getItem('cm-splashed')) { sessionStorage.setItem('cm-splashed', '1'); root.classList.add('splash'); } } catch (e) {}
+  }
   if (window.navigator.standalone === true) root.classList.add('ios-app');
   // Which bottom tab is current, decided here once, before the page paints, from the address alone:
   // a main screen lights its own tab; a coin page keeps the tab it was opened from (remembered per history

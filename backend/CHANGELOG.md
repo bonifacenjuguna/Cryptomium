@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.5.0
+
+**The installed app now looks and feels native on every screen. Redeploy the frontend (the backend is unchanged apart from its version number). The website in a browser tab is untouched: every new rule applies only to the installed app.**
+
+- **Flat, solid surfaces everywhere.** No borders, shadows, glows or gradients on cards, tiles, panels, charts, tables or sheets. Depth comes from tone alone (white cards on a soft grey page, raised charcoal cards on the dark page).
+- **System fonts and numerals** in the app, so text and prices match the phone. The brand name keeps its own letters.
+- **Settings as grouped lists:** a coloured icon tile, title, value and a chevron per row, hairline dividers, small caps group titles. Detail pages use grouped sections with labels left and controls right.
+- **Real social icons** (X, Instagram, YouTube, TikTok) in Settings replace the "Follow" text links.
+- **Large titles that collapse into the top bar** as you scroll, and a header hairline that appears only once content scrolls under it.
+- **Translucent header and bottom bar** (system-style blur). The current tab is shown by a bar above its icon and a heavier icon, no pill.
+- **Pull to refresh** from the top of a page (not inside charts, tables, sheets or the menu), light **haptic ticks** on switches, tabs and the bottom bar where the phone allows it, and no hover effects or underlines.
+- **Launch splash** (logo on the page colour) once per app launch.
+- The status bar colour of the light theme now matches the app's page colour.
+- New file: `js/appfeel.js`.
+
 ## 3.4.1
 
 **Installed app: the Market overview row is gone from Home, because Overview is already in the bottom bar. Redeploy the frontend (the backend is unchanged). The website keeps the row.**

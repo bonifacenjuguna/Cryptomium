@@ -2,6 +2,7 @@ import { sanitize, fromLegacy, positions } from './ledger.js';
 import { isApp, updates, takeUpdatedNote } from './pwa.js';
 import { pushLayer, leave } from './backstack.js';
 import * as net from './net.js';
+import { initAppFeel } from './appfeel.js';
 export { onRecover } from './net.js';
 // Shared pieces: config, storage, preferences, currency, favourites, the live price
 // connection, formatting, the header (menu, search, price tape) and small DOM helpers.
@@ -982,3 +983,6 @@ export async function initChrome() {
   import('./targets.js').then(m => m.start()).catch(() => {});
   return coins;
 }
+
+// v3.5.0: native-app touches (installed app only)
+try { initAppFeel(); } catch { /* never block the page */ }

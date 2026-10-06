@@ -2033,3 +2033,171 @@ html.is-app #markets .sec-head p { display: none; }
 
 /* v3.4.1: the installed app already has Overview in its bottom bar, so Home does not repeat it */
 html.is-app .snap > .snap-ov { display: none !important; }
+
+/* =====================================================================
+   v3.5.0: the installed app looks native, everywhere. Every rule needs html.is-app, so the website in a
+   browser tab is untouched. Ideas: flat solid surfaces (no borders, glows or gradients), tonal elevation,
+   grouped lists with hairline dividers, system fonts, large titles that collapse into the bar, a translucent
+   tab bar and header, a launch splash.
+   ===================================================================== */
+html.is-app {
+  --bg: #f1f3f6; --surface: #ffffff; --surface-2: #eceff3; --line: rgba(13, 24, 34, .09);
+  --shadow: none;
+  --r: 18px;
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", Roboto, system-ui, sans-serif;
+  --text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", Roboto, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+html.is-app[data-theme="dark"] { --bg: #090f15; --surface: #121b23; --surface-2: #1a2630; --line: rgba(255, 255, 255, .075); }
+html.is-app body { font-feature-settings: "tnum" 1; }
+html.is-app :is(h1, h2, h3) { letter-spacing: -.022em; }
+
+/* Surfaces: flat and solid. No outline, no shadow, no gradient, no glow. */
+html.is-app :is(.tile, .snap-tile, .panel, .stat, .pv-card, .chart-card, .hn-lead, .coin-head, .heatmap, .hub-card, .s-card, .ab-card, .table-wrap, .install, .upd-card, .px-card, .news-card, .cv-field, .cp-wrap) {
+  border: 0; box-shadow: none; background-image: none; border-radius: var(--r);
+}
+html.is-app :is(.coin-head, .snap > .snap-tile:first-child, .install, .hn-lead) { background: var(--surface); }
+html.is-app :is(.install-glow, .hn-lead::before, .site-footer::before) { display: none; }
+html.is-app .snap > .snap-tile:first-child { border-radius: 22px; }
+html.is-app .install-icon, html.is-app .ch-logo { box-shadow: none; }
+html.is-app .btn-accent, html.is-app .install-btn { box-shadow: none; }
+html.is-app .btn { border-radius: 14px; min-height: 48px; }
+html.is-app .btn-sm { min-height: 40px; border-radius: 12px; }
+html.is-app .btn-ghost { border: 0; background: var(--surface-2); }
+html.is-app .chart-card { margin-inline: -16px; border-radius: 0; padding: 12px 10px 10px; }
+@media (min-width: 821px) { html.is-app .chart-card { margin-inline: 0; border-radius: var(--r); } }
+html.is-app .table-wrap table tr + tr > :is(td, th) { border-top-color: var(--line); }
+html.is-app :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) { border-color: transparent; background: var(--surface-2); border-radius: 12px; }
+html.is-app .sheet-search { background: var(--surface-2); border: 0; }
+html.is-app .theme-card { border-width: 2px; border-color: transparent; background: var(--surface-2); }
+html.is-app .theme-card[aria-checked="true"] { border-color: var(--accent); box-shadow: none; }
+html.is-app .cur-chip { border-color: transparent; background: var(--surface-2); }
+html.is-app .cur-chip[aria-checked="true"] { border-color: var(--accent); box-shadow: none; }
+html.is-app .logo { box-shadow: none; }
+html.is-app .toast, html.is-app .net-banner { box-shadow: none; border-radius: 16px; }
+
+/* No hover lifts or underlines: this is a touch app */
+html.is-app :is(.tile, .hub-card):hover { transform: none; border-color: transparent; }
+html.is-app a { text-decoration: none; }
+html.is-app :is(.tile, .snap-tile, .stat, .hn-lead, .pv-card):active { transform: scale(.985); transition: transform .1s ease; }
+
+/* Header and tab bar: translucent system bars; the header gets a hairline only once the page scrolls under it */
+html.is-app .site-header { background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: saturate(1.6) blur(22px); -webkit-backdrop-filter: saturate(1.6) blur(22px); border-bottom: 1px solid transparent; transition: border-color .18s; }
+html.is-app.scrolled .site-header { border-bottom-color: var(--line); }
+html.is-app .brand span { font-family: var(--brand); }
+html.is-app .ab-title { display: none; }
+@media (max-width: 820px) {
+  html.is-app .app-tabbar { background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: saturate(1.6) blur(22px); -webkit-backdrop-filter: saturate(1.6) blur(22px); border-top: 1px solid var(--line); padding-top: 4px; }
+  .app-tabbar a { border-radius: 0; background: none !important; gap: 4px; font-weight: 600; font-size: .66rem; }
+  .app-tabbar a::before { content: ""; position: absolute; top: -5px; left: 50%; width: 22px; height: 3px; margin-left: -11px; border-radius: 0 0 3px 3px; background: var(--accent); transform: scaleX(0); transition: transform .18s ease; }
+  html[data-tab="home"] .app-tabbar [data-tab="home"]::before,
+  html[data-tab="markets"] .app-tabbar [data-tab="markets"]::before,
+  html[data-tab="screener"] .app-tabbar [data-tab="screener"]::before,
+  html[data-tab="news"] .app-tabbar [data-tab="news"]::before,
+  html[data-tab="portfolio"] .app-tabbar [data-tab="portfolio"]::before { transform: none; }
+  html[data-tab="home"] .app-tabbar [data-tab="home"] svg,
+  html[data-tab="markets"] .app-tabbar [data-tab="markets"] svg,
+  html[data-tab="screener"] .app-tabbar [data-tab="screener"] svg,
+  html[data-tab="news"] .app-tabbar [data-tab="news"] svg,
+  html[data-tab="portfolio"] .app-tabbar [data-tab="portfolio"] svg { stroke-width: 2.5; }
+  html[data-tab="home"] .app-tabbar [data-tab="home"],
+  html[data-tab="markets"] .app-tabbar [data-tab="markets"],
+  html[data-tab="screener"] .app-tabbar [data-tab="screener"],
+  html[data-tab="news"] .app-tabbar [data-tab="news"],
+  html[data-tab="portfolio"] .app-tabbar [data-tab="portfolio"] { font-weight: 800; }
+
+  /* Large title that collapses into the bar */
+  html.is-app .site-header .bar { position: relative; }
+  html.is-app .ab-title { display: block; position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: grid; place-items: center; font: 700 1.02rem/1 var(--text); letter-spacing: -.01em; opacity: 0; transform: translateY(6px); transition: opacity .16s, transform .16s; pointer-events: none; padding: 0 96px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html.is-app.title-collapsed .ab-title { opacity: 1; transform: none; }
+  html.is-app.title-collapsed[data-depth="sub"] .brand, html.is-app.title-collapsed[data-depth="root"] .brand { opacity: 0; transition: opacity .12s; }
+  html.is-app :is(.page-top h1, .s-head h1, .pg-head h1, main > .wrap > h1:first-child) { font-size: 2.1rem; font-weight: 800; letter-spacing: -.03em; max-width: none; }
+  html.is-app .page-top { padding-top: 6px; }
+  html.is-app .page-top .lede, html.is-app .s-head .lede { font-size: .95rem; margin-top: 6px; }
+}
+
+/* Settings as grouped lists: icon tile, title, value, chevron, hairline between rows */
+html.is-app .hub-group { margin: 26px 16px 8px; font-size: .74rem; letter-spacing: .08em; }
+html.is-app .hub { display: block; margin: 0; background: var(--surface); border-radius: var(--r); overflow: hidden; }
+html.is-app .hub li { position: relative; }
+html.is-app .hub li + li::before { content: ""; position: absolute; top: 0; left: 64px; right: 0; height: 1px; background: var(--line); }
+html.is-app .hub-card { height: auto; border-radius: 0; background: transparent; padding: 11px 14px; gap: 0 12px; align-items: center; grid-template-columns: 38px minmax(0, 1fr) auto 12px; grid-template-areas: "ic t v ch" "ic d d ch"; }
+html.is-app .hub-card:active { background: var(--surface-2); transform: none; }
+html.is-app .hub-ic { grid-area: ic; grid-row: 1 / 3; width: 38px; height: 38px; margin: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); }
+html.is-app .hub-ic svg { width: 21px; height: 21px; }
+html.is-app .hub-t { grid-area: t; font: 650 1.02rem/1.25 var(--text); letter-spacing: -.01em; }
+html.is-app .hub-d { grid-area: d; font-size: .82rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+html.is-app .hub-v { grid-area: v; margin: 0; color: var(--muted); font-weight: 600; font-size: .9rem; }
+html.is-app .hub-card::after { content: ""; grid-area: ch; grid-row: 1 / 3; width: 8px; height: 8px; border-top: 2px solid var(--muted); border-right: 2px solid var(--muted); transform: rotate(45deg); opacity: .55; justify-self: end; }
+html.is-app .hub-ic[data-tone] { color: #fff; }
+
+/* Settings detail pages: a card is a grouped section; rows keep hairlines, labels sit left, controls right */
+html.is-app .s-card { padding: 4px 16px; gap: 0; }
+html.is-app .s-card > h2 { padding: 14px 0 6px; font-size: 1.05rem; }
+html.is-app .s-row { padding: 14px 0; border-top: 1px solid var(--line); flex-wrap: nowrap; gap: 14px; }
+html.is-app .s-row:first-of-type { padding-top: 14px; }
+html.is-app .s-row .segs { flex-wrap: wrap; }
+html.is-app .s-label { min-width: 0; flex: 1 1 auto; }
+html.is-app .s-label b { font-weight: 650; }
+html.is-app .s-label span { font-size: .84rem; }
+html.is-app .s-hint { padding-bottom: 12px; }
+html.is-app .s-card.danger { background: var(--surface); }
+html.is-app .s-card.danger h2 { color: var(--down); }
+html.is-app .settings-body { gap: 12px; }
+html.is-app .seg { border-color: transparent; background: var(--surface-2); border-radius: 10px; }
+html.is-app .seg[aria-checked="true"], html.is-app .seg.on, html.is-app .seg[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+/* About block: grouped rows and real social icons */
+html.is-app .ab-card { border-radius: var(--r); }
+html.is-app .ab-row + .ab-row { border-top-color: var(--line); }
+html.is-app .ab-row:active { background: var(--surface-2); }
+html.is-app .ab-social { display: block; padding: 18px 16px; }
+html.is-app .ab-social + .ab-row { border-top: 1px solid var(--line); }
+.ab-icons { display: flex; justify-content: center; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.ab-icons a { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; color: #fff; text-decoration: none; -webkit-tap-highlight-color: transparent; transition: transform .12s ease; }
+.ab-icons a:active { transform: scale(.9); }
+.ab-icons svg { width: 24px; height: 24px; fill: currentColor; }
+.ab-icons .i-x, .ab-icons .i-tt { background: var(--ink); color: var(--bg); }
+.ab-icons .i-ig { background: linear-gradient(45deg, #f9a825, #e1306c 55%, #6a3df0); }
+.ab-icons .i-yt { background: #ff0033; }
+
+/* Lists of rows (markets, news, search): flat rows with hairlines */
+html.is-app .search-list { border: 0; border-radius: 14px; background: var(--surface); box-shadow: 0 12px 40px rgba(0, 0, 0, .28); }
+
+/* Pull to refresh */
+.ptr { position: fixed; z-index: 55; top: calc(env(safe-area-inset-top, 0px) + 52px); left: 50%; width: 38px; height: 38px; margin-left: -19px; border-radius: 50%; background: var(--surface); color: var(--ink); display: none; place-items: center; transform: translate3d(0, -60px, 0); opacity: 0; pointer-events: none; }
+html.is-app .ptr { display: grid; }
+.ptr svg { width: 20px; height: 20px; }
+.ptr.spin svg { animation: ptr-spin .7s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+html[data-motion="off"] .ptr.spin svg { animation: none; }
+
+/* Launch splash: pure CSS, shown once per app launch (theme-init.js sets html.splash) */
+html.is-app.splash::after { content: ""; position: fixed; z-index: 1000; inset: 0; background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l12 7v14l-12 7L4 23V9z' fill='%23F2B01E'/%3E%3Cpath d='M16 2l12 7-12 7L4 9z' fill='%23fff' fill-opacity='.42'/%3E%3Cpath d='M16 16v14L4 23V9z' fill='%23000' fill-opacity='.16'/%3E%3C/svg%3E") center / 84px no-repeat; animation: splash-out .32s ease .62s both; pointer-events: none; }
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+html[data-motion="off"].is-app.splash::after { animation-duration: .01s; animation-delay: .2s; }
+
+@media (prefers-reduced-motion: reduce) { html.is-app .ab-title, .ab-icons a, .ptr { transition: none; } }
+
+/* v3.5.0 follow-ups: no ambient glow, flat bar controls, tidier settings rows */
+html.is-app body { background-image: none; }
+html.is-app .icon-btn { border-color: transparent; background: var(--surface-2); }
+html.is-app .tape { border-bottom: 0; background: transparent; height: 34px; }
+html.is-app .tape-item { border-right: 0; padding: 0 14px; }
+html.is-app .segs { border: 0; background: var(--surface-2); border-radius: 12px; }
+html.is-app .hub-d { display: none; }
+html.is-app .hub-card { grid-template-areas: "ic t v ch"; padding: 12px 14px; }
+html.is-app .hub-ic, html.is-app .hub-card::after { grid-row: 1; }
+html.is-app .hub-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.is-app .hub-v { max-width: 42vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.is-app .app-about { padding-bottom: 12px; }
+html.is-app .ab-row .ab-icons svg { width: 24px; height: 24px; color: inherit; }
+html.is-app .s-row { flex-wrap: wrap; gap: 10px 14px; }
+html.is-app .s-label { flex: 1 1 150px; }
+html.is-app .s-row > :is(.theme-cards, .segs, .swatches, .accent-row) { flex: 1 1 100%; }
+html.is-app .theme-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html.is-app .theme-card { width: auto; }
+html.is-app .segs { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+html.is-app .seg { background: transparent; }
+html.is-app .seg[aria-checked="true"], html.is-app .seg.on, html.is-app .seg[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+html.is-app .hub-v { max-width: 34vw; }
