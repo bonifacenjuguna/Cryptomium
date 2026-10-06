@@ -2201,3 +2201,7 @@ html.is-app .segs { background: color-mix(in srgb, var(--ink) 8%, transparent); 
 html.is-app .seg { background: transparent; }
 html.is-app .seg[aria-checked="true"], html.is-app .seg.on, html.is-app .seg[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 html.is-app .hub-v { max-width: 34vw; }
+
+/* v3.5.1: a blurred header became the containing block of the fixed menu drawer, squashing it to the header's height.
+   The header stays solid; the bottom bar keeps its blur (nothing fixed lives inside it). */
+html.is-app .site-header { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }

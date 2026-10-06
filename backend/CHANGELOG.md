@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.5.1
+
+**Fix: the installed app's menu opened as a short bar showing only the logo and version. Redeploy the frontend (the backend is unchanged).** The new translucent header trapped the side menu inside its own height. The header is solid again, and the menu opens full height as before.
+
 ## 3.5.0
 
 **The installed app now looks and feels native on every screen. Redeploy the frontend (the backend is unchanged apart from its version number). The website in a browser tab is untouched: every new rule applies only to the installed app.**
