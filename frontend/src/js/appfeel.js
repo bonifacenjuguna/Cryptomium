@@ -18,7 +18,7 @@ export function initAppFeel() {
   onScroll();
 
   // 2. Large title: the page's own heading moves into the bar when it scrolls out of view
-  const h1 = document.querySelector('main h1');
+  const h1 = document.querySelector('main h1:not(#c-name)'); // the coin page has its own bar content (logo, ticker, price)
   const bar = document.querySelector('.site-header .bar');
   if (h1 && bar && h1.offsetParent !== null && 'IntersectionObserver' in window) {
     const t = document.createElement('div');

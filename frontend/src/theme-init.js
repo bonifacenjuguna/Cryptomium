@@ -10,6 +10,18 @@
   var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   var resolved = t === 'light' || t === 'dark' ? t : dark ? 'dark' : 'light';
   var root = document.documentElement;
+  var framed = false;
+  try { framed = window.top !== window; } catch (e) { framed = true; }
+  var path0 = (location.pathname.replace(/\/+$/, '') || '/'), first0 = path0.split('/')[1] || '';
+  var isTab0 = ['', 'markets', 'screener', 'news', 'portfolio', 'coin'].indexOf(first0) >= 0;
+  // Installed app on a phone: the five tabs live together in one shell page (/app). A tab page opened on its own
+  // (old link, shortcut, deep link) is handed to the shell, which shows it in the right place.
+  var appNow = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  if (!framed && appNow && isTab0 && window.matchMedia && window.matchMedia('(max-width: 820px)').matches && !/[?&]noshell\b/.test(location.search)) {
+    location.replace('/app?go=' + encodeURIComponent(location.pathname + location.search + location.hash));
+    return;
+  }
+  if (framed) root.classList.add('in-shell');
   root.setAttribute('data-theme', resolved);
   var tc = document.querySelector('meta[name="theme-color"]');
   var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
@@ -17,7 +29,7 @@
   if (app) {
     root.classList.add('is-app');
     // Launch splash: once per app launch (per session), pure CSS
-    try { if (!sessionStorage.getItem('cm-splashed')) { sessionStorage.setItem('cm-splashed', '1'); root.classList.add('splash'); } } catch (e) {}
+    try { if (!framed && !sessionStorage.getItem('cm-splashed')) { sessionStorage.setItem('cm-splashed', '1'); root.classList.add('splash'); } } catch (e) {}
   }
   if (window.navigator.standalone === true) root.classList.add('ios-app');
   // Which bottom tab is current, decided here once, before the page paints, from the address alone:

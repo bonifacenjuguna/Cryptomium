@@ -43,7 +43,7 @@ function paintHead() {
   setNum($('c-price'), money(c.price, { stable: c.stable }), c.price);
   if (prefs.get('tabPrice') !== false) document.title = `${money(c.price, { stable: c.stable })} ${c.name} (${ticker}) | ${window.CRYPTOMIUM?.brand || 'Cryptomium'}`;
   const ch = pct(c.change24h);
-  $('c-chg').textContent = ch.text === '–' ? '' : ch.text + ' in 24 hours';
+  $('c-chg').textContent = ch.text === '–' ? '' : ch.text + ' 24h';
   $('c-chg').className = 'chg num ' + ch.cls;
   setChg($('p-24h'), c.change24h);
 }
@@ -367,6 +367,25 @@ async function loadSentiment() {
   } catch { /* optional */ }
 }
 
+// Once the big price scrolls away, the coin's logo, ticker and live price move into the top bar (like a native finance app).
+function initBarCoin(known) {
+  const bar = document.querySelector('.site-header .bar');
+  const price = $('c-price');
+  if (!bar || !price || !('IntersectionObserver' in window)) return;
+  const box = el('div', 'ab-coin');
+  box.setAttribute('aria-hidden', 'true');
+  const sym = el('b', '', ticker);
+  const live = el('span', 'num');
+  box.append(logoEl({ ticker, logo: known.logo || null }, 'sm'), sym, live);
+  bar.appendChild(box);
+  const sync = () => { live.textContent = price.textContent; };
+  new MutationObserver(sync).observe(price, { childList: true, characterData: true, subtree: true });
+  sync();
+  const root = document.documentElement;
+  new IntersectionObserver(([e]) => root.classList.toggle('coin-collapsed', !e.isIntersecting && e.boundingClientRect.top < 100),
+    { rootMargin: '-64px 0px 0px 0px', threshold: 0 }).observe(price);
+}
+
 // ------------------------------------------------------------------ boot
 async function boot() {
   state.coins = await initChrome();
@@ -380,6 +399,8 @@ async function boot() {
     return;
   }
   $('c-logo').replaceChildren(logoEl({ ticker, logo: known.logo || null }, 'xl'));
+  if (String(known.name || '').trim().toUpperCase() === ticker) $('c-sym').hidden = true; // the name already is the ticker
+  initBarCoin(known);
   $('c-fav').addEventListener('click', () => toggleFav(ticker));
   onFavs(paintFav);
   paintFav();

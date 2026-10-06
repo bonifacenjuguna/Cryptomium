@@ -2253,7 +2253,7 @@ html.is-app .hub-v { max-width: 27vw; font-size: .84rem; }
 html.is-app .hub-t { flex-shrink: 0; }
 
 /* =====================================================================
-   v3.5.3
+   v3.6.0
    ===================================================================== */
 /* Menu drawer icons: back to their original calm look */
 html.is-app .ma-ic { color: var(--muted); }
@@ -2298,3 +2298,53 @@ html.is-app .sr-t span { color: var(--muted); font-size: .8rem; }
 html.is-app .sr-size { color: var(--muted); font-weight: 700; font-size: .88rem; flex: none; }
 html.is-app .upd .upd-actions { margin-top: 8px; }
 @media (max-width: 820px) { html.is-app .snav, html.is-app .crumb { display: none; } }
+
+
+/* ---------- v3.6 coin header: flat, one title, quiet details ---------- */
+html .coin-head, html.is-app .coin-head { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px; padding: 6px 2px 4px; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.ch-id { gap: 12px; }
+.ch-logo, html.is-app .ch-logo { padding: 0; background: none; box-shadow: none; border-radius: 50%; }
+.ch-logo .logo.xl { width: 44px; height: 44px; }
+.ch-text { gap: 2px; }
+.ch-text h1 { font-size: clamp(1.25rem, 5vw, 1.6rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.ch-sub { margin: 0; display: flex; gap: 6px; font: 600 .82rem/1.2 var(--text); color: var(--muted); }
+.ch-sub #c-rank:not([hidden])::before { content: "\00b7"; margin-right: 6px; }
+.coin-head .coin-actions { gap: 8px; align-self: center; }
+.coin-head .fav { width: 36px; height: 36px; background: var(--surface-2); border: 0; }
+.coin-head .coin-price, .coin-head .coin-price { text-align: left; justify-items: start; gap: 2px; }
+.coin-head .coin-price .big { margin: 0; padding: 0; text-align: left; font-size: clamp(2rem, 9vw, 2.7rem); font-weight: 800; letter-spacing: -.03em; }
+.coin-head .coin-price .chg, .coin-head .coin-price .chg.up, .coin-head .coin-price .chg.down { padding: 0; border-radius: 0; background: none; font-size: .95rem; font-weight: 700; justify-self: start; }
+#c-chg.up::before, #c-chg.down::before { content: ""; display: inline-block; margin-right: 6px; border: 5px solid transparent; vertical-align: 1px; }
+#c-chg.up::before { border-bottom: 7px solid currentColor; border-top-width: 0; }
+#c-chg.down::before { border-top: 7px solid currentColor; border-bottom-width: 0; }
+@media (min-width: 641px) {
+  html .coin-head, html.is-app .coin-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; padding: 10px 2px 6px; }
+  .ch-logo .logo.xl { width: 52px; height: 52px; }
+  .coin-head .coin-price { justify-items: end; text-align: right; }
+  .coin-head .coin-price .big { text-align: right; }
+  .coin-head .coin-price .chg { justify-self: end; }
+}
+/* the coin in the top bar once the price has scrolled away */
+.ab-coin { display: none; }
+@media (max-width: 820px) {
+  .site-header .bar { position: relative; }
+  .ab-coin { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 96px; pointer-events: none; opacity: 0; transform: translateY(6px); transition: opacity .16s, transform .16s; font: 700 1rem/1 var(--text); }
+  .ab-coin .logo { width: 24px; height: 24px; flex: none; }
+  .ab-coin b { letter-spacing: .02em; }
+  .ab-coin .num { color: var(--muted); font-weight: 700; white-space: nowrap; }
+  html.coin-collapsed .ab-coin { opacity: 1; transform: none; }
+  html.coin-collapsed .site-header .brand { opacity: 0; transition: opacity .12s; }
+}
+@media (prefers-reduced-motion: reduce) { .ab-coin { transition: none; } }
+
+
+/* ---------- v3.6 app shell: five tabs alive side by side ---------- */
+html.shell-body, .shell-body { height: 100%; overflow: hidden; background: var(--bg); }
+html.is-app body.shell-body { padding-bottom: 0; }
+.shell { position: fixed; inset: 0; }
+.tab-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); visibility: hidden; color-scheme: normal; }
+.tab-frame.on { visibility: visible; }
+html.shell-away .app-tabbar { transform: translate3d(0, 110%, 0); }
+/* inside a frame the shell's bar is the only bar; the space for it stays reserved */
+html.in-shell .app-tabbar { display: none !important; }
+html.in-shell.splash::after { display: none; }

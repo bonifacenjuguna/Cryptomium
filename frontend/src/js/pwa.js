@@ -249,7 +249,39 @@ function initCard() {
 // first paint, by theme-init.js (<html data-tab>, with the same value copied to data-tab-at).
 // This file only adds the instant answer to a tap, and puts the highlight back to that committed value if the
 // page we left is shown again (Back, cancelled navigation), so no stale tab can ever linger.
+// Inside the app shell (a frame of /app): the shell owns the bar, so this page only reports what the shell needs to know.
+function initInShell() {
+  const root = document.documentElement;
+  const TABS = { '/': 'home', '/markets': 'markets', '/screener': 'screener', '/news': 'news', '/portfolio': 'portfolio' };
+  const send = m => { try { parent.postMessage({ cm: m.cm, ...m }, location.origin); } catch { /* ignore */ } };
+  // A link to a main screen switches tabs instead of loading another page into this one.
+  document.addEventListener('click', e => {
+    if (e.defaultPrevented || e.button || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const a = e.target.closest && e.target.closest('a[href]');
+    if (!a || a.target || a.origin !== location.origin || a.hash || a.search) return;
+    const tab = TABS[a.pathname.replace(/\/+$/, '') || '/'];
+    if (!tab) return;
+    e.preventDefault();
+    send({ cm: 'tab', tab });
+  }, true);
+  // Menu, sheets and the keyboard: the shell slides its bar away so they look exactly as before.
+  let last = '';
+  const report = () => {
+    const away = root.classList.contains('menu-open') || document.body.classList.contains('sheet-open') || document.body.classList.contains('chart-open');
+    const kb = root.classList.contains('kb-open');
+    const key = away + '|' + kb;
+    if (key !== last) { last = key; send({ cm: 'ui', away, kb }); }
+  };
+  new MutationObserver(report).observe(root, { attributes: true, attributeFilter: ['class'] });
+  const watchBody = () => new MutationObserver(report).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  if (document.body) watchBody(); else document.addEventListener('DOMContentLoaded', watchBody);
+  const typing = el => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(checkbox|radio|button|submit|range)$/.test(el.type || '');
+  document.addEventListener('focusin', e => { if (typing(e.target)) root.classList.add('kb-open'); });
+  document.addEventListener('focusout', () => { setTimeout(() => { if (!typing(document.activeElement)) root.classList.remove('kb-open'); }, 60); });
+}
+
 function initTabBar() {
+  if (document.documentElement.classList.contains('in-shell')) { initInShell(); return; }
   const bar = document.querySelector('.app-tabbar');
   const root = document.documentElement;
   const committed = () => root.dataset.tabAt || '';

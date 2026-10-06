@@ -85,7 +85,7 @@ const header = fs.readFileSync(path.join(src, 'partials/header.html'), 'utf8');
 const footer = fs.readFileSync(path.join(src, 'partials/footer.html'), 'utf8');
 const settingsNav = fs.readFileSync(path.join(src, 'partials/settings-nav.html'), 'utf8');
 const tabbar = fs.readFileSync(path.join(src, 'partials/app-tabbar.html'), 'utf8');
-const compose = html => withPwa(html.replace('<!--@header-->', header).replace('<!--@footer-->', footer + tabbar).replace('<!--@settings-nav-->', settingsNav));
+const compose = html => withPwa(html.replace('<!--@header-->', header).replace('<!--@footer-->', footer + tabbar).replace('<!--@settings-nav-->', settingsNav).replace('<!--@tabbar-->', tabbar));
 
 // Only this site, Google Fonts, and the backend may be used by the pages. Two public icon sets are
 // allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
@@ -186,7 +186,7 @@ const manifest = {
   short_name: tokens.BRAND,
   description: 'Live crypto prices, charts, market overview and price alerts.',
   lang: 'en',
-  start_url: '/?source=app',
+  start_url: '/app?source=app',
   scope: '/',
   display: 'standalone',
   display_override: ['standalone', 'minimal-ui'],
@@ -199,10 +199,10 @@ const manifest = {
     { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
   shortcuts: [
-    { name: 'Market overview', short_name: 'Overview', url: '/markets', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
-    { name: 'Screener', short_name: 'Screener', url: '/screener', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
-    { name: 'News', short_name: 'News', url: '/news', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
-    { name: 'Portfolio', short_name: 'Portfolio', url: '/portfolio', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'Market overview', short_name: 'Overview', url: '/app?go=/markets', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'Screener', short_name: 'Screener', url: '/app?go=/screener', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'News', short_name: 'News', url: '/app?go=/news', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'Portfolio', short_name: 'Portfolio', url: '/app?go=/portfolio', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
   ],
 };
 if (siteUrl) { manifest.related_applications = [{ platform: 'webapp', url: `${siteUrl}/manifest.webmanifest` }]; manifest.prefer_related_applications = false; }

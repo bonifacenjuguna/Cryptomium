@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.6.0
+
+**Installed app: all five tabs now live at once, and a redesigned coin header. Redeploy the frontend (the backend is unchanged apart from its version number). The website in a browser tab is untouched.**
+
+- **Tabs switch with no loading.** On a phone the installed app opens as one thin shell that keeps Home, Overview, Screener, News and Portfolio alive side by side. Tapping a tab just shows it, with its scroll position, open sheets and typed text kept. The opened tab loads first, the others in the background one by one. Prices keep updating in every tab. Works on every phone, not only Android Chrome.
+- A coin opened from a tab opens inside that tab; Back returns to where you were, and Back also undoes a tab switch. Tapping the lit tab again goes back to its main screen, then to the top.
+- The menu drawer and pop-up sheets cover the whole screen as before: the bar slides away while one is open (and while typing) and returns after.
+- Old links, shortcuts and the home screen icon still work: a tab page opened on its own is handed to the shell. The frame header is now `SAMEORIGIN` so the shell can hold the pages.
+- **Coin header redesigned:** a smaller flat logo (no white ring), the coin name as the only title with "TICKER · Rank #n" as a quiet line under it (not repeated when the name is the ticker), soft round star and share buttons, the price large below and aligned with the logo, and the 24h change as a light tinted line with an arrow instead of a solid pill. When the price scrolls away, the coin's logo, ticker and live price slide into the top bar.
+
 ## 3.5.3
 
 **Installed app: instant tabs, white Settings icons, a cleaner App updates page, and no pull-to-refresh. Redeploy the frontend (the backend is unchanged apart from its version number). The website is untouched.**
