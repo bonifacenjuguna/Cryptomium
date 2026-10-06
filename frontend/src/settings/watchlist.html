@@ -23,15 +23,20 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Watchlist</h1><p class="lede">Choose the coins you follow. They appear under Starred on the home page.</p></div>
-        <section class="s-card" aria-labelledby="h-wl">
-          <h2 id="h-wl">Your coins</h2>
-          <p class="s-hint" id="wl-count">&nbsp;</p>
-          <div class="wl-tools">
-            <label class="wl-search"><span class="sr">Filter coins</span><input id="wl-filter" type="search" placeholder="Filter coins" autocomplete="off"></label>
-            <button type="button" class="btn btn-ghost btn-sm" id="wl-clear" hidden>Clear stars</button>
+        <div class="s-head"><h1>Watchlist</h1><p class="lede">The coins you follow. They also show under Starred on the home page.</p></div>
+        <section class="wl-mine" aria-labelledby="h-mine">
+          <div class="wl-sec"><h2 id="h-mine">Following</h2><span class="wl-n num" id="wl-count">&nbsp;</span><button type="button" class="btn btn-ghost btn-sm" id="wl-clear" hidden>Clear all</button></div>
+          <ul class="wl-cards" id="wl-mine"></ul>
+          <div class="wl-empty" id="wl-empty" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>
+            <b>Your watchlist is empty</b>
+            <span>Tap the star beside any coin below to follow it. Followed coins show up here with their live price.</span>
           </div>
-          <ul class="wl-list" id="wl-list"></ul>
+        </section>
+        <section class="wl-more" aria-labelledby="h-more">
+          <div class="wl-sec"><h2 id="h-more">Add coins</h2></div>
+          <label class="wl-search"><span class="sr">Filter coins</span><input id="wl-filter" type="search" placeholder="Search coins to follow" autocomplete="off"></label>
+          <ul class="wl-chips" id="wl-list"></ul>
         </section>
 
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>

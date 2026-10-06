@@ -3,6 +3,7 @@ import {
   isFav, toggleFav, onFavs, el, logoEl, DIR_SVG, prefs, setNum, onRecover,
 } from './common.js';
 import { createGauge, moodClass } from './gauge.js';
+import { navTo } from './pwa.js';
 
 const $ = id => document.getElementById(id);
 
@@ -71,7 +72,7 @@ function buildRows() {
     tdGo.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
     tr.append(tdStar, tdCoin, tdPrice, td24, td7, tdCap, tdSpark, tdGo);
     // The whole row opens the coin page, not only the logo or name.
-    tr.addEventListener('click', e => { if (!e.target.closest('a, button')) location.href = link.href; });
+    tr.addEventListener('click', e => { if (!e.target.closest('a, button')) navTo(link.href); });
     state.rows.set(c.ticker, { tr, star, logoSlot, tdPrice, s24, s7, tdCap, tdSpark, mini, logoDone: false });
   }
 }

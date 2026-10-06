@@ -188,31 +188,42 @@ function initPreview() {
 }
 
 // ---------------------------------------------------------------- watchlist
+function starBtn(c) {
+  const star = el('button', 'fav'); star.type = 'button';
+  star.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>';
+  star.setAttribute('aria-pressed', String(isFav(c.ticker)));
+  star.setAttribute('aria-label', (isFav(c.ticker) ? 'Unstar ' : 'Star ') + c.name);
+  star.addEventListener('click', () => toggleFav(c.ticker));
+  return star;
+}
+// Two clearly different groups: the coins you follow (rich cards with live numbers), a gap, then the rest as plain
+// one-line rows with just a star to add them.
 function renderWatchlist() {
   const q = $('wl-filter').value.trim().toLowerCase();
-  const list = coins
-    .filter(c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q))
-    .sort((a, b) => Number(isFav(b.ticker)) - Number(isFav(a.ticker)));
-  $('wl-count').textContent = favCount() ? `${favCount()} starred. They show under Starred on the home page.` : 'Nothing starred yet. Tap a star to follow a coin.';
-  $('wl-clear').hidden = favCount() === 0;
-  const ul = $('wl-list');
-  ul.replaceChildren(...list.map(c => {
-    const li = el('li', 'wl-row');
-    const logo = el('span', 'wl-logo'); logo.append(logoEl(live.get(c.ticker) || { ticker: c.ticker, logo: null }));
-    const name = el('a', 'wl-name'); name.href = '/coin/' + c.ticker;
-    name.append(el('b', '', c.ticker), el('span', '', c.name));
+  const match = c => !q || c.ticker.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
+  const mine = coins.filter(c => isFav(c.ticker));
+  const rest = coins.filter(c => !isFav(c.ticker) && match(c));
+  $('wl-count').textContent = mine.length ? String(mine.length) : '';
+  $('wl-clear').hidden = mine.length === 0;
+  $('wl-empty').hidden = mine.length > 0;
+  $('wl-mine').replaceChildren(...mine.map(c => {
     const l = live.get(c.ticker);
-    const price = el('span', 'wl-price num', l ? money(l.price, { stable: l.stable }) : '–');
-    price.dataset.t = c.ticker;
+    const li = el('li', 'wl-card');
+    const logo = el('span', 'wl-logo'); logo.append(logoEl(l || { ticker: c.ticker, logo: null }));
+    const name = el('a', 'wl-name'); name.href = '/coin/' + c.ticker;
+    name.append(el('b', '', c.name), el('span', '', c.ticker));
+    const price = el('span', 'wl-price num', l ? money(l.price, { stable: l.stable }) : '–'); price.dataset.t = c.ticker;
     const ch = pct(l?.change24h);
-    const chg = el('span', 'wl-chg chg num ' + ch.cls, ch.text);
-    chg.dataset.t = c.ticker;
-    const star = el('button', 'fav'); star.type = 'button';
-    star.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>';
-    star.setAttribute('aria-pressed', String(isFav(c.ticker)));
-    star.setAttribute('aria-label', (isFav(c.ticker) ? 'Unstar ' : 'Star ') + c.name);
-    star.addEventListener('click', () => toggleFav(c.ticker));
-    li.append(logo, name, price, chg, star);
+    const chg = el('span', 'wl-chg chg num ' + ch.cls, ch.text); chg.dataset.t = c.ticker;
+    const nums = el('span', 'wl-nums'); nums.append(price, chg);
+    li.className += ' ' + ch.cls;
+    li.append(logo, name, nums, starBtn(c));
+    return li;
+  }));
+  $('wl-list').replaceChildren(...rest.map(c => {
+    const li = el('li', 'wl-chip');
+    const logo = el('span', 'wl-logo'); logo.append(logoEl(live.get(c.ticker) || { ticker: c.ticker, logo: null }));
+    li.append(logo, el('b', '', c.ticker), el('span', '', c.name), starBtn(c));
     return li;
   }));
 }
@@ -497,7 +508,7 @@ function initSources() {
     last = data;
     $('src-name').textContent = data.source || '–';
     $('src-time').textContent = data.updatedAt ? ago(data.updatedAt) : '–';
-  }, st => { $('src-state').textContent = stateText[st] || st; $('src-state').dataset.state = st; });
+  }, st => { $('src-state').textContent = stateText[st] || st; $('src-state').dataset.state = st; $('src-hero').dataset.state = st; });
   setInterval(() => { if (last?.updatedAt) $('src-time').textContent = ago(last.updatedAt); }, 5000);
   const test = async () => {
     msg.textContent = 'Testing…';

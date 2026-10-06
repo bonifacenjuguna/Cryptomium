@@ -23,30 +23,32 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Data sources</h1><p class="lede">Where every number on the site comes from, and how fresh it is right now.</p></div>
-        <section class="s-card" aria-labelledby="h-now">
-          <h2 id="h-now">Right now</h2>
-          <div class="src-live">
-            <div class="src-stat"><small>Connection</small><b id="src-state">Checking…</b></div>
-            <div class="src-stat"><small>Price source</small><b id="src-name">–</b></div>
-            <div class="src-stat"><small>Last update</small><b id="src-time">–</b></div>
-            <div class="src-stat"><small>Response time</small><b id="src-ping">–</b></div>
+        <div class="s-head"><h1>Data sources</h1><p class="lede">Where every number comes from, and how fresh it is right now.</p></div>
+
+        <section class="src-hero" id="src-hero" data-state="connecting" aria-labelledby="h-now">
+          <h2 class="sr" id="h-now">Right now</h2>
+          <div class="sh-top">
+            <span class="sh-pulse" aria-hidden="true"><i></i></span>
+            <div><small>Connection</small><b id="src-state">Checking…</b></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="src-test">Test</button>
           </div>
-          <div class="s-actions"><button type="button" class="btn btn-ghost btn-sm" id="src-test">Test connection</button><span class="s-saved" id="src-msg" aria-live="polite"></span></div>
+          <div class="sh-grid">
+            <div><small>Price source</small><b id="src-name">–</b></div>
+            <div><small>Updated</small><b id="src-time">–</b></div>
+            <div><small>Response</small><b id="src-ping">–</b></div>
+          </div>
+          <p class="sh-msg s-saved" id="src-msg" aria-live="polite"></p>
         </section>
 
-        <section class="s-card" aria-labelledby="h-where">
-          <h2 id="h-where">Where it comes from</h2>
-          <div class="src-list">
-          <div class="src-row"><div><b>Live prices</b><span>Read straight from the major exchanges, with a backup source if one is busy. They refresh about every two seconds.</span></div><i class="src-tag">Live</i></div>
-          <div class="src-row"><div><b>Charts and history</b><span>Price history and candles for every range come from CoinGecko, and the newest points are added from the live feed as they arrive.</span></div><i class="src-tag">CoinGecko</i></div>
-          <div class="src-row"><div><b>Market size</b><span>Market cap, supply, rank, all-time highs and the 1 hour to 1 year changes come from CoinGecko, refreshed every few minutes.</span></div><i class="src-tag">CoinGecko</i></div>
-          <div class="src-row"><div><b>Exchange rates</b><span>Your currency is converted using exchange rates from CoinGecko, refreshed every hour.</span></div><i class="src-tag">CoinGecko</i></div>
-          <div class="src-row"><div><b>Fear and Greed</b><span>The whole-market reading is the public Fear and Greed Index from alternative.me. The reading for each coin is calculated by us from its recent moves, its place in the day range, and how busy trading is.</span></div><i class="src-tag">alternative.me</i></div>
-          </div>
-          <p class="s-hint">Prices can differ slightly between exchanges and between sources. Market information only, not financial advice.</p>
-        </section>
-
+        <h2 class="src-h" id="h-where">Where it comes from</h2>
+        <ol class="src-flow" aria-labelledby="h-where">
+          <li class="src-node live"><span class="sn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3 4 14h7l-1 7 9-11h-7z"/></svg></span><div><b>Live prices</b><span>Read straight from the major exchanges, with a backup if one is busy.</span><em>About every 2 seconds</em></div><i class="src-tag">Live</i></li>
+          <li class="src-node"><span class="sn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 6-6 4 4 8-9"/></svg></span><div><b>Charts and history</b><span>Price history and candles for every range, with the newest points added from the live feed.</span><em>CoinGecko</em></div><i class="src-tag">History</i></li>
+          <li class="src-node"><span class="sn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><div><b>Market size</b><span>Market cap, supply, rank, all-time highs and the 1 hour to 1 year changes.</span><em>CoinGecko · every few minutes</em></div><i class="src-tag">Market</i></li>
+          <li class="src-node"><span class="sn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-3-3M20 16H6l3 3"/></svg></span><div><b>Exchange rates</b><span>Your currency is converted with rates from CoinGecko.</span><em>Refreshed every hour</em></div><i class="src-tag">Rates</i></li>
+          <li class="src-node"><span class="sn-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9M12 12l5-5"/></svg></span><div><b>Fear and Greed</b><span>The whole-market reading is the public index from alternative.me. Each coin's own reading is calculated by us from its recent moves and place in the day's range.</span><em>alternative.me + Cryptomium</em></div><i class="src-tag">Mood</i></li>
+        </ol>
+        <p class="src-foot">Prices can differ slightly between exchanges and between sources. Market information only, not financial advice.</p>
 
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>

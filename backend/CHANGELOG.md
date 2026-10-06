@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.8.0
+
+**The installed app now navigates like a native app, plus a new Watchlist and Data sources page. Redeploy the frontend (the backend is unchanged apart from its version number).**
+
+- **Screens stack on top of each tab.** Opening a coin, a settings page or anything else from a tab slides it in over that tab, and the tab underneath stays exactly as it was. Back (the arrow in the top bar or the phone's Back button) slides it away and you are exactly where you came from: the same scroll position on Home, Screener and every other tab. Each tab keeps its own stack, tapping the lit tab returns to its main screen, then the top.
+- **The menu and search disappear at once** when you pick something: nothing is left hanging on screen while the next screen arrives, and nothing is open when you come back.
+- **Top bar:** on main screens the brand fades away as you scroll; on screens below them the brand is replaced by the back arrow and the screen's title.
+- Browser tabs: going Back to a page now returns to the exact spot, even though its content fills in after it loads.
+- **Watchlist redesigned:** the coins you follow are rich cards with the live price and move (tinted green or red), then a clear gap, then every other coin as a plain one-line row with just a star to add it. An empty watchlist explains what to do.
+- **Data sources redesigned:** a live status card with a pulsing dot, the price source, last update and response time, then a flow of every source (live prices, history, market size, exchange rates, fear and greed) with what it gives and how often it refreshes.
+
 ## 3.7.0
 
 **Coin header redone as a hero, and the Screener now looks like a scanner instead of a second Home. Redeploy the frontend (the backend is unchanged apart from its version number). The website on a computer keeps its table.**

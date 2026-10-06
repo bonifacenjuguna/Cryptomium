@@ -1,5 +1,5 @@
 import { sanitize, fromLegacy, positions } from './ledger.js';
-import { isApp, updates, takeUpdatedNote } from './pwa.js';
+import { isApp, updates, takeUpdatedNote, navTo, goBack, inShell } from './pwa.js';
 import { pushLayer, leave } from './backstack.js';
 import * as net from './net.js';
 import { initAppFeel } from './appfeel.js';
@@ -594,7 +594,7 @@ function initSearch(coins) {
   const recents = () => { try { return JSON.parse(store.get('cm-recent') || '[]').filter(t => coins.some(c => c.ticker === t)); } catch { return []; } };
   const go = c => {
     store.set('cm-recent', JSON.stringify([c.ticker, ...recents().filter(t => t !== c.ticker)].slice(0, 5)));
-    location.href = '/coin/' + c.ticker;
+    if (isApp()) { input.blur(); leave('/coin/' + c.ticker); } else location.href = '/coin/' + c.ticker;
   };
   const paint = () => {
     list.replaceChildren();
@@ -718,6 +718,7 @@ function initMenu() {
     if (drawer() && !a.target && a.origin === location.origin && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       if (a.pathname === location.pathname && !a.hash) { close(); return; }
+      root.classList.add('cm-instant');
       release = null;
       paint(false);
       leave(a.href);
@@ -788,7 +789,7 @@ function initBrand() {
   const top = () => window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   document.querySelectorAll('.site-header .brand').forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
-    if ((location.pathname.replace(/\/+$/, '') || '/') === '/' || matchMedia('(max-width: 820px)').matches) top(); else location.assign('/');
+    if ((location.pathname.replace(/\/+$/, '') || '/') === '/' || matchMedia('(max-width: 820px)').matches) top(); else navTo('/');
   }));
   // Tapping the empty part of the top bar also returns to the top, like the status bar on a phone.
   document.querySelector('.site-header .bar')?.addEventListener('click', e => { if (e.target === e.currentTarget || e.target.closest('.brand')) top(); });
@@ -799,6 +800,7 @@ function initAppBack() {
   const b = document.getElementById('app-back');
   if (!b) return;
   b.addEventListener('click', () => {
+    if (goBack()) return; // inside the app: the screen below, exactly as it was left
     const sameSite = document.referrer && new URL(document.referrer).origin === location.origin;
     if (history.length > 1 && sameSite) { history.back(); return; }
     const p = location.pathname;
@@ -956,7 +958,32 @@ export async function copyText(text) {
   } catch { return false; }
 }
 
+// Coming back to a page (Back button, back arrow) puts it exactly where you left it, even though its content
+// is filled in after it loads. (Inside the installed app the screen underneath simply stays alive, so this is for browser tabs.)
+function initScrollMemory() {
+  if (inShell()) return;
+  const key = 'cm-sy:' + location.pathname + location.search;
+  try { history.scrollRestoration = 'manual'; } catch { /* ignore */ }
+  const save = () => { try { sessionStorage.setItem(key, String(Math.round(window.scrollY))); } catch { /* ignore */ } };
+  let t = 0;
+  addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(save, 120); }, { passive: true });
+  addEventListener('pagehide', save);
+  const nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+  if (!nav || nav.type !== 'back_forward') return;
+  let y = 0;
+  try { y = Number(sessionStorage.getItem(key)) || 0; } catch { /* ignore */ }
+  if (y < 8) return;
+  const t0 = performance.now();
+  const step = () => {
+    const room = document.documentElement.scrollHeight - window.innerHeight;
+    if (room >= y - 2) { window.scrollTo(0, y); setTimeout(() => window.scrollTo(0, y), 250); return; } // the page is tall enough now
+    if (performance.now() - t0 < 4000) requestAnimationFrame(step); else window.scrollTo(0, Math.min(y, Math.max(0, room)));
+  };
+  requestAnimationFrame(step);
+}
+
 export async function initChrome() {
+  initScrollMemory();
   initTheme();
   initCurrency();
   initMenu();

@@ -3,6 +3,24 @@ const FLAG = 'cm-pwa-installed';
 const standaloneQuery = window.matchMedia('(display-mode: standalone)');
 const isStandalone = () => standaloneQuery.matches || window.navigator.standalone === true;
 export const isApp = isStandalone;
+export const inShell = () => document.documentElement.classList.contains('in-shell');
+const TAB_ROOTS = { '/': 'home', '/markets': 'markets', '/screener': 'screener', '/news': 'news', '/portfolio': 'portfolio' };
+/** Go to an address like a native app: inside the app shell a main screen switches tab and anything else opens on top of the current screen. */
+export function navTo(href) {
+  const u = new URL(href, location.href);
+  if (u.origin !== location.origin) { location.href = u.href; return; }
+  if (!inShell()) { location.href = u.href; return; }
+  const path = u.pathname.replace(/\/+$/, '') || '/';
+  try {
+    if (TAB_ROOTS[path] && !u.search) parent.postMessage({ cm: 'tab', tab: TAB_ROOTS[path] }, location.origin);
+    else parent.postMessage({ cm: 'push', url: path + u.search + u.hash }, location.origin);
+  } catch { location.href = u.href; }
+}
+/** The back arrow: one screen back, to wherever this one was opened from. */
+export function goBack() {
+  if (inShell()) { try { parent.postMessage({ cm: 'back' }, location.origin); return true; } catch { /* fall through */ } }
+  return false;
+}
 const ua = navigator.userAgent || '';
 const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const iosSafari = isIOS && !/crios|fxios|edgios|opios/i.test(ua);
@@ -254,15 +272,16 @@ function initInShell() {
   const root = document.documentElement;
   const TABS = { '/': 'home', '/markets': 'markets', '/screener': 'screener', '/news': 'news', '/portfolio': 'portfolio' };
   const send = m => { try { parent.postMessage({ cm: m.cm, ...m }, location.origin); } catch { /* ignore */ } };
-  // A link to a main screen switches tabs instead of loading another page into this one.
+  // Every ordinary link opens like a native screen: on top of this one, which stays exactly as it is underneath.
   document.addEventListener('click', e => {
     if (e.defaultPrevented || e.button || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const a = e.target.closest && e.target.closest('a[href]');
-    if (!a || a.target || a.origin !== location.origin || a.hash || a.search) return;
-    const tab = TABS[a.pathname.replace(/\/+$/, '') || '/'];
-    if (!tab) return;
+    if (!a || a.target || a.hasAttribute('download') || a.origin !== location.origin) return;
+    if (a.pathname === location.pathname && a.search === location.search) return; // a jump inside this very page
+    const menu = document.getElementById('menu');
+    if (menu && menu.contains(a)) return; // the menu closes itself first, then goes (see initMenu)
     e.preventDefault();
-    send({ cm: 'tab', tab });
+    navTo(a.href);
   }, true);
   // Menu, sheets and the keyboard: the shell slides its bar away so they look exactly as before.
   let last = '';

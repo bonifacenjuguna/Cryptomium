@@ -5,7 +5,7 @@
 //
 // History changes are queued and run one at a time. Opening and closing an overlay in quick succession,
 // or pressing Back repeatedly, therefore can never close the wrong thing or leave a stray entry behind.
-import { isApp } from './pwa.js';
+import { isApp, navTo, inShell } from './pwa.js';
 
 const stack = [];     // open overlays, oldest first
 const queue = [];     // pending history operations
@@ -72,8 +72,10 @@ export function leave(href) {
   const go = () => {
     if (done) return;
     done = true;
+    const root = document.documentElement;
+    root.classList.add('cm-instant'); // whatever was open vanishes at once: no drawer or search left hanging while the next screen arrives
     open.reverse().forEach(l => { try { l.close(); } catch { /* ignore */ } });
-    location.href = href;
+    if (inShell()) { navTo(href); setTimeout(() => root.classList.remove('cm-instant'), 500); } else location.href = href;
   };
   const start = () => {
     if (!n) { go(); return; }

@@ -12,7 +12,7 @@ export function initAppFeel() {
   const onScroll = () => {
     if (ticking) return;
     ticking = true;
-    requestAnimationFrame(() => { root.classList.toggle('scrolled', window.scrollY > 4); ticking = false; });
+    requestAnimationFrame(() => { root.classList.toggle('scrolled', window.scrollY > 4); root.style.setProperty('--brand-o', Math.max(0, 1 - window.scrollY / 56).toFixed(2)); ticking = false; });
   };
   addEventListener('scroll', onScroll, { passive: true });
   onScroll();
