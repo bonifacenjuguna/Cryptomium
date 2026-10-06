@@ -2030,3 +2030,6 @@ html.is-app .snap > .snap-ov { grid-column: 1 / -1; }
 }
 html.is-app .ap-meta { justify-self: stretch; width: 100%; }
 html.is-app #markets .sec-head p { display: none; }
+
+/* v3.4.1: the installed app already has Overview in its bottom bar, so Home does not repeat it */
+html.is-app .snap > .snap-ov { display: none !important; }

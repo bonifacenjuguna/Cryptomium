@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.4.1
+
+**Installed app: the Market overview row is gone from Home, because Overview is already in the bottom bar. Redeploy the frontend (the backend is unchanged). The website keeps the row.**
+
 ## 3.4.0
 
 **Portfolio rebuilt as a real ledger, and the installed app's Home loses its web headline. Redeploy the frontend. The backend is unchanged apart from its version number and a new test.**
