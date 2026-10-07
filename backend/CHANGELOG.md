@@ -23,7 +23,7 @@
 - Settings icons: same on the web and in the app: dark tile, white glyph, accent colour only when a non-default accent is chosen.
 - Coin header card: flat, no coloured glow around the logo, quieter chips.
 - Menu drawer: no empty strip at the top; app name and version moved to the bottom; the "market information only" line moved into About and Learn crypto.
-- Data sources removed from the settings list and the menu.
+- Settings no longer repeats what the menu already has: Watchlist, Price alerts, Portfolio, Learn crypto, Help and about, Data and privacy and App updates are reached from the menu (and tabs). Settings keeps Appearance, Preferences, Home and coin pages, Advanced and Experimental. Data sources is gone from both.
 
 ## 3.9.0
 
