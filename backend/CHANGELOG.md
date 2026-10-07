@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.11.0
+
+- New: **App lock** (Settings > App lock). Asks for the phone's fingerprint, face or screen lock before the app opens, covers the app in the app switcher, and can lock right away, after 1 minute or after 5 minutes away. "Can't unlock?" erases the app's local data and unlocks. It hides the app; it does not encrypt stored data.
+- New: **Notifications** page (push, market milestones, sound, vibration), moved out of Price alerts into its own page.
+- New: **Backup and restore** page (with the date of the last backup), moved out of Data and privacy.
+- Settings now groups: Personalise, Alerts and privacy, Your data, System.
+
+## 3.10.1
+
+- Back always ends at Home: Home is the first stop of every trail and the last one before the app closes, even when the app was opened straight on another tab. Going to Home clears the trail.
+
 ## 3.10.0
 
 **Frontend release (the backend only changes its version number). Redeploy the frontend; installed apps pick it up through the Update Center.**

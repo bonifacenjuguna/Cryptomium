@@ -1,0 +1,21 @@
+import { open } from './harness.mjs';
+const h = await open({ standalone: false }); const { page, url, errs } = h;
+const cdp = await page.context().newCDPSession(page);
+await cdp.send('WebAuthn.enable');
+await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: false, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+await page.goto(url + '/settings/lock'); await page.waitForTimeout(2500);
+console.log('text before:', await page.textContent('#lock-text'));
+await page.click('#lock-switch'); await page.waitForTimeout(1500);
+console.log('after enable:', await page.getAttribute('#lock-switch', 'aria-checked'), '| opts visible', await page.isVisible('#lock-opts'));
+await page.screenshot({ path: '/tmp/lock-page.png' });
+await page.goto(url + '/settings/lock'); await page.waitForTimeout(500);
+console.log('new session locked?', await page.evaluate(() => document.documentElement.classList.contains('locked')));
+await page.evaluate(() => sessionStorage.removeItem('cm-unlock'));
+await page.reload(); await page.waitForTimeout(300);
+console.log('after reload without unlock flag -> locked:', await page.evaluate(() => document.documentElement.classList.contains('locked')));
+await page.waitForTimeout(2000);
+console.log('auto-unlocked via authenticator:', !(await page.evaluate(() => document.documentElement.classList.contains('locked'))));
+for (const p of ['/settings/notifications', '/settings/backup', '/settings']) { await page.goto(url + p); await page.waitForTimeout(1500); await page.screenshot({ path: '/tmp' + p.replace(/\//g, '_') + '.png' }); }
+console.log('backup text:', await (async () => { await page.goto(url + '/settings/backup'); await page.waitForTimeout(1200); return page.textContent('#backup-last'); })());
+console.log('errors', errs);
+await h.close();

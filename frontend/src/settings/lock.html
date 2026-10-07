@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>App lock | {{BRAND}}</title>
+  <meta name="description" content="Ask for your fingerprint, face or screen lock before the app opens.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/lock">
+</head>
+<body data-page="lock">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>App lock</h1><p class="lede">Keep your portfolio and alerts private on a shared or borrowed phone.</p></div>
+        <section class="s-card" aria-labelledby="h-lock">
+          <h2 id="h-lock">App lock</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Ask to unlock</b><span id="lock-text" aria-live="polite">&nbsp;</span></div>
+            <button type="button" class="switch" role="switch" id="lock-switch" aria-checked="false" aria-label="Ask to unlock"><span></span></button>
+          </div>
+          <div id="lock-opts" hidden>
+            <div class="s-row">
+              <div class="s-label"><b>Lock after leaving the app</b><span>How long you can be away before it asks again.</span></div>
+              <div class="segs" role="radiogroup" aria-label="Lock after leaving the app" id="lock-after"><button type="button" role="radio" class="seg" data-value="0">Right away</button><button type="button" role="radio" class="seg" data-value="60">1 min</button><button type="button" role="radio" class="seg" data-value="300">5 min</button></div>
+            </div>
+            <div class="s-actions"><button type="button" class="btn btn-ghost" id="lock-now">Lock now</button></div>
+          </div>
+          <p class="s-hint">Uses your phone's fingerprint, face or screen lock. It keeps people who pick up your phone out of your portfolio and alerts. It does not encrypt what is saved on the device.</p>
+        </section>
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

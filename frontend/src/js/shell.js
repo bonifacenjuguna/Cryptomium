@@ -6,9 +6,11 @@
 //    where you came from. Switching tabs is instant and every tab keeps its own stack.
 //  - Tabs have a trail: the tabs you visited, most recent last, each listed ONCE. Overview > News > Overview > News
 //    leaves the trail Home, Overview, News, so Back goes News > Overview > Home, never round the same loop again.
+//    Home is always the first stop of the trail and the last one before the app closes.
 //  - The browser history is only a sentinel: one spare entry exists while there is somewhere to go back to inside the
 //    app, so the phone's Back button reaches us instead of leaving. When there is nowhere left to go, the sentinel is
 //    dropped and the next Back leaves the app (or closes the Android app) as usual.
+import './lock.js';
 const ROOTS = { home: '/', markets: '/markets', screener: '/screener', news: '/news', portfolio: '/portfolio' };
 const ORDER = ['home', 'markets', 'screener', 'news', 'portfolio'];
 const TITLES = { home: 'Home', markets: 'Overview', screener: 'Screener', news: 'News', portfolio: 'Portfolio' };
@@ -69,8 +71,9 @@ function ensureTab(tab) { if (!stacks[tab].length) stacks[tab].push(makeFrame(ta
 function switchTo(tab) {
   ensureTab(tab);
   if (tab === active) return;
-  trail = trail.filter(t => t !== tab);   // a tab already visited moves to the front instead of appearing twice
-  trail.push(tab);
+  // Home is where every visit begins and ends: going to Home clears the trail, so Back from Home leaves the app. Any other tab
+  // moves to the front of the trail instead of appearing twice.
+  trail = tab === 'home' ? ['home'] : ['home', ...trail.filter(t => t !== tab && t !== 'home'), tab];
   active = tab;
   show();
   syncGuard();
@@ -110,6 +113,7 @@ function stepBack() {
   if (trail.length > 1) {
     trail.pop();
     active = trail[trail.length - 1];
+    ensureTab(active);
     show();
     return true;
   }
@@ -150,7 +154,7 @@ try {
 } catch { /* default */ }
 const startIsRoot = startPath.split(/[?#]/)[0].replace(/\/+$/, '') === (ROOTS[start] === '/' ? '' : ROOTS[start]) && !/[?]/.test(startPath);
 active = start;
-trail = [start];
+trail = start === 'home' ? ['home'] : ['home', start]; // opened elsewhere (a link, an update): Back still ends at Home
 stacks[start].push(makeFrame(start, ROOTS[start], false));
 show();
 try { history.replaceState({ cmShell: 1 }, ''); } catch { /* ignore */ }

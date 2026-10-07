@@ -22,6 +22,8 @@
     return;
   }
   if (framed) root.classList.add('in-shell');
+  // App lock: hide the page from the very first paint until js/lock.js has asked for the phone's unlock.
+  try { if (!framed && localStorage.getItem('cm-lock') && sessionStorage.getItem('cm-unlock') !== '1') root.classList.add('locked'); } catch (e) {}
   root.setAttribute('data-theme', resolved);
   var tc = document.querySelector('meta[name="theme-color"]');
   var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;

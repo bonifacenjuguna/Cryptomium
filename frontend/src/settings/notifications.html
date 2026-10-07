@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Notifications | {{BRAND}}</title>
+  <meta name="description" content="Push notifications, milestone alerts, sound and vibration.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/notifications">
+</head>
+<body data-page="notifications">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Notifications</h1><p class="lede">Choose how {{BRAND}} reaches you when a price alert is reached.</p></div>
+        <section class="s-card" id="push-card" aria-labelledby="h-notif">
+          <h2 id="h-notif">Notifications</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Push notifications</b><span id="notif-text" aria-live="polite">&nbsp;</span></div>
+            <button type="button" class="switch" role="switch" id="notif-switch" aria-checked="false" aria-label="Push notifications"><span></span></button>
+          </div>
+          <div id="push-prefs" hidden>
+            <div class="s-row">
+              <div class="s-label"><b>Market milestones</b><span>Round-number alerts from our Telegram channel.</span></div>
+              <button type="button" class="switch" role="switch" id="ms-switch" aria-checked="false" aria-label="Market milestones"><span></span></button>
+            </div>
+            <div class="s-row" id="ms-scope-row" hidden>
+              <div class="s-label"><b>Only my starred coins</b><span id="ms-scope-hint">Skip milestones for coins you have not starred.</span></div>
+              <button type="button" class="switch" role="switch" id="ms-starred" aria-checked="false" aria-label="Only my starred coins"><span></span></button>
+            </div>
+            <div class="s-actions"><button type="button" class="btn btn-ghost" id="notif-test">Send a test notification</button></div>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Sound</b><span>A soft chime when an alert is reached while the app is open.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="sound" aria-checked="false" aria-label="Sound"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Vibration</b><span>A short buzz with in-app alerts, where your phone allows it.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="haptics" aria-checked="false" aria-label="Vibration"><span></span></button>
+          </div>
+          <p class="s-hint" id="notif-fine">With push on, this device is registered with Cryptomium so alerts reach you with the app closed. We store the device's push address, your alerts and your milestone choice, with no account. Turning push off deletes it all.</p>
+        </section>
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

@@ -10,12 +10,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
-  <title>Data and privacy | {{BRAND}}</title>
-  <meta name="description" content="See what is kept on this device, or clear it.">
+  <title>Backup and restore | {{BRAND}}</title>
+  <meta name="description" content="Save your settings and data to a file, or restore them on another device.">
   <meta name="robots" content="noindex">
-  <link rel="canonical" href="{{SITE_URL}}/settings/data">
+  <link rel="canonical" href="{{SITE_URL}}/settings/backup">
 </head>
-<body data-page="data">
+<body data-page="backup">
 <!--@header-->
 <main id="main">
   <div class="wrap">
@@ -23,19 +23,17 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Data and privacy</h1><p class="lede">See what is kept on this device, or clear it.</p></div>
-        <section class="s-card" aria-labelledby="h-store">
-          <h2 id="h-store">What is stored</h2>
-          <p class="s-hint">{{BRAND}} has no accounts. These settings live only in this browser, and nothing here is sent to us.</p>
-          <ul class="store-list" id="store-list"></ul>
+        <div class="s-head"><h1>Backup and restore</h1><p class="lede">Move to a new phone, or keep a copy in case something goes wrong.</p></div>
+        <section class="s-card" aria-labelledby="h-back">
+          <h2 id="h-back">Back up and move</h2>
+          <p class="s-hint">Save your settings, starred coins, price alerts and portfolio to a file, or load that file on another browser or phone. The file stays with you; nothing is uploaded.</p>
+          <p class="s-hint" id="backup-last">No backup made on this device yet.</p>
+          <div class="s-actions">
+            <button type="button" class="btn btn-accent" id="export-btn">Download backup</button>
+            <label class="btn btn-ghost file-btn">Load a backup<input type="file" id="import-file" accept="application/json,.json"></label>
+            <span class="s-saved" id="data-msg" aria-live="polite"></span>
+          </div>
         </section>
-
-        <section class="s-card danger" aria-labelledby="h-reset">
-          <h2 id="h-reset">Reset</h2>
-          <p class="s-hint">Clears your preferences, currency, starred coins, price alerts and portfolio from this browser.</p>
-          <div class="s-actions"><button type="button" class="btn btn-danger" id="reset-all">Reset everything</button></div>
-        </section>
-
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>
     </div>
