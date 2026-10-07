@@ -367,7 +367,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
         const cx = x(i);
         root.append(svg('line', { class: 'wick', x1: cx, x2: cx, y1: y(h * rate), y2: y(l * rate), stroke: col }));
         const top = y(Math.max(o, cl) * rate), bot = y(Math.min(o, cl) * rate);
-        root.append(svg('rect', { class: 'candle', x: cx - bodyW / 2, y: top, width: bodyW, height: Math.max(1.5, bot - top), fill: col, rx: Math.min(1.5, bodyW / 3) }));
+        root.append(svg('rect', { class: 'candle', x: cx - bodyW / 2, y: top, width: bodyW, height: Math.max(1.5, bot - top), fill: col }));
       });
       const ly = y(lastV * rate);
       root.append(svg('line', { class: 'last-line', x1: padL, x2: W - padR, y1: ly, y2: ly, stroke: color }));

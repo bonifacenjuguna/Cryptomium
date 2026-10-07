@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.12.2
+
+- Chart glitch, second round: the chart sits on its own graphics layer, scroll anchoring is off (the page used to shift by a few pixels when the legend above the chart changed, which left a ghost copy of the range buttons on some phones), candles are plain rectangles, and long lines use cheaper joins.
+
 ## 3.12.1
 
 - Charts: fixed garbled pixels and doubled range buttons under the chart in candle and compare views on some phones. The chart now draws at most about one point per pixel (keeping highs and lows), candles use crisp edges, the chart has its own paint area, and the blurred tab bar and page-transition layers are gone inside the installed app. Lines look the same.

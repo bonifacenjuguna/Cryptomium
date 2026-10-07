@@ -2636,3 +2636,11 @@ html.locked body > *:not(.lock-screen) { visibility: hidden !important; }
   html.is-app .site-header { -webkit-backdrop-filter: none; backdrop-filter: none; }
   html.in-shell .app-tabbar, html.in-shell .site-header { view-transition-name: none; }
 }
+
+/* v3.12.2: more calming for the chart glitch (garbage tiles, doubled range buttons) */
+html, body { overflow-anchor: none; }               /* the page no longer nudges itself when the legend above the chart changes height */
+.chart-card, .chart-card * { overflow-anchor: none; }
+.chart { will-change: transform; transform: translateZ(0); backface-visibility: hidden; }  /* its own graphics layer, painted on its own */
+.chart svg .line { stroke-linejoin: bevel; stroke-linecap: butt; }   /* cheaper than round joins on long lines */
+.chart-card { box-shadow: none; }
+.legend { contain: layout style; }
