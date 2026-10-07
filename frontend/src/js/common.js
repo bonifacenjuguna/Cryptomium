@@ -1,4 +1,3 @@
-import './lock.js';
 import { sanitize, fromLegacy, positions } from './ledger.js';
 import { isApp, updates, takeUpdatedNote, navTo, goBack, inShell } from './pwa.js';
 import { pushLayer, leave } from './backstack.js';

@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>Data and privacy | {{BRAND}}</title>
-  <meta name="description" content="See what is kept on this device, or clear it.">
+  <meta name="description" content="See what is kept on this device, back it up, move it, or clear it.">
   <meta name="robots" content="noindex">
   <link rel="canonical" href="{{SITE_URL}}/settings/data">
 </head>
@@ -23,11 +23,21 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Data and privacy</h1><p class="lede">See what is kept on this device, or clear it.</p></div>
+        <div class="s-head"><h1>Data and privacy</h1><p class="lede">See what is kept on this device, back it up, move it, or clear it.</p></div>
         <section class="s-card" aria-labelledby="h-store">
           <h2 id="h-store">What is stored</h2>
           <p class="s-hint">{{BRAND}} has no accounts. These settings live only in this browser, and nothing here is sent to us.</p>
           <ul class="store-list" id="store-list"></ul>
+        </section>
+
+        <section class="s-card" aria-labelledby="h-back">
+          <h2 id="h-back">Back up and move</h2>
+          <p class="s-hint">Save your settings to a file, or load a file on another browser or device.</p>
+          <div class="s-actions">
+            <button type="button" class="btn btn-accent" id="export-btn">Download backup</button>
+            <label class="btn btn-ghost file-btn">Load a backup<input type="file" id="import-file" accept="application/json,.json"></label>
+            <span class="s-saved" id="data-msg" aria-live="polite"></span>
+          </div>
         </section>
 
         <section class="s-card danger" aria-labelledby="h-reset">

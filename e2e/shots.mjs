@@ -1,0 +1,14 @@
+import { open } from './harness.mjs';
+const h = await open({ standalone: true }); const { page, url } = h;
+await page.addInitScript(() => localStorage.setItem('cm-prefs', JSON.stringify({ accent: 'azure', theme: 'dark' })));
+await page.goto(url + '/app?go=/converter'); await page.waitForTimeout(3500);
+await page.screenshot({ path: '/home/claude/e2e/c2.png' });
+await page.goto(url + '/app?go=/settings'); await page.waitForTimeout(3000);
+await page.screenshot({ path: '/home/claude/e2e/hub4.png' });
+await page.goto(url + '/app?go=/coin/BTC'); await page.waitForTimeout(3500);
+await page.screenshot({ path: '/home/claude/e2e/coin1.png' });
+await page.goto(url + '/app'); await page.waitForTimeout(2500);
+const home = page.frames().find(f => f.url() === url + '/');
+await home.tap('#menu-toggle'); await page.waitForTimeout(700);
+await page.screenshot({ path: '/home/claude/e2e/menu1.png' });
+await h.close();

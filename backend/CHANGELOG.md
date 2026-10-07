@@ -1,40 +1,26 @@
 # Changelog
 
-## 3.11.0
-
-- New: **App lock** (Settings > App lock). Asks for the phone's fingerprint, face or screen lock before the app opens, covers the app in the app switcher, and can lock right away, after 1 minute or after 5 minutes away. "Can't unlock?" erases the app's local data and unlocks. It hides the app; it does not encrypt stored data.
-- New: **Notifications** page (push, market milestones, sound, vibration), moved out of Price alerts into its own page.
-- New: **Backup and restore** page (with the date of the last backup), moved out of Data and privacy.
-- Settings now groups: Personalise, Alerts and privacy, Your data, System.
-
-## 3.10.1
-
-- Back always ends at Home: Home is the first stop of every trail and the last one before the app closes, even when the app was opened straight on another tab. Going to Home clears the trail.
-
 ## 3.10.0
 
-**Frontend release (the backend only changes its version number). Redeploy the frontend; installed apps pick it up through the Update Center.**
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
 
-### Update Center (hardened, not replaced) and Android (TWA) readiness
-- Same system as before: the service worker holds the new build until the app asks, the Update Center page shows status, and Automatic / Manual still decide when it installs. Nothing new was added on the Android side; the web app never downloads or installs an APK.
-- Automatic mode now truly installs: on launch, when the app is put away (including the Android app going to the background), and after 3 quiet minutes on screen. It never interrupts an open menu, sheet, full-screen chart or a half-typed form. Manual mode only installs on "Update now".
-- After an update the app comes back to the same tab and screens instead of its start screen.
-- Screens inside the app shell no longer all reload themselves on an update; the shell reloads once.
-- Update checks from the different screens share one timer instead of each asking the server.
-- Service worker: a page or script from another build is never answered from, or saved into, this build's caches (fixes a rare old/new mix on pages that were not pre-saved). Optional files (coin pages, icons) can no longer hold an update in "Downloading" on a slow connection.
-- Web version (`frontend/package.json`) and Android shell version (`twa/twa-manifest.json`) are now separate; `twa/README.md` explains both release paths.
+### Updates (the existing Update Center, hardened)
+- Automatic mode now truly installs updates by itself: when the app is opened, when it is put away, and when nobody has touched it for a short while (activity from any screen counts). Manual mode is unchanged and waits for you.
+- Fixed: while an update waited, a page the app had not saved could load the new build's page with the old build's scripts. Pages and scripts now always match one build (every script import carries the build id).
+- Fixed: in the first session after install or Repair, "Update now" swapped the worker but never reloaded. Fixed in the pages and in the app shell.
+- Self-heal: if the app was frozen in the background during a switch, it reloads once to the matching build when you return.
+- After an update restarts the installed app it returns to the screen you were on, not Home.
+- Web version (`package.json`, `version.json`) and the Android shell version (`twa/twa-manifest.json`) are now separate.
 
-### Navigation
-- Back no longer replays loops. Tabs keep a trail of where you have been, each tab once: Overview, News, Overview, News then Back goes News, Overview, Home. Screens opened on top of a tab still close first.
-
-### Converter
-- New Converter page (menu > Converter): pick a coin or a currency on either side with the app's own picker, swap, quick amounts, and the value in other currencies. Opens at `/convert?from=BTC&to=KES&amount=2`.
-
-### Look and feel
-- Settings icons: same on the web and in the app: dark tile, white glyph, accent colour only when a non-default accent is chosen.
-- Coin header card: flat, no coloured glow around the logo, quieter chips.
-- Menu drawer: no empty strip at the top; app name and version moved to the bottom; the "market information only" line moved into About and Learn crypto.
-- Settings no longer repeats what the menu already has: Watchlist, Price alerts, Portfolio, Learn crypto, Help and about, Data and privacy and App updates are reached from the menu (and tabs). Settings keeps Appearance, Preferences, Home and coin pages, Advanced and Experimental. Data sources is gone from both.
+### Navigation and layout
+- Back no longer replays loops: each place appears once, most recent first (Home, Overview, News, Overview, News goes Back to Overview, then Home, then exits).
+- Menu: brand and version at the bottom, no empty space at the top; the "not financial advice" line now lives in Help and about, Learn crypto and Data sources.
+- Settings: only Appearance, Preferences, Home and coin pages, Advanced and Experimental in the app (everything else is in the menu). The web keeps the full list.
+- One icon style: black tile, theme-coloured glyph, on the web and in the app. Menu icons are white.
+- Cleaner Bitcoin (and every coin) card: no glow ring, no tinted gradient.
+- New Converter page: any coin or currency to any other, with the app's own picker, swap, quick amounts and quick pairs. The menu's Converter opens it.
+- Native pickers replaced: news publisher.
+- Fixed: the Price alerts page stopped setting itself up (the Add button was dead); the offline and privacy pages were blocked by the site's own security policy.
 
 ## 3.9.0
 

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Converter | {{BRAND}}</title>
+  <meta name="description" content="Convert any coin to any other coin or to a currency at live prices.">
+  <link rel="canonical" href="{{SITE_URL}}/converter">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body data-page="converter">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top"><h1>Converter</h1><p class="lede">Turn any coin into another coin or a currency, at live prices.</p></div>
+    <div class="cv" id="cv">
+      <section class="cv-card" aria-label="Convert">
+        <div class="cv-row">
+          <label class="cv-lab" for="cv-amt">You have</label>
+          <div class="cv-line">
+            <input id="cv-amt" class="cv-num" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Amount">
+            <button type="button" class="cv-asset" id="cv-from" aria-label="Choose what you have"></button>
+          </div>
+        </div>
+        <button type="button" class="cv-swap" id="cv-swap" aria-label="Swap the two"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg></button>
+        <div class="cv-row cv-result">
+          <span class="cv-lab" id="cv-out-l">You get</span>
+          <div class="cv-line">
+            <output id="cv-out" class="cv-num" aria-labelledby="cv-out-l" aria-live="polite">0</output>
+            <button type="button" class="cv-asset" id="cv-to" aria-label="Choose what you want"></button>
+          </div>
+        </div>
+      </section>
+      <p class="cv-rate" id="cv-rate" aria-live="polite">&nbsp;</p>
+      <div class="cv-chips" id="cv-amts" role="group" aria-label="Quick amounts"></div>
+      <h2 class="cv-h">Quick pairs</h2>
+      <div class="cv-chips" id="cv-pairs" role="group" aria-label="Quick pairs"></div>
+      <div class="cv-actions"><button type="button" class="btn btn-ghost" id="cv-copy">Copy result</button></div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/converter.js"></script>
+</body>
+</html>

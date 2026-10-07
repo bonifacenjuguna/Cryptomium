@@ -32,12 +32,7 @@ self.addEventListener('install', event => {
       await caches.delete(SHELL); // never leave a half-saved version behind; the old version keeps running
       throw err;
     }
-    // Nice-to-have files (coin pages, icons) are saved on a short leash: a slow connection must never keep a finished
-    // update stuck in "downloading". Whatever did not arrive in time is simply fetched when first used.
-    await Promise.race([
-      Promise.all(OPTIONAL.map(url => fetch(new Request(url, { cache: 'reload' })).then(r => (r.ok ? cache.put(url, r) : null)).catch(() => {}))),
-      new Promise(resolve => setTimeout(resolve, 6000)),
-    ]);
+    await Promise.all(OPTIONAL.map(url => fetch(new Request(url, { cache: 'reload' })).then(r => (r.ok ? cache.put(url, r) : null)).catch(() => {})));
     // First install, or an upgrade from the old worker that had no update screen: take over at once.
     // Otherwise wait for the app to say when (see the 'message' handler).
     if (!self.registration.active || hadLegacy) await self.skipWaiting();
@@ -68,33 +63,37 @@ const fromShell = async request => {
   return (await (await caches.open(PAGES)).match(request, opts)) || (await (await caches.open(SHELL)).match(request, opts));
 };
 
-// Every page and script address carries ?v=<build> (see build.js). A file asked for with another build's stamp belongs to a
-// different version of the app than this worker: it is never answered from, or saved into, this version's caches.
-const foreignBuild = url => { const v = new URL(url).searchParams.get('v'); return Boolean(v) && v !== BUILD; };
+// Files and pages say which build they belong to with ?v=<build>. A response that belongs to another build must never
+// run against this build's saved files (that is how an old script ended up inside a new page while an update waited).
+const otherBuild = url => { const v = new URL(url, self.location.origin).searchParams.get('v'); return Boolean(v) && v !== BUILD; };
 
 async function page(event) {
   const { request } = event;
   const url = new URL(request.url);
-  const hit = await fromShell(url.pathname.replace(/\/+$/, '') || '/');
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+  const hit = await fromShell(path);
   if (hit) return hit;
+  // Every coin address is the same page (it reads the coin from the address). Use the saved copy of this build rather
+  // than whatever the network now serves, which may already be the next build.
+  if (/^\/coin\/[^/]+$/.test(path)) { const generic = await fromShell('/coin'); if (generic) return generic; }
   try {
     const res = await withTimeout(fetch(request), 5000);
     if (res && res.ok) {
-      // Only a page that belongs to THIS build may be kept; a page from a newer deploy would pull in new scripts next to old ones.
-      const copy = res.clone();
-      event.waitUntil(copy.text().then(html => (html.includes(`?v=${BUILD}`) ? caches.open(PAGES).then(c => c.put(url.pathname, new Response(html, { headers: res.headers }))) : null)).catch(() => {}));
+      const forText = res.clone();
+      const forCache = res.clone();
+      // Only keep a page that belongs to this build.
+      event.waitUntil(forText.text().then(html => { if (!/[?&]v=[0-9a-f]{8}/.test(html) || html.includes(`v=${BUILD}`)) return caches.open(PAGES).then(c => c.put(url.pathname, forCache)); }).catch(() => {}));
     }
     return res;
   } catch {
-    // Offline and never saved: any coin address still opens the generic coin page, which uses the saved prices.
-    if (/^\/coin\/[^/]+$/.test(url.pathname)) { const generic = await fromShell('/coin'); if (generic) return generic; }
     return (await fromShell('/offline')) || new Response(OFFLINE_HTML, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
 }
 
 async function asset(event) {
   const { request } = event;
-  if (foreignBuild(request.url)) { try { return await fetch(request); } catch { return Response.error(); } } // another build's file: straight from the network, never cached here
+  // A file asked for by a page of another build: straight from the network, never from or into this build's cache.
+  if (otherBuild(request.url)) { try { return await fetch(request); } catch { return Response.error(); } }
   const hit = await fromShell(request);
   if (hit) return hit;
   try {

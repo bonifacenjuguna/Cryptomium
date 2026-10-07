@@ -11,7 +11,6 @@ import { LESSONS, CATS, TERMS } from './learn-content.js';
 import { updates } from './pwa.js';
 import { sanitize as sanitizeLedger } from './ledger.js';
 import * as net from './net.js';
-import { lockConfig, lockSupported, enableLock, verifyOwner, disableLock, setLockAfter, lockNow } from './lock.js';
 
 const $ = id => document.getElementById(id);
 const page = document.body.dataset.page;
@@ -255,7 +254,8 @@ let alPick = null;
 function paintAlertHint() {
   const t = alPick ? alPick.get() : '';
   const l = live.get(t);
-  $('al-code').textContent = currency.code;
+  const codeEl = $('al-code');
+  if (codeEl) codeEl.textContent = currency.code;
   if (!l) { $('al-now').textContent = ' '; return; }
   const now = money(l.price, { stable: l.stable });
   const k = $('al-dir').value;
@@ -415,7 +415,9 @@ function initAlerts() {
     const k = $('al-dir').value;
     const noPrice = k === 'ath' || k === 'atl';
     $('al-price-fld').hidden = noPrice;
-    $('al-price-l').textContent = k === 'move' ? 'Move in 24 hours' : `Price in ${currency.code}`;
+    const lab = $('al-price-l');
+    if (k === 'move') lab.textContent = 'Move in 24 hours';
+    else { lab.textContent = 'Price in '; const code = el('b', '', currency.code); code.id = 'al-code'; lab.append(code); }
     $('al-sym').textContent = k === 'move' ? '%' : currencySymbol(currency.code).slice(0, 4);
     $('al-price').placeholder = k === 'move' ? '5' : '0.00';
     document.querySelectorAll('#al-types [data-kind]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.kind === k)));
@@ -511,8 +513,6 @@ function exportData() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  try { store.set('cm-last-backup', String(Date.now())); } catch { /* ignore */ }
-  paintBackup();
   flashSaved('Backup downloaded');
 }
 async function importData(file) {
@@ -548,49 +548,14 @@ async function importData(file) {
     flashSaved('That file is not a Cryptomium backup');
   }
 }
-function paintBackup() {
-  const n = Number(store.get('cm-last-backup') || 0);
-  const t = $('backup-last');
-  if (t) t.textContent = n ? 'Last backup from this device: ' + new Date(n).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '.' : 'No backup made on this device yet.';
-}
-function initBackup() {
-  paintBackup();
-  $('export-btn').addEventListener('click', exportData);
-  $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
-}
-
-// App lock page: set up, change and remove the phone-unlock gate (see js/lock.js).
-async function initLock() {
-  const sw = $('lock-switch'), text = $('lock-text'), opts = $('lock-opts');
-  const supported = await lockSupported();
-  const paint = () => {
-    const on = Boolean(lockConfig());
-    switchOn(sw, on);
-    opts.hidden = !on;
-    sw.disabled = !supported && !on;
-    text.textContent = on ? 'On. Asks for your phone\u2019s unlock when you open the app.' : supported ? 'Off.' : 'This phone or browser has no screen lock, fingerprint or face unlock available for apps.';
-    const after = lockConfig()?.after ?? 60;
-    $('lock-after').querySelectorAll('[data-value]').forEach(b => b.setAttribute('aria-checked', String(Number(b.dataset.value) === after)));
-  };
-  paint();
-  sw.addEventListener('click', async () => {
-    if (sw.disabled) return;
-    try {
-      if (lockConfig()) { await verifyOwner(); disableLock(); flashSaved('App lock off'); }
-      else { await enableLock(60); flashSaved('App lock on'); }
-    } catch { text.textContent = 'Not changed. Your phone\u2019s unlock was cancelled or did not work.'; return; }
-    paint();
-  });
-  $('lock-after').querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => { setLockAfter(Number(b.dataset.value)); paint(); flashSaved(); }));
-  $('lock-now').addEventListener('click', lockNow);
-}
-
 function initData() {
   renderStore();
   onCurrency(renderStore);
   document.addEventListener('cm:targets', renderStore);
   document.addEventListener('cm:holdings', renderStore);
   onFavs(renderStore);
+  $('export-btn').addEventListener('click', exportData);
+  $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
   const reset = $('reset-all');
   let armed = null;
   reset.addEventListener('click', () => {
@@ -699,7 +664,7 @@ function paintUpdates() {
     case 'applying': title = 'Installing\u2026'; sub = 'The app restarts on this screen.'; label = 'Updating\u2026'; busy = true; bar = true; break;
     case 'ready':
       title = 'Update ready';
-      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs when you next open or leave the app.' : 'Tap Update now when you are ready.');
+      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs by itself when you are not busy, or when you leave the app.' : 'Tap Update now when you are ready.');
       label = 'Update now'; action = () => updates.apply(); break;
     case 'uptodate': title = "You're up to date"; sub = `Version ${u.version} is the latest.`; break;
     case 'failed': {
@@ -772,9 +737,6 @@ async function boot() {
   if (page === 'watchlist') initWatchlist();
   if (page === 'alerts') initAlerts();
   if (page === 'data') initData();
-  if (page === 'backup') initBackup();
-  if (page === 'lock') initLock();
-  if (page === 'notifications') initNotifCard();
   if (page === 'learn') initLearn();
   if (page === 'sources') initSources();
   if (page === 'advanced') initAdvanced();

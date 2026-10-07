@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { open } from './harness.mjs';
+const h = await open({ standalone: true }); const { page, url, errs } = h;
+await page.goto(url + '/app?go=/converter'); await page.waitForTimeout(3500);
+const f = page.frames().filter(x => x.url().endsWith('/converter')).pop();
+const out = () => f.locator('#cv-out').textContent();
+console.log('rate:', await f.locator('#cv-rate').textContent());
+await f.fill('#cv-amt', '2'); await page.waitForTimeout(300);
+console.log('2 BTC ->', await out());
+assert.match(await out(), /^200,00\d\.\d+|^200,002\.47$/, 'BTC priced from live data');
+await f.tap('#cv-swap'); await page.waitForTimeout(300);
+console.log('after swap:', await f.locator('#cv-from').textContent(), '->', await f.locator('#cv-to').textContent(), await out());
+await f.tap('#cv-to'); await page.waitForTimeout(600);
+const sheet = await f.evaluate(() => ({ open: !!document.querySelector('.sheet, [role=dialog]'), groups: [...document.querySelectorAll('.sheet-group')].map(g => g.textContent) }));
+console.log('picker:', JSON.stringify(sheet));
+assert.ok(sheet.open && sheet.groups.includes('Crypto') && sheet.groups.includes('Currencies'));
+await f.locator('.sheet li, [role=dialog] li').filter({ hasText: 'ETH' }).first().tap(); await page.waitForTimeout(400);
+console.log('picked ETH:', await f.locator('#cv-to').textContent(), await out());
+
+console.log('errors', errs);
+await h.close();

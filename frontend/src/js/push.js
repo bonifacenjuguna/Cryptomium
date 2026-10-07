@@ -227,15 +227,12 @@ export async function syncNow({ force = false } = {}) {
   if (!c || Notification.permission !== 'granted' || navigator.onLine === false) return false;
   if (syncing) return syncing;
   const body = { prefs: wantedPrefs(), targets: armedAlerts() };
-  if (!force && ls.get(LAST_KEY) === fingerprint(body)) {
-    // Nothing new to send, but still ask now and then which alerts fired while the app was closed.
-    if (Date.now() - (ls.get(SYNCED_KEY) || 0) < PASSIVE_SYNC_MS) return true;
-  }
   syncing = (async () => {
     try {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg && (await reg.pushManager.getSubscription());
-      if (!sub) { await enable(); return true; }   // the browser dropped the subscription: quietly make a new one
+      if (!sub) { await enable(); return true; }   // the browser dropped the subscription (a Repair does this): quietly make a new one
+      if (!force && ls.get(LAST_KEY) === fingerprint(body) && Date.now() - (ls.get(SYNCED_KEY) || 0) < PASSIVE_SYNC_MS) return true; // nothing new, and asked recently
       const send = { ...body, subscription: sub.toJSON() };
       const r = await call('PUT', '/api/push/devices/me', send, c);
       if (r.status === 401) { ls.del(KEY); await register(sub, c.key || (await serverKey())); return true; } // the backend forgot this device

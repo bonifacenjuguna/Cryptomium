@@ -1,0 +1,22 @@
+import { open } from './harness.mjs';
+const h = await open({ standalone: false }); const { page, url, state } = h;
+const A = '/tmp/feA/dist', B = '/tmp/feB/dist';
+state.setDist(A); await page.addInitScript(() => { try { localStorage.setItem('cm-update-mode', 'manual'); } catch {} });
+await page.goto(url + '/markets'); await page.waitForTimeout(4000); await page.evaluate(() => navigator.serviceWorker.ready); await page.waitForTimeout(1500);
+const info = () => page.evaluate(async () => ({ cfg: window.CRYPTOMIUM.version + '/' + window.CRYPTOMIUM.build, mark: window.__MARK, caches: (await caches.keys()).sort(), sw: (await navigator.serviceWorker.getRegistration()).active?.state + '|waiting:' + !!(await navigator.serviceWorker.getRegistration()).waiting }));
+console.log('1. running A      ', JSON.stringify(await info()));
+state.setDist(B);
+await page.evaluate(async () => { const m = await import('/js/pwa.js'); window.__upd = m.updates; await m.updates.check(); });
+await page.waitForTimeout(3500);
+console.log('2. B downloaded   ', JSON.stringify(await page.evaluate(async () => ({ status: __upd.get().status, latest: __upd.get().latest, caches: (await caches.keys()).sort(), waiting: !!(await navigator.serviceWorker.getRegistration()).waiting }))));
+// mixed test: a page the worker has not saved goes to the network (which is now B)
+await page.goto(url + '/coin/ZZZ'); await page.waitForTimeout(2500);
+console.log('3. uncached page while A active + B deployed:', JSON.stringify(await page.evaluate(() => ({ htmlRefs: [...document.querySelectorAll('script[src]')].map(s => s.src.split('/').pop()).filter(x => /config|coin/.test(x)), cfgVersion: window.CRYPTOMIUM && window.CRYPTOMIUM.version, coinJsMark: window.__MARK }))));
+await page.goto(url + '/markets'); await page.waitForTimeout(2500);
+await page.evaluate(async () => { const m = await import('/js/pwa.js'); window.__upd = m.updates; });
+console.log('4. status before apply', await page.evaluate(() => __upd.get().status));
+await page.evaluate(() => __upd.apply());
+await page.waitForTimeout(4000);
+console.log('5. after apply    ', JSON.stringify(await info()));
+console.log('   updated note:', await page.evaluate(() => sessionStorage.getItem('cm-updated')));
+await h.close();
