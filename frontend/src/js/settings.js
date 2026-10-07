@@ -4,6 +4,7 @@ import {
   money, pct, el, logoEl, isFav, toggleFav, onFavs, favCount, ago, setNum, holdings, ledger, setLive,
 } from './common.js';
 import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime, describe } from './targets.js';
+import * as push from './push.js';
 import { openSheet, coinPicker } from './ui.js';
 import { createChart } from './chart.js';
 import { LESSONS, CATS, TERMS } from './learn-content.js';
@@ -254,8 +255,19 @@ function paintAlertHint() {
   const t = alPick ? alPick.get() : '';
   const l = live.get(t);
   $('al-code').textContent = currency.code;
-  $('al-now').textContent = l ? `${t} is ${money(l.price, { stable: l.stable })} right now.` : ' ';
-  if (l) $('al-price').placeholder = money(l.price, { stable: l.stable }).replace(/[^\d.,]/g, '');
+  if (!l) { $('al-now').textContent = ' '; return; }
+  const now = money(l.price, { stable: l.stable });
+  const k = $('al-dir').value;
+  const typed = parseNum($('al-price').value);
+  let line = `${t} is ${now} right now.`;
+  if ((k === 'above' || k === 'below') && typed > 0) {
+    const away = ((typed / currency.rate - l.price) / l.price) * 100;
+    const wrong = (k === 'above' && away <= 0) || (k === 'below' && away >= 0);
+    line = wrong ? `${t} is already ${k === 'above' ? 'above' : 'below'} that. Pick a ${k === 'above' ? 'higher' : 'lower'} price.` : `${t} is ${now} now. That is ${Math.abs(away).toFixed(1)}% ${away > 0 ? 'higher' : 'lower'}.`;
+  } else if (k === 'move' && typed > 0) line = `You will be told if ${t} moves ${typed}% or more in 24 hours.`;
+  else if (k === 'ath') line = `You will be told when ${t} sets a new all-time high.`;
+  else if (k === 'atl') line = `You will be told when ${t} sets a new all-time low.`;
+  $('al-now').textContent = line;
 }
 
 function renderTargets() {
@@ -279,6 +291,10 @@ function renderTargets() {
       meta.textContent = `${Math.abs(away).toFixed(2)}% away. Now ${money(l.price, { stable })}`;
     } else meta.textContent = 'Watching';
     body.append(meta);
+    if (!t.firedAt && (t.dir === 'above' || t.dir === 'below') && l?.price) {
+      const away = Math.abs(((t.price - l.price) / l.price) * 100);   // the closer, the fuller
+      const track = el('span', 'al-track'); const fill = el('i'); fill.style.width = Math.max(4, Math.min(100, 100 - away * 2)) + '%'; track.append(fill); body.append(track);
+    }
     const actions = el('span', 'al-actions');
     if (t.firedAt) {
       const re = el('button', 'btn btn-ghost btn-sm', 'Watch again'); re.type = 'button';
@@ -304,20 +320,90 @@ function updateTargetMeta() {
   });
 }
 
-function paintNotif() {
-  const btn = $('notif-btn'), text = $('notif-text');
-  if (!btn || !text) return;
-  if (!('Notification' in window)) { btn.hidden = true; text.textContent = 'This browser cannot show notifications. You will still see a message on the page.'; return; }
-  const p = Notification.permission;
-  btn.hidden = p !== 'default';
-  text.textContent = p === 'granted' ? 'On. You will get a notification when an alert is reached.'
-    : p === 'denied' ? 'Blocked in your browser settings. You will still see a message on the page.'
-      : 'Get a notification when an alert is reached.';
+// Notifications card (Price alerts page): real switches. Push on/off, the channel's milestone alerts, and the
+// in-app sound and vibration, each remembered and each with its own state.
+const switchOn = (btn, on) => btn.setAttribute('aria-checked', String(on));
+async function paintNotif() {
+  const sw = $('notif-switch'), text = $('notif-text');
+  if (!sw || !text) return;
+  const s = await push.getState();
+  const on = s.status === 'on';
+  switchOn(sw, on);
+  sw.disabled = ['unsupported', 'unavailable', 'install'].includes(s.status);
+  $('push-prefs').hidden = !on;
+  $('notif-fine').hidden = s.status === 'unsupported' || s.status === 'unavailable';
+  text.textContent = {
+    on: 'On. Alerts reach you even when Cryptomium is closed.',
+    off: 'Off. Turn on to be told with the app closed.',
+    blocked: 'Blocked in your phone or browser settings. Allow notifications for Cryptomium there, then switch this on.',
+    install: push.reasonText('install'),
+    unsupported: 'This browser cannot show notifications. You still get a message in the app.',
+    unavailable: 'Not available right now. You still get a message in the app.',
+  }[s.status];
+  if (on) {
+    switchOn($('ms-switch'), s.milestones);
+    $('ms-scope-row').hidden = !s.milestones;
+    switchOn($('ms-starred'), s.scope === 'starred');
+    $('ms-scope-hint').textContent = favCount() ? 'Skip milestones for coins you have not starred.' : 'Star some coins first, or this sends nothing.';
+  }
+  document.querySelectorAll('#push-card [data-toggle]').forEach(b => switchOn(b, Boolean(prefs.get(b.dataset.toggle))));
+}
+
+/** After a new alert: explain why notifications help and ask, but only if it makes sense and not too often. */
+async function offerPush() {
+  if (document.querySelector('.push-offer') || !(await push.shouldOffer())) return;
+  $('al-error').after(push.offerCard());
+}
+
+function initNotifCard() {
+  if (!$('notif-switch')) return;
+  const sw = $('notif-switch');
+  sw.addEventListener('click', async () => {
+    if (sw.disabled) return;
+    const turningOn = sw.getAttribute('aria-checked') !== 'true';
+    sw.disabled = true;
+    switchOn(sw, turningOn);                    // answers the tap at once; the real result repaints below
+    if (turningOn) {
+      const r = await push.enable();
+      await paintNotif();
+      if (!r.ok) $('notif-text').textContent = push.reasonText(r.reason);
+      else flashSaved('Notifications on');
+    } else {
+      await push.disable();
+      await paintNotif();
+      flashSaved('Notifications off');
+    }
+    sw.disabled = false;
+    paintNotif();
+  });
+  $('notif-test').addEventListener('click', async () => {
+    const b = $('notif-test');
+    b.disabled = true;
+    const r = await push.sendTest();
+    b.disabled = false;
+    if (r.ok) flashSaved('Test sent');
+    else if (r.reason === 'gone') { await paintNotif(); $('notif-text').textContent = 'This device was no longer registered. Switch notifications on again.'; }
+    else $('notif-text').textContent = r.reason === 'wait' ? 'Wait a few seconds before sending another test.' : push.reasonText(r.reason);
+  });
+  const savePrefs = async () => {
+    const r = await push.setMilestones({ milestones: $('ms-switch').getAttribute('aria-checked') === 'true', scope: $('ms-starred').getAttribute('aria-checked') === 'true' ? 'starred' : 'all' });
+    if (!r.ok) $('notif-text').textContent = push.reasonText(r.reason);
+    await paintNotif();
+  };
+  for (const id of ['ms-switch', 'ms-starred']) $(id).addEventListener('click', () => { switchOn($(id), $(id).getAttribute('aria-checked') !== 'true'); savePrefs(); });
+  document.querySelectorAll('#push-card [data-toggle]').forEach(b => b.addEventListener('click', () => {
+    prefs.set(b.dataset.toggle, !prefs.get(b.dataset.toggle));
+    if (b.dataset.toggle === 'sound' && prefs.get('sound')) chime();
+    if (b.dataset.toggle === 'haptics' && prefs.get('haptics')) { try { navigator.vibrate?.(30); } catch { /* not supported */ } }
+    paintNotif(); flashSaved();
+  }));
+  document.addEventListener('cm:push', paintNotif);
+  paintNotif();
 }
 
 function initAlerts() {
   const fromUrl = (new URLSearchParams(location.search).get('coin') || '').toUpperCase();
-  alPick = coinPicker($('al-coin'), { coins, live, value: coins.some(c => c.ticker === fromUrl) ? fromUrl : (coins[0]?.ticker || ''), placeholder: 'Choose a coin', onChange: () => paintAlertHint() });
+  alPick = coinPicker($('al-coin'), { coins, live, value: coins.some(c => c.ticker === fromUrl) ? fromUrl : (coins[0]?.ticker || ''), placeholder: 'Choose a coin', onChange: () => { paintAlertHint(); $('al-dir') && $('al-dir').dispatchEvent(new Event('change')); } });
   onCurrency(() => { paintAlertHint(); renderTargets(); });
   paintAlertHint();
   renderTargets();
@@ -326,11 +412,32 @@ function initAlerts() {
 
   const syncKind = () => {
     const k = $('al-dir').value;
-    $('al-price-fld').hidden = k === 'ath' || k === 'atl';
-    $('al-price-l').textContent = k === 'move' ? 'Move in 24h (%)' : `Price in ${currency.code}`;
-    $('al-price').placeholder = k === 'move' ? 'e.g. 5' : 'Price';
+    const noPrice = k === 'ath' || k === 'atl';
+    $('al-price-fld').hidden = noPrice;
+    $('al-price-l').textContent = k === 'move' ? 'Move in 24 hours' : `Price in ${currency.code}`;
+    $('al-sym').textContent = k === 'move' ? '%' : currencySymbol(currency.code).slice(0, 4);
+    $('al-price').placeholder = k === 'move' ? '5' : '0.00';
+    document.querySelectorAll('#al-types [data-kind]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.kind === k)));
+    paintChips();
+    paintAlertHint();
   };
-  $('al-dir').addEventListener('change', syncKind);
+  const num = v => String(Number(Number(v).toPrecision(6)));
+  function paintChips() {
+    const k = $('al-dir').value;
+    const box = $('al-chips');
+    const l = live.get(alPick ? alPick.get() : '');
+    let list = [];
+    if (k === 'move') list = [3, 5, 10, 15].map(p => ({ t: p + '%', v: String(p) }));
+    else if ((k === 'above' || k === 'below') && l?.price) {
+      const sign = k === 'above' ? 1 : -1;
+      list = [5, 10, 20, 50].map(p => ({ t: (sign > 0 ? '+' : '\u2212') + p + '%', v: num(l.price * (1 + sign * p / 100) * currency.rate) }));
+    }
+    box.hidden = !list.length;
+    box.replaceChildren(...list.map(c => { const b = el('button', 'al-chip', c.t); b.type = 'button'; b.addEventListener('click', () => { $('al-price').value = c.v; paintAlertHint(); }); return b; }));
+  }
+  document.querySelectorAll('#al-types [data-kind]').forEach(b => b.addEventListener('click', () => { $('al-dir').value = b.dataset.kind; syncKind(); }));
+  $('al-price').addEventListener('input', paintAlertHint);
+  onCurrency(syncKind);
   syncKind();
   $('al-form').addEventListener('submit', e => {
     e.preventDefault();
@@ -339,7 +446,7 @@ function initAlerts() {
     const ticker = alPick.get();
     const dir = $('al-dir').value;
     const shown = parseNum($('al-price').value);
-    if (dir === 'ath' || dir === 'atl') { addTarget({ ticker, dir, price: 0 }); return; }
+    if (dir === 'ath' || dir === 'atl') { addTarget({ ticker, dir, price: 0 }); offerPush(); return; }
     if (!(shown > 0)) { err.textContent = 'Enter a price greater than zero.'; err.hidden = false; return; }
     const usd = shown / currency.rate;
     const l = live.get(ticker);
@@ -347,6 +454,7 @@ function initAlerts() {
       if (!(shown >= 0.5 && shown <= 100)) { err.textContent = 'Enter a 24h move between 0.5 and 100 percent.'; err.hidden = false; return; }
       addTarget({ ticker, dir, price: shown });
       $('al-price').value = '';
+      offerPush();
       return;
     }
     if (l?.price && (dir === 'above' || dir === 'below')) {
@@ -355,12 +463,9 @@ function initAlerts() {
     }
     addTarget({ ticker, dir, price: usd });
     $('al-price').value = '';
+    offerPush();
   });
-  $('notif-btn').addEventListener('click', async () => {
-    try { await Notification.requestPermission(); } catch { /* older browsers */ }
-    paintNotif();
-  });
-  paintNotif();
+  initNotifCard();
   const clear = el('button', 'btn btn-ghost btn-sm', 'Clear reached');
   clear.type = 'button';
   clear.addEventListener('click', clearReached);
@@ -525,11 +630,6 @@ function initAdvanced() {
   initPreferences();
   $('clear-recent')?.addEventListener('click', () => { store.set('cm-recent', '[]'); flashSaved('Recent searches cleared'); });
   $('reload-now')?.addEventListener('click', () => location.reload());
-  $('notif-btn')?.addEventListener('click', async () => {
-    try { await Notification.requestPermission(); } catch { /* older browsers */ }
-    paintNotif();
-  });
-  paintNotif();
 }
 function initExperimental() {
   initPreferences();

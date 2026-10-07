@@ -2482,3 +2482,63 @@ html.is-app[data-depth="sub"] .site-header .brand { display: none; }
 html.in-shell[data-depth="sub"] :is(.search, .menu-toggle, .tape, .net-chip) { display: none !important; }
 html.in-shell[data-depth="sub"] .crumb { display: none; }
 html.in-shell[data-depth="sub"] .site-header .bar { min-height: 52px; }
+
+/* ---- v3.9.0: app notifications ---- */
+.push-offer { display: grid; gap: 10px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 16px; background: color-mix(in srgb, var(--accent) 9%, var(--surface)); margin-top: 12px; }
+.push-offer-title { font-size: 1rem; }
+.push-offer-text { margin: 0; color: var(--muted); font-size: .94rem; line-height: 1.45; }
+.push-offer-text.ok { color: var(--up); font-weight: 700; }
+.push-offer-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.push-offer .btn { min-height: 44px; }
+#push-prefs { display: grid; gap: 4px; }
+#push-card .s-actions .btn { min-height: 44px; }
+
+/* ---- v3.9.0: settings list, alert builder, pickers ---- */
+/* Settings hub: icon, name, arrow. Nothing else; people learn what is inside by opening it. */
+.hub-d, .hub-v { display: none !important; }
+.hub-card, html.is-app .hub-card { grid-template-columns: 44px minmax(0, 1fr) 14px; grid-template-areas: "ic t ch"; align-items: center; min-height: 60px; padding: 10px 14px; gap: 0 14px; }
+html.is-app .hub-card { grid-template-areas: "ic t ch"; }
+.hub-ic, html.is-app .hub-ic { grid-area: ic; grid-row: auto; width: 40px; height: 40px; border-radius: 12px; margin: 0; background: color-mix(in srgb, var(--accent) 20%, var(--surface)); color: var(--ink); }
+html.is-app .hub-ic { background: color-mix(in srgb, var(--accent) 20%, var(--surface)); color: var(--ink); }
+.hub-t { grid-area: t; font-size: 1.04rem; white-space: normal; }
+html.is-app .hub-card::after, .hub-card::after { content: ""; grid-area: ch; width: 8px; height: 8px; border-top: 2px solid var(--muted); border-right: 2px solid var(--muted); transform: rotate(45deg); justify-self: end; }
+html.is-app .hub { background: var(--surface); border-radius: 18px; overflow: hidden; border: 1px solid var(--line); gap: 0; }
+html.is-app .hub li + li .hub-card { border-top: 1px solid var(--line); }
+
+/* Pickers that replace the grey system dropdowns */
+.sel-btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 0 14px 0 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 700; max-width: 100%; -webkit-tap-highlight-color: transparent; }
+.sel-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sel-btn:active { transform: scale(.98); }
+.sel-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-chev { width: 8px; height: 8px; flex: none; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg) translateY(-2px); }
+.nw-pub-btn { min-width: 170px; }
+
+/* Alert builder */
+.al-builder { display: grid; gap: 16px; }
+.al-types { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; padding: 5px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--line); }
+.al-types button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; justify-items: center; align-content: center; gap: 5px; min-height: 58px; padding: 6px 2px; border-radius: 12px; font: 700 .7rem/1.1 var(--text); color: var(--muted); text-align: center; -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, transform .1s; }
+.al-types button:active { transform: scale(.95); }
+.al-types button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.al-types button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.al-types button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); }
+.al-input { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); transition: border-color .15s, box-shadow .15s; }
+.al-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.al-input i { font-style: normal; font-weight: 800; color: var(--muted); font-size: 1.1rem; }
+.al-input input { all: unset; flex: 1; min-width: 0; font: 800 1.5rem/1 var(--display); color: var(--ink); letter-spacing: -.01em; }
+.al-input input::placeholder { color: var(--muted); opacity: .55; }
+.al-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.al-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-weight: 800; font-size: .9rem; -webkit-tap-highlight-color: transparent; }
+.al-chip:active { transform: scale(.95); background: var(--surface-2); }
+.al-chip:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.al-preview { margin: -4px 0 0; min-height: 1.4em; color: var(--muted); font-size: .92rem; font-weight: 600; }
+.al-add { min-height: 52px; font-size: 1.02rem; width: 100%; }
+.al-body { gap: 6px; }
+.al-track { display: block; height: 5px; border-radius: 9px; background: var(--surface-2); overflow: hidden; }
+.al-track i { display: block; height: 100%; border-radius: 9px; background: var(--accent); transition: width .4s ease; }
+.al-row { padding-block: 14px; }
+.al-row.reached .al-track { display: none; }
+@media (max-width: 380px) { .al-types button { font-size: .64rem; } }
+.fld .al-input input, html.is-app .fld .al-input input { all: unset; flex: 1; min-width: 0; height: auto; padding: 0; border: 0; background: transparent; font: 800 1.5rem/1 var(--display); color: var(--ink); letter-spacing: -.01em; }
+.fld .al-input input::placeholder { color: var(--muted); opacity: .55; }
+html.is-app .fld .al-input input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { background: transparent !important; border: 0 !important; border-radius: 0; height: auto; padding: 0; width: auto; flex: 1; min-width: 0; }
+.al-input { min-width: 0; max-width: 100%; }

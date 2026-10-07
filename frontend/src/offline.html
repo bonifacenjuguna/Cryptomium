@@ -2,23 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f2b01e">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css">
-  <script src="/theme-init.js"></script>
-  <title>Offline | {{BRAND}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090f15">
   <meta name="robots" content="noindex">
+  <title>Offline | {{BRAND}}</title>
+  <style>
+    :root { color-scheme: dark light; --bg:#090f15; --card:#121b25; --line:#223142; --ink:#f1f5f9; --muted:#8fa1b3; --accent:#f2b01e; --accent-ink:#1b1300; }
+    @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f1f3f6; --card:#fff; --line:#dbe1e8; --ink:#0d1722; --muted:#5b6b7b; } }
+    :root[data-theme="light"] { --bg:#f1f3f6; --card:#fff; --line:#dbe1e8; --ink:#0d1722; --muted:#5b6b7b; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    main { min-height: 100%; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); }
+    .card { width: min(100%, 380px); text-align: center; display: grid; gap: 14px; justify-items: center; }
+    .badge { position: relative; width: 96px; height: 96px; display: grid; place-items: center; border-radius: 28px; background: var(--card); border: 1px solid var(--line); }
+    .badge::after { content: ""; position: absolute; inset: -10px; border-radius: 36px; border: 2px solid var(--accent); opacity: .0; animation: ping 2.4s ease-out infinite; }
+    @keyframes ping { 0% { transform: scale(.88); opacity: .55; } 80%, 100% { transform: scale(1.1); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .badge::after { animation: none; } }
+    .badge svg { width: 46px; height: 46px; }
+    h1 { margin: 6px 0 0; font-size: 1.55rem; line-height: 1.15; letter-spacing: -.02em; }
+    p { margin: 0; color: var(--muted); }
+    .keeps { width: 100%; margin-top: 4px; padding: 4px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); text-align: left; }
+    .keeps div { display: flex; align-items: center; gap: 10px; padding: 11px 0; font-size: .94rem; }
+    .keeps div + div { border-top: 1px solid var(--line); }
+    .keeps i { width: 8px; height: 8px; border-radius: 50%; background: #2fbf85; flex: none; }
+    .actions { width: 100%; display: grid; gap: 10px; margin-top: 6px; }
+    .btn { min-height: 48px; border-radius: 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 700 1rem/1 inherit; display: grid; place-items: center; text-decoration: none; cursor: pointer; }
+    .btn.go { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .btn:active { transform: scale(.98); }
+    #state { min-height: 1.4em; font-size: .9rem; }
+    #state.ok { color: #2fbf85; font-weight: 700; }
+  </style>
+  <script>
+    (function () { try { var p = JSON.parse(localStorage.getItem('cm-prefs') || '{}'); if (p.theme === 'light' || p.theme === 'dark') document.documentElement.setAttribute('data-theme', p.theme); if (p.accent) { var a = { azure:'#3b82f6', emerald:'#22c55e', violet:'#8b5cf6', rose:'#f43f5e', graphite:'#94a3b8' }[p.accent]; if (a) document.documentElement.style.setProperty('--accent', a); } } catch (e) {} })();
+  </script>
 </head>
 <body data-page="offline">
-<main id="main" class="offline">
-  <div class="offline-card">
-    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
-    <h1>This page isn't saved yet</h1>
-    <p>You're offline, and this screen hasn't been opened on this device before. Everything you have already opened still works, with the last prices we saved.</p>
-    <a class="btn btn-accent" href="/">Open Home</a>
-    <a class="btn btn-ghost" href="">Try again</a>
+<main id="main">
+  <div class="card" role="status">
+    <div class="badge" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><path d="M16 2l12 7v14l-12 7L4 23V9z" fill="#F2B01E"/><path d="M16 2l12 7-12 7L4 9z" fill="#fff" fill-opacity=".42"/><path d="M16 16v14L4 23V9z" fill="#000" fill-opacity=".16"/></svg>
+    </div>
+    <h1>You're offline</h1>
+    <p>This screen isn't saved on your phone yet. We'll bring it back the moment your connection returns.</p>
+    <div class="keeps" aria-label="Still available offline">
+      <div><i></i>Your watchlist, alerts and portfolio</div>
+      <div><i></i>Screens you have already opened</div>
+      <div><i></i>The last prices we saved</div>
+    </div>
+    <p id="state" aria-live="polite">Waiting for a connection&hellip;</p>
+    <div class="actions">
+      <button class="btn go" id="retry" type="button">Try again</button>
+      <a class="btn" href="/">Open Home</a>
+    </div>
   </div>
 </main>
+<script>
+  (function () {
+    var s = document.getElementById('state');
+    function back() { s.textContent = 'Back online. Opening\u2026'; s.className = 'ok'; setTimeout(function () { location.reload(); }, 450); }
+    document.getElementById('retry').addEventListener('click', function () {
+      s.textContent = 'Checking\u2026';
+      fetch('/version.json', { cache: 'no-store' }).then(function (r) { if (r.ok) back(); else s.textContent = 'Still offline.'; }).catch(function () { s.textContent = 'Still offline. Check your connection.'; });
+    });
+    addEventListener('online', back);
+    if (navigator.onLine) setTimeout(function () { fetch('/version.json', { cache: 'no-store' }).then(function (r) { if (r.ok) back(); }).catch(function () {}); }, 600);
+  })();
+</script>
 </body>
 </html>

@@ -1,6 +1,8 @@
-// Price targets that live on this device. While Cryptomium is open in a browser tab,
-// every price reading is checked against them; a target that is reached shows a message
-// and, if the visitor allowed it, a browser notification. They are never sent anywhere.
+// Price targets (alerts) that live on this device. While Cryptomium is open, every price reading is checked
+// against them; a target that is reached shows a message and, if the visitor allowed it, a notification.
+// If this device has turned on app notifications (push.js), the active alerts are also sent to the backend
+// so they can fire when the app is closed; in that case the backend sends the system notification and this
+// page only shows the in-app message.
 import { store, money, toast, prefs } from './common.js';
 import { loadMarket } from './intel.js';
 
@@ -22,7 +24,8 @@ function save(list) {
 /** dir: 'above' | 'below' (price is in US dollars), 'move' (price is a 24h change in percent), 'ath' | 'atl' (new all-time high / low, price unused). Returns the new target. */
 export function addTarget({ ticker, dir, price }) {
   const list = loadTargets();
-  const target = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ticker, dir, price, created: Date.now() };
+  const now = Date.now();
+  const target = { id: now.toString(36) + Math.random().toString(36).slice(2, 6), ticker, dir, price, created: now, armedAt: now };
   list.unshift(target);
   save(list.slice(0, 50));
   return target;
@@ -30,7 +33,19 @@ export function addTarget({ ticker, dir, price }) {
 export function removeTarget(id) { save(loadTargets().filter(t => t.id !== id)); }
 export function clearReached() { save(loadTargets().filter(t => !t.firedAt)); }
 export function rearm(id) {
-  save(loadTargets().map(t => (t.id === id ? { ...t, firedAt: undefined, firedPrice: undefined } : t)));
+  // armedAt is the alert's revision: a newer one tells the backend "this is armed again", an old copy never can.
+  save(loadTargets().map(t => (t.id === id ? { ...t, firedAt: undefined, firedPrice: undefined, armedAt: Date.now() } : t)));
+}
+
+/** Marks an alert as reached (the backend told us). Returns the alert if it was still armed here, otherwise null. */
+export function markFired(id, price) {
+  const list = loadTargets();
+  const t = list.find(x => x.id === id);
+  if (!t || t.firedAt) return null;
+  t.firedAt = Date.now();
+  t.firedPrice = Number.isFinite(price) ? price : undefined;
+  save(list);
+  return t;
 }
 
 export function chime() {
@@ -64,6 +79,9 @@ function announce(t, coin) {
     ? `${t.ticker} ${t.dir === 'above' ? 'is above' : 'is below'} ${money(t.price, { stable: coin.stable })}. Now ${money(coin.price, { stable: coin.stable })}.`
     : `${t.ticker} ${describe(t)}. Now ${money(coin.price, { stable: coin.stable })}.`;
   toast(text, { kind: t.dir === 'above' || t.dir === 'ath' || (t.dir === 'move' && coin.change24h > 0) ? 'up' : 'down', ms: 12000, href: '/coin/' + t.ticker });
+  // With app notifications on, the backend already sends the system notification (it works with the app closed),
+  // so showing one here too would be a duplicate.
+  if (document.documentElement.dataset.push === 'on') return;
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Cryptomium price alert', { body: text, tag: 'cm-' + t.id });
@@ -106,4 +124,6 @@ export function start() {
   if (started) return;
   started = true;
   document.addEventListener('cm:prices', e => { if (!e.detail.stale) check(e.detail); }); // never judge a target by a saved, old price
+  // The installed app keeps several screens open side by side: when one changes the alerts, the others repaint.
+  addEventListener('storage', e => { if (e.key === KEY) document.dispatchEvent(new CustomEvent('cm:targets')); });
 }

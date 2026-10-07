@@ -1,0 +1,26 @@
+{
+  "packageId": "com.cryptomium.app",
+  "host": "YOUR-SITE.example",
+  "name": "Cryptomium",
+  "launcherName": "Cryptomium",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#090f15",
+  "navigationColor": "#090f15",
+  "backgroundColor": "#090f15",
+  "startUrl": "/app?source=app",
+  "iconUrl": "https://YOUR-SITE.example/icons/icon-512.png",
+  "maskableIconUrl": "https://YOUR-SITE.example/icons/icon-maskable-512.png",
+  "monochromeIconUrl": "https://YOUR-SITE.example/icons/icon-monochrome-512.png",
+  "webManifestUrl": "https://YOUR-SITE.example/manifest.webmanifest",
+  "enableNotifications": true,
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "fallbackType": "customtabs",
+  "appVersionName": "3.9.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    { "name": "Price alerts", "short_name": "Alerts", "url": "/app?go=/settings/alerts" },
+    { "name": "Markets", "short_name": "Markets", "url": "/app?go=/markets" }
+  ]
+}

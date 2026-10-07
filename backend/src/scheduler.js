@@ -7,7 +7,11 @@ import { isMuted } from './coinView.js';
 import { buildCaption } from './caption.js';
 import { createAlertRunner } from './alertRunner.js';
 
-export function startScheduler(bot) {
+/**
+ * `onAlertSent({ ticker, price, direction })` runs after a milestone banner reached the channel (used for app push
+ * notifications). It is fire-and-forget: it can never delay, fail or repeat a channel alert.
+ */
+export function startScheduler(bot, { onAlertSent = null } = {}) {
   const runTick = createAlertRunner({
     coins: COINS,
     getChannelId: () => getState('channel_id'),
@@ -25,6 +29,11 @@ export function startScheduler(bot) {
       const image = await generateBannerImage({ ticker: coin.ticker, price, direction });
       const caption = buildCaption({ ticker: coin.ticker, price, direction });
       await bot.telegram.sendPhoto(channelId, { source: image }, { caption });
+      try {
+        Promise.resolve(onAlertSent?.({ ticker: coin.ticker, price, direction })).catch(err => console.warn('[scheduler] App notification failed:', err.message));
+      } catch (err) {
+        console.warn('[scheduler] App notification failed:', err.message);
+      }
     },
   });
 

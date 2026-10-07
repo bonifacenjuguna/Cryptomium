@@ -202,6 +202,21 @@ export const CONFIG = {
   // address is read that many entries from the END of X-Forwarded-For, because the
   // start of that header can be written by the visitor.
   trustedProxyHops: envNumber('TRUSTED_PROXY_HOPS', 1, { min: 0, max: 5 }),
+
+  // --- Web Push for the app (optional; off until both keys are set) ----------
+  // Create the pair once with: npm run vapid. The PUBLIC key is sent to browsers; the PRIVATE key must only
+  // ever live here, in the server's environment.
+  vapidPublicKey: (process.env.VAPID_PUBLIC_KEY || '').trim(),
+  vapidPrivateKey: (process.env.VAPID_PRIVATE_KEY || '').trim(),
+  // A contact the push services can use if something misbehaves: mailto:you@example.com or https://your-site
+  vapidSubject: (process.env.VAPID_SUBJECT || '').trim(),
+  // How often devices' price alerts are compared with live prices (only runs while some alert is armed).
+  pushCheckMs: envNumber('PUSH_CHECK_MS', 15_000, { min: 5_000 }),
+  pushMaxDevices: envNumber('PUSH_MAX_DEVICES', 20_000, { min: 1 }),
+  // A device that has not opened the app for this many days is forgotten.
+  pushDeviceTtlDays: envNumber('PUSH_DEVICE_TTL_DAYS', 120, { min: 7 }),
+  // Extra push-service hostnames to accept (comma-separated). Normally empty: Google, Mozilla, Apple and Microsoft are built in.
+  pushExtraHosts: (process.env.PUSH_EXTRA_HOSTS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
 };
 
 export function coingeckoHeaders() {

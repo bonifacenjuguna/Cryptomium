@@ -1,5 +1,6 @@
 // News: headlines from the backend's feed reader. Titles, a short excerpt and a link to the original.
 import { initChrome, getJSON, el, ago, onRecover, API } from './common.js';
+import { selectPicker } from './ui.js';
 
 const $ = id => document.getElementById(id);
 const CATS = [['', 'All'], ['bitcoin', 'Bitcoin'], ['ethereum', 'Ethereum'], ['altcoins', 'Altcoins'], ['defi', 'DeFi'], ['regulation', 'Regulation'], ['etf', 'ETFs'], ['exchanges', 'Exchanges'], ['security', 'Security'], ['network', 'Network'], ['macro', 'Macro']];
@@ -57,6 +58,7 @@ function paintCats() {
 
 async function boot() {
   await initChrome();
+selectPicker(document.getElementById('nw-pub'), { title: 'Publisher', searchable: false, className: 'nw-pub-btn' });
   readUrl();
   paintCats();
   $('nw-q').value = state.q;

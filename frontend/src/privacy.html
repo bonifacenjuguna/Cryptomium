@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Privacy | {{BRAND}}</title>
+  <meta name="description" content="What {{BRAND}} keeps on your device, and the little it stores on its server if you turn on notifications.">
+  <link rel="canonical" href="{{SITE_URL}}/privacy">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body>
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <div class="page-top"><h1>Privacy</h1><p class="lede">{{BRAND}} has no accounts and no ads, and it does not track you.</p></div>
+    <div class="settings-body" style="max-width:760px">
+      <section class="s-card"><h2>Kept only on your device</h2>
+        <p class="s-hint">Your theme and layout choices, currency, starred coins, portfolio holdings and price alerts are saved in your own browser or app. They are not sent to us, unless you turn on notifications (below).</p></section>
+      <section class="s-card"><h2>If you turn on notifications</h2>
+        <p class="s-hint">So an alert can reach you with the app closed, {{BRAND}} stores on its server: your device's push address and encryption keys (given by your browser, not your identity), a random device code, the price alerts you set (coin, type, target) and your milestone choice. There is no name, email, phone number or location. Notifications are delivered through your platform's push service (Google, Apple, Mozilla or Microsoft), which sees only an encrypted message.</p>
+        <p class="s-hint">Turning notifications off in Settings, Price alerts deletes all of this at once. A device that stays unused for four months is deleted automatically, and so is one that can no longer receive messages.</p></section>
+      <section class="s-card"><h2>What the site's server sees</h2>
+        <p class="s-hint">Like any website, the price service sees your IP address in its routine request logs and uses it only to limit abuse. Prices, news and charts come from public market-data providers; they are requested by our server, not by your browser.</p></section>
+      <section class="s-card"><h2>Questions or deletion</h2>
+        <p class="s-hint">Everything on your device can be cleared in Settings, Data and privacy. For anything else, message {{CHANNEL_HANDLE}} on Telegram.</p></section>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/page.js"></script>
+</body>
+</html>

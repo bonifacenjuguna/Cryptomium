@@ -1,0 +1,12 @@
+import { open } from './harness.mjs';
+const h = await open(); const { page, url, errs } = h;
+await page.goto(url + '/app?go=/settings/appearance'); await page.waitForTimeout(2500);
+const frames = () => page.frames().filter(f => f !== page.mainFrame());
+const snap = async () => { const out = {}; for (const f of frames()) out[new URL(f.url()).pathname] = await f.evaluate(() => [document.documentElement.dataset.accent, document.documentElement.dataset.theme, document.documentElement.dataset.size || '-', document.documentElement.dataset.density, document.documentElement.dataset.hide || '-']).catch(() => 'n/a'); out.SHELL = await page.evaluate(() => [document.documentElement.dataset.accent, document.documentElement.dataset.theme]); return out; };
+console.log('before', JSON.stringify(await snap()));
+const f = frames().find(x => x.url().includes('/settings/appearance'));
+await f.locator('[data-pref=accent] [data-value="emerald"]').click(); await page.waitForTimeout(600);
+await f.locator('[data-pref=theme] [data-value="light"]').click().catch(() => console.log('no theme control')); await page.waitForTimeout(600);
+console.log('after ', JSON.stringify(await snap()));
+console.log(errs);
+await h.close();

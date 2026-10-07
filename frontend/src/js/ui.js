@@ -10,7 +10,7 @@ const CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
  * A sheet that slides up on phones and drops in on larger screens.
  * items: [{ value, title, sub, lead (Node), disabled, group }]. Returns { close }.
  */
-export function openSheet({ title, items, value = null, searchLabel = 'Search', trigger = null, onPick, empty = 'Nothing matches that.', match = null }) {
+export function openSheet({ title, items, value = null, searchLabel = 'Search', trigger = null, onPick, empty = 'Nothing matches that.', match = null, searchable = true }) {
   const back = el('div', 'sheet-back');
   const sheet = el('div', 'sheet');
   sheet.setAttribute('role', 'dialog');
@@ -31,7 +31,7 @@ export function openSheet({ title, items, value = null, searchLabel = 'Search', 
   search.spellcheck = false;
   const ul = el('ul', 'sheet-list');
   ul.setAttribute('role', 'listbox');
-  sheet.append(head, search, ul);
+  if (searchable) sheet.append(head, search, ul); else sheet.append(head, ul);
   back.append(sheet);
   document.body.append(back);
   document.body.classList.add('sheet-open');
@@ -227,4 +227,31 @@ export function coinPicker(button, { coins, live = new Map(), value = '', placeh
     refresh: () => paint(),
     live,
   };
+}
+
+/**
+ * Replaces a native dropdown (the grey system one) with a button that opens the app's own bottom sheet.
+ * The real <select> stays in the page, hidden, and keeps working: it still holds the value and fires 'change'.
+ * Works with options that are added later (for example a publisher list that loads from the network).
+ */
+export function selectPicker(select, { title = '', searchable = false, className = '' } = {}) {
+  const btn = el('button', 'sel-btn ' + className);
+  btn.type = 'button';
+  btn.setAttribute('aria-haspopup', 'dialog');
+  const label = el('span', 'sel-label');
+  btn.append(label, el('span', 'sel-chev'));
+  const name = title || select.getAttribute('aria-label') || 'Choose';
+  btn.setAttribute('aria-label', name);
+  select.hidden = true;
+  select.after(btn);
+  const paint = () => { const o = select.selectedOptions[0]; label.textContent = o ? o.textContent : ''; };
+  btn.addEventListener('click', () => openSheet({
+    title: name, searchable, trigger: btn, value: select.value, searchLabel: 'Search',
+    items: [...select.options].map(o => ({ value: o.value, title: o.textContent, sub: o.dataset.sub || '' })),
+    onPick: v => { select.value = v; select.dispatchEvent(new Event('change', { bubbles: true })); paint(); },
+  }));
+  select.addEventListener('change', paint);
+  new MutationObserver(paint).observe(select, { childList: true, subtree: true });
+  paint();
+  return btn;
 }

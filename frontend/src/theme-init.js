@@ -13,7 +13,7 @@
   var framed = false;
   try { framed = window.top !== window; } catch (e) { framed = true; }
   var path0 = (location.pathname.replace(/\/+$/, '') || '/'), first0 = path0.split('/')[1] || '';
-  var isTab0 = ['', 'markets', 'screener', 'news', 'portfolio', 'coin'].indexOf(first0) >= 0;
+  var isTab0 = ['', 'markets', 'screener', 'news', 'portfolio', 'coin', 'settings'].indexOf(first0) >= 0; // settings: a notification can open Price alerts directly
   // Installed app on a phone: the five tabs live together in one shell page (/app). A tab page opened on its own
   // (old link, shortcut, deep link) is handed to the shell, which shows it in the right place.
   var appNow = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;

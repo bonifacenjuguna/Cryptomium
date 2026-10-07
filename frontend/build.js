@@ -190,6 +190,8 @@ const manifest = {
   scope: '/',
   display: 'standalone',
   display_override: ['standalone', 'minimal-ui'],
+  launch_handler: { client_mode: ['focus-existing', 'auto'] }, // a notification or link brings the open app forward instead of starting a second copy
+  orientation: 'portrait-primary',
   background_color: '#090f15',
   theme_color: '#090f15',
   categories: ['finance', 'news'],
@@ -202,7 +204,7 @@ const manifest = {
   shortcuts: [
     { name: 'Market overview', short_name: 'Overview', url: '/app?go=/markets', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
     { name: 'Screener', short_name: 'Screener', url: '/app?go=/screener', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
-    { name: 'News', short_name: 'News', url: '/app?go=/news', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    { name: 'Price alerts', short_name: 'Alerts', url: '/app?go=/settings/alerts', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
     { name: 'Portfolio', short_name: 'Portfolio', url: '/app?go=/portfolio', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
   ],
 };
@@ -219,7 +221,7 @@ for (const c of coins) {
 // Everything non-HTML that carries tokens.
 write('robots.txt', fill(fs.readFileSync(path.join(src, 'robots.txt'), 'utf8')).replace(/^Sitemap:.*\n?/m, siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''));
 if (siteUrl) {
-  const urls = ['/', '/markets', '/screener', '/news', '/compare', '/about', ...coins.map(c => `/coin/${c.ticker}`)]; // /portfolio is noindex, so it is not listed
+  const urls = ['/', '/markets', '/screener', '/news', '/compare', '/about', '/privacy', ...coins.map(c => `/coin/${c.ticker}`)]; // /portfolio is noindex, so it is not listed
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
 }
 
@@ -235,12 +237,25 @@ write(
   })};\n`
 );
 
+// Android app (Trusted Web Activity): the website must vouch for the app, or Chrome shows an address bar.
+// Set ANDROID_PACKAGE (for example com.cryptomium.app) and ANDROID_SHA256_CERTS (the signing certificate fingerprint(s)
+// from Play Console > App integrity, comma separated) in Vercel. With neither set, nothing is written.
+const androidPackage = String(process.env.ANDROID_PACKAGE || '').trim();
+const androidCerts = String(process.env.ANDROID_SHA256_CERTS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
+if (androidPackage && androidCerts.length) {
+  if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/i.test(androidPackage) || androidCerts.some(c => !/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(c))) {
+    console.error('[build] ANDROID_PACKAGE or ANDROID_SHA256_CERTS is malformed (fingerprints look like AA:BB:...:FF, 32 pairs).');
+    process.exit(1);
+  }
+  write('.well-known/assetlinks.json', JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: androidPackage, sha256_cert_fingerprints: androidCerts } }], null, 2));
+}
+
 // Service worker: knows exactly which files make one complete version of the app.
 const cleanUrl = rel => '/' + rel.replace(/\.html$/, '').replace(/(^|\/)index$/, '$1').replace(/\/$/, '');
 const walkFiles = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walkFiles(path.join(dir, e.name)) : [path.relative(dist, path.join(dir, e.name))]));
 const built = walkFiles(dist).map(f => f.split(path.sep).join('/'));
 const pagesList = built.filter(f => f.endsWith('.html') && !f.startsWith('coin/')).map(f => (f === 'index.html' ? '/' : cleanUrl(f)));
-const assetsList = built.filter(f => /\.(css|js|json|svg|webmanifest)$/.test(f) && !['sw.js', 'version.json'].includes(f)).map(f => '/' + f);
+const assetsList = built.filter(f => /\.(css|js|json|svg|webmanifest)$/.test(f) && !['sw.js', 'version.json'].includes(f) && !f.startsWith('.well-known/')).map(f => '/' + f);
 const precache = [...new Set([...pagesList, ...assetsList])].sort();
 const optional = [...coins.map(c => `/coin/${c.ticker}`), ...built.filter(f => /\.png$/.test(f) && f.startsWith('icons/')).map(f => '/' + f)];
 write(
@@ -251,6 +266,7 @@ write(
     .replace(/__API_ORIGIN__/g, apiOrigin)
     .replace('__PRECACHE__', JSON.stringify(precache))
     .replace('__OPTIONAL__', JSON.stringify(optional))
+    .replace('__OFFLINE_HTML__', () => JSON.stringify(fs.readFileSync(path.join(dist, 'offline.html'), 'utf8')))
 );
 
 console.log(`[build] Done. API: ${apiUrl} | site: ${siteUrl || '(not set)'} | ${coins.length} coin pages | v${pkgVersion} build ${ver} | ${precache.length} files saved for offline`);

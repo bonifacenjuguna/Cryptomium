@@ -1,5 +1,5 @@
-import { CONFIG } from './config.js';
-import { initDb, unmute, recentAlerts } from './db.js';
+import { CONFIG, COINS } from './config.js';
+import { initDb, unmute, recentAlerts, pool } from './db.js';
 import { initMuteExpiryListener } from './redisClient.js';
 import { createBot } from './bot.js';
 import { startScheduler } from './scheduler.js';
@@ -8,9 +8,36 @@ import { setSourceListener } from './priceService.js';
 import { createSourceAlerter } from './sourceAlerts.js';
 import { loadSavedPreferences } from './handlers/source.js';
 import { startApi } from './api.js';
+import { createWebPush } from './webpush.js';
+import { createPushService, createPgPushStore } from './push.js';
+
+// App notifications are optional: with no VAPID keys the website API simply reports them as unavailable.
+async function setupPush() {
+  if (!CONFIG.apiEnabled) return null;
+  if (!CONFIG.vapidPublicKey || !CONFIG.vapidPrivateKey) {
+    console.log('[push] App notifications are off (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY not set).');
+    return null;
+  }
+  try {
+    const webpush = createWebPush({ publicKey: CONFIG.vapidPublicKey, privateKey: CONFIG.vapidPrivateKey, subject: CONFIG.vapidSubject, extraHosts: CONFIG.pushExtraHosts });
+    const store = createPgPushStore(pool);
+    await store.init();
+    return deps => {
+      const service = createPushService({ store, webpush, coins: COINS, extraHosts: CONFIG.pushExtraHosts, maxDevices: CONFIG.pushMaxDevices, checkMs: CONFIG.pushCheckMs, deviceTtlDays: CONFIG.pushDeviceTtlDays, ...deps });
+      service.start();
+      console.log(`[push] App notifications are on (alerts checked every ${CONFIG.pushCheckMs}ms while any are armed).`);
+      return service;
+    };
+  } catch (err) {
+    console.error('[push] App notifications are OFF because setup failed:', err.message);
+    return null;
+  }
+}
 
 async function main() {
   await initDb();
+  const pushFactory = await setupPush();
+  let push = null; // set once the API (which owns the live price feed) is up
 
   const bot = createBot({
     onChannelConnected: async channelId => {
@@ -68,7 +95,7 @@ async function main() {
   });
   console.log('[index] Bot launched.');
 
-  const stopScheduler = startScheduler(bot);
+  const stopScheduler = startScheduler(bot, { onAlertSent: alert => push?.notifyMilestone(alert) });
   console.log(`[index] Scheduler started (every ${CONFIG.pollIntervalMs}ms).`);
 
   // Private liveness DM to the owner only — the channel stays untouched
@@ -98,7 +125,8 @@ async function main() {
   });
 
   // Read-only price API for the website dashboard.
-  const api = CONFIG.apiEnabled ? startApi({ recentAlerts }) : null;
+  const api = CONFIG.apiEnabled ? startApi({ recentAlerts, pushFactory }) : null;
+  push = api?.push ?? null;
 
   const shutdown = signal => {
     stopScheduler();

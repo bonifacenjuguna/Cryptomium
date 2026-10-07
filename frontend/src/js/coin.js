@@ -7,6 +7,7 @@ import { coinPicker } from './ui.js';
 import { pushLayer } from './backstack.js';
 import { createGauge, moodClass } from './gauge.js';
 import { loadTargets, addTarget, removeTarget, describe } from './targets.js';
+import * as push from './push.js';
 import { buildRows, insights, stableInsights, tag, distText, dateText, RULES } from './intel.js';
 import { ABOUT } from './about-coins.js';
 
@@ -312,7 +313,7 @@ function paintAlertCard(rebuild = false) {
 
 function setHint(text, bad = false) {
   const h = $('ac-hint');
-  h.textContent = text || 'We will tell you here, and with a notification, while Cryptomium is open.';
+  h.textContent = text || 'We will tell you here as soon as it is reached.';
   h.classList.toggle('bad', bad);
 }
 
@@ -354,9 +355,8 @@ function wireAlertCard() {
     addTarget({ ticker, dir: acDir, price: usd });
     $('ac-price').value = '';
     setHint(`Done. We will tell you when ${ticker} ${acDir === 'above' ? 'reaches' : 'drops to'} ${money(usd, { stable: state.coin?.stable })}.`);
-    if ('Notification' in window && Notification.permission === 'default') {
-      try { Notification.requestPermission(); } catch { /* optional */ }
-    }
+    // No permission pop-up out of nowhere: explain first, and only ask if the person agrees.
+    push.shouldOffer().then(yes => { if (yes && !document.querySelector('.push-offer')) $('ac-hint').after(push.offerCard()); });
   });
   document.addEventListener('cm:targets', paintAlertList);
   setInterval(paintAlertList, 30000);

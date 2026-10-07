@@ -131,7 +131,7 @@ function visibleCoins() {
       if (known) return (value(b, 'marketCap') ?? -1) - (value(a, 'marketCap') ?? -1) || popRank(a.ticker) - popRank(b.ticker);
       return popRank(a.ticker) - popRank(b.ticker);
     });
-    return dir === 1 ? list : list.reverse();
+    return list; // the default order is always biggest first
   }
   return list.sort((a, b) => {
     const x = value(a, key), y = value(b, key);
@@ -210,8 +210,9 @@ function wireTable() {
     const b = e.target.closest('[data-sort]');
     if (!b) return;
     const key = b.dataset.sort;
-    if (state.sort.key === key) state.sort.dir *= -1;
-    else state.sort = { key, dir: key === 'default' ? 1 : -1 };
+    if (key === 'default') state.sort = { key: 'default', dir: 1 }; // Rank always means BTC first, going down; it never flips upside down
+    else if (state.sort.key === key) state.sort.dir *= -1;
+    else state.sort = { key, dir: -1 };
     state.shown = PAGE;
     paintTable();
   });

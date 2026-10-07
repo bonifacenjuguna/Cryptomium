@@ -26,16 +26,26 @@
         <div class="s-head"><h1>Price alerts</h1><p class="lede">Get told when a coin reaches the price you set.</p></div>
         <section class="s-card" aria-labelledby="h-new">
           <h2 id="h-new">New alert</h2>
-          <form id="al-form" class="al-form" autocomplete="off" novalidate>
+          <form id="al-form" class="al-builder" autocomplete="off" novalidate>
             <div class="fld"><span>Coin</span><button class="cpk" id="al-coin" type="button"></button></div>
-            <label class="fld"><span>When it</span>
-              <select id="al-dir"><option value="above">Rises to or above</option><option value="below">Falls to or below</option><option value="move">Moves by % in 24h</option><option value="ath">Hits a new all-time high</option><option value="atl">Hits a new all-time low</option></select>
-            </label>
-            <label class="fld" id="al-price-fld"><span id="al-price-l">Price in <b id="al-code">USD</b></span><input id="al-price" type="text" inputmode="decimal" placeholder="Price" aria-label="Target price"></label>
-            <button class="btn btn-accent" type="submit">Add alert</button>
+            <div class="fld"><span>Tell me when it</span>
+              <div class="al-types" id="al-types" role="radiogroup" aria-label="Alert type">
+                <button type="button" role="radio" aria-checked="true" data-kind="above"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15l7-7 7 7"/></svg>Rises to</button>
+                <button type="button" role="radio" aria-checked="false" data-kind="below"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg>Falls to</button>
+                <button type="button" role="radio" aria-checked="false" data-kind="move"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M7 4 4 7M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3"/></svg>Moves 24h</button>
+                <button type="button" role="radio" aria-checked="false" data-kind="ath"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>New high</button>
+                <button type="button" role="radio" aria-checked="false" data-kind="atl"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V8M6 15l6 6 6-6M5 4h14"/></svg>New low</button>
+              </div>
+            </div>
+            <select id="al-dir" hidden aria-label="Alert type"><option value="above">Rises to or above</option><option value="below">Falls to or below</option><option value="move">Moves by % in 24h</option><option value="ath">Hits a new all-time high</option><option value="atl">Hits a new all-time low</option></select>
+            <div class="fld" id="al-price-fld"><span id="al-price-l">Price in <b id="al-code">USD</b></span>
+              <span class="al-input"><i id="al-sym">$</i><input id="al-price" type="text" inputmode="decimal" placeholder="0.00" aria-label="Target price" aria-describedby="al-now"></span>
+            </div>
+            <div class="al-chips" id="al-chips" role="group" aria-label="Quick targets"></div>
+            <p class="al-preview" id="al-now" aria-live="polite">&nbsp;</p>
+            <p class="s-error" id="al-error" role="alert" hidden></p>
+            <button class="btn btn-accent al-add" type="submit">Add alert</button>
           </form>
-          <p class="s-hint" id="al-now">&nbsp;</p>
-          <p class="s-error" id="al-error" role="alert" hidden></p>
         </section>
 
         <section class="s-card" aria-labelledby="h-list">
@@ -44,11 +54,32 @@
           <p class="empty" id="al-empty" hidden>No alerts yet. Add one above, or from any coin page.</p>
         </section>
 
-        <section class="s-card" aria-labelledby="h-notif">
+        <section class="s-card" id="push-card" aria-labelledby="h-notif">
           <h2 id="h-notif">Notifications</h2>
-          <p class="s-hint" id="notif-text">&nbsp;</p>
-          <div class="s-actions"><button type="button" class="btn btn-ghost" id="notif-btn">Allow notifications</button></div>
-          <p class="s-hint">Alerts are checked on this device while Cryptomium is open in a browser tab. They are never sent anywhere.</p>
+          <div class="s-row">
+            <div class="s-label"><b>Push notifications</b><span id="notif-text" aria-live="polite">&nbsp;</span></div>
+            <button type="button" class="switch" role="switch" id="notif-switch" aria-checked="false" aria-label="Push notifications"><span></span></button>
+          </div>
+          <div id="push-prefs" hidden>
+            <div class="s-row">
+              <div class="s-label"><b>Market milestones</b><span>Round-number alerts from our Telegram channel.</span></div>
+              <button type="button" class="switch" role="switch" id="ms-switch" aria-checked="false" aria-label="Market milestones"><span></span></button>
+            </div>
+            <div class="s-row" id="ms-scope-row" hidden>
+              <div class="s-label"><b>Only my starred coins</b><span id="ms-scope-hint">Skip milestones for coins you have not starred.</span></div>
+              <button type="button" class="switch" role="switch" id="ms-starred" aria-checked="false" aria-label="Only my starred coins"><span></span></button>
+            </div>
+            <div class="s-actions"><button type="button" class="btn btn-ghost" id="notif-test">Send a test notification</button></div>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Sound</b><span>A soft chime when an alert is reached while the app is open.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="sound" aria-checked="false" aria-label="Sound"><span></span></button>
+          </div>
+          <div class="s-row">
+            <div class="s-label"><b>Vibration</b><span>A short buzz with in-app alerts, where your phone allows it.</span></div>
+            <button type="button" class="switch" role="switch" data-toggle="haptics" aria-checked="false" aria-label="Vibration"><span></span></button>
+          </div>
+          <p class="s-hint" id="notif-fine">With push on, this device is registered with Cryptomium so alerts reach you with the app closed. We store the device's push address, your alerts and your milestone choice, with no account. Turning push off deletes it all.</p>
         </section>
 
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>

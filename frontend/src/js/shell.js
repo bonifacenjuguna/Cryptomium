@@ -50,8 +50,9 @@ function show() {
   }));
   root.dataset.tab = active;
   bar.querySelectorAll('a').forEach(a => { if (a.dataset.tab === active) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  const ui = (topOf(active) && topOf(active)._ui) || {}; // a screen that comes back with its menu open brings the bar's state back too
-  root.classList.toggle('shell-away', !!ui.away);
+  const top = topOf(active);
+  const ui = (top && top._ui) || {}; // a screen that comes back with its menu open brings the bar's state back too
+  root.classList.toggle('shell-away', !!ui.away || !!(top && top._hold)); // _hold: opened from the menu, so the bar stays away until you are back out
   root.classList.toggle('kb-open', !!ui.kb);
   try { topOf(active).contentWindow.focus(); } catch { /* ignore */ }
 }
@@ -72,7 +73,10 @@ function pushScreen(url, { animate = true, record = true } = {}) {
   const stack = stacks[active];
   const topPath = (() => { try { const l = topOf(active).contentWindow.location; return l.pathname + l.search; } catch { return ''; } })();
   if (topPath && path === topPath) return; // already there
+  const from = topOf(active);
   const f = makeFrame(active, path, true);
+  // Opened from the open menu (or from a screen that was): the tab bar stays hidden, like in a native app's drawer flow.
+  f._hold = !!(from && ((from._ui && from._ui.away) || from._hold));
   stack.push(f);
   show();
   if (animate && motion()) { f.classList.add('enter'); setTimeout(() => f.classList.remove('enter'), 320); }
@@ -170,7 +174,7 @@ addEventListener('message', e => {
   const isTop = from === active && frame === topOf(active);
   if (m.cm === 'ui') {                                            // a menu, sheet or the keyboard is open: the bar steps aside
     frame._ui = { away: !!m.away, kb: !!m.kb };
-    if (isTop) { root.classList.toggle('shell-away', !!m.away); root.classList.toggle('kb-open', !!m.kb); }
+    if (isTop) { root.classList.toggle('shell-away', !!m.away || !!frame._hold); root.classList.toggle('kb-open', !!m.kb); }
   } else if (m.cm === 'tab' && ORDER.includes(m.tab) && isTop) {   // a link to another tab
     if (m.tab === active) reselect(m.tab); else switchTo(m.tab);
   } else if (m.cm === 'push' && isTop && typeof m.url === 'string') {
@@ -180,8 +184,51 @@ addEventListener('message', e => {
   }
 });
 
+// Notifications. The service worker talks to this shell page only (screens inside it are not reachable by the worker):
+//   push  a message arrived while the app is open: hand it to the screen in front, which shows it in the app
+//   open  the person tapped a notification: show that screen on top of what they were doing, so Back returns there
+function openFromNotification(url) {
+  const path = clean(url);
+  if (!path) return;
+  const plain = path.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
+  const tab = Object.keys(ROOTS).find(t => ROOTS[t] === plain);
+  if (tab && !/[?]/.test(path)) { if (tab === active) reselect(tab); else switchTo(tab); return; }
+  pushScreen(path);
+}
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    const m = e.data;
+    if (!m || typeof m !== 'object') return;
+    if (m.cm === 'push' && m.msg && typeof m.msg === 'object') {
+      const f = topOf(active);
+      try { if (f && document.visibilityState === 'visible') f.contentWindow.postMessage({ cm: 'sw-push', msg: m.msg }, location.origin); } catch { /* screen still loading */ }
+    } else if (m.cm === 'open' && typeof m.url === 'string') {
+      openFromNotification(m.url);
+    }
+  });
+}
+
 // A new version of the app: this shell is the one page that is never reloaded by the pages inside it.
 if ('serviceWorker' in navigator) {
   const had = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) setTimeout(() => location.reload(), 400); });
 }
+
+// The shell page paints the tab bar, so it must follow the theme the person picks inside any screen (the gold
+// bar above the active tab used to stay gold). Screens save preferences; the shell hears it and restyles itself.
+const mq = matchMedia('(prefers-color-scheme: dark)');
+function syncTheme() {
+  let p = {};
+  try { p = JSON.parse(localStorage.getItem('cm-prefs') || '{}') || {}; } catch { /* defaults */ }
+  const resolved = p.theme === 'light' || p.theme === 'dark' ? p.theme : mq.matches ? 'dark' : 'light';
+  const set = (k, v) => (v == null ? root.removeAttribute(k) : root.setAttribute(k, v));
+  set('data-theme', resolved);
+  set('data-accent', p.accent || 'citrine');
+  set('data-motion', p.motion === false ? 'off' : null);
+  set('data-size', p.textSize === 'large' || p.textSize === 'larger' ? p.textSize : null);
+  set('data-palette', p.palette === 'clear' ? 'clear' : null);
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', resolved === 'dark' ? '#090f15' : '#f1f3f6');
+}
+addEventListener('storage', e => { if (e.key === 'cm-prefs' || e.key === null) syncTheme(); });
+mq.addEventListener && mq.addEventListener('change', syncTheme);

@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.9.0
+
+### App notifications (Web Push) and Android-readiness
+- Price alerts now reach the phone with the app closed: devices register a push subscription, the backend compares their alerts with live prices and sends encrypted Web Push (VAPID). Needs `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (create with `npm run vapid`); without them everything stays off and the app falls back to in-app alerts.
+- New `/api/push/*` routes (JSON only, device token, origin lock, rate limits, endpoint allow-list). No route sends to anyone but the caller.
+- Optional "Market milestones": the Telegram channel's round-number alerts can also arrive as notifications.
+- Service worker: shows pushes, tap opens the right screen inside the app (actions: View chart / Manage alerts), re-subscribes silently if the browser rotates the subscription.
+- Notification permission is asked after a short explanation, right after the first alert, never on first load.
+- Android wrapper prep: `launch_handler`, alerts shortcut, `/.well-known/assetlinks.json` generated from `ANDROID_PACKAGE` and `ANDROID_SHA256_CERTS`, `twa/` Bubblewrap config and guide, privacy page.
+
+### Fixes and polish
+- A preference, currency, watchlist or portfolio change in one app screen now reaches all the others (before, toggles looked saved but nothing else changed).
+- Tab bar stays hidden for screens opened from the menu, until you are back out.
+- Tab-bar accent follows the chosen theme and accent.
+- Settings list is icon, name and arrow only; notification switches (push, milestones, sound, vibration); price alert builder redesigned; publisher list uses the app's own picker.
+- Home order: Rank is always BTC first and can no longer flip.
+- Offline page redesigned and built into the service worker (no more bare "Offline" text).
+
 ## 3.8.3
 
 **New app icon, with Android themed icon support. Redeploy the frontend (the backend is unchanged apart from its version number).**

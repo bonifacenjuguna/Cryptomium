@@ -394,6 +394,7 @@ const favs = new Set((() => { try { return JSON.parse(store.get('cm-favs') || '[
 const favListeners = new Set();
 export const isFav = t => favs.has(t);
 export const favCount = () => favs.size;
+export const favList = () => [...favs];
 export const onFavs = fn => favListeners.add(fn);
 export function toggleFav(ticker) {
   favs.has(ticker) ? favs.delete(ticker) : favs.add(ticker);
@@ -1013,8 +1014,29 @@ export async function initChrome() {
   // Exchange rates arrive quietly; the currency follows when they do.
   getJSON('/api/rates').then(r => setRates(r.rates)).catch(() => {});
   import('./targets.js').then(m => m.start()).catch(() => {});
+  import('./push.js').then(m => m.start()).catch(() => {}); // app notifications: only acts when this device has turned them on
   return coins;
 }
 
 // v3.5.0: native-app touches (installed app only)
 try { initAppFeel(); } catch { /* never block the page */ }
+
+// ---------- Keeping every open screen in step ----------
+// In the installed app each tab is its own live screen, side by side. A choice made in one (theme, accent, text
+// size, hidden sections, currency, a starred coin) is saved to the device, and the browser then tells every OTHER
+// screen. Without this, a setting looked saved but nothing else in the app changed until a restart.
+addEventListener('storage', e => {
+  if (e.key === 'cm-prefs' || e.key === null) {
+    try { prefData = { ...PREF_DEFAULTS, ...JSON.parse(store.get('cm-prefs') || '{}') }; } catch { /* keep what we have */ }
+    if (!['auto', 'light', 'dark'].includes(prefData.theme)) prefData.theme = 'auto';
+    if (!['auto', 'comfortable', 'compact'].includes(prefData.density)) prefData.density = 'auto';
+    applyPrefs();
+    prefListeners.forEach(fn => fn('*', null));
+  }
+  if (e.key === 'cm-currency' || e.key === null) applyCurrency();
+  if (e.key === 'cm-favs' || e.key === null) {
+    try { const next = JSON.parse(store.get('cm-favs') || '[]'); favs.clear(); next.forEach(t => favs.add(t)); } catch { /* keep */ }
+    favListeners.forEach(fn => fn(null));
+  }
+  if (e.key === 'cm-portfolio' || e.key === null) document.dispatchEvent(new CustomEvent('cm:holdings'));
+});

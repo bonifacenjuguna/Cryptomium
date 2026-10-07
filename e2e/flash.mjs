@@ -1,0 +1,14 @@
+import { open } from './harness.mjs';
+const h = await open({ standalone: false }); const { page, url, errs } = h;
+await page.goto(url + '/settings/appearance'); await page.waitForTimeout(1200);
+const read = () => page.evaluate(() => ({ checked: document.querySelector('[data-toggle=flash]').getAttribute('aria-checked'), stored: JSON.parse(localStorage.getItem('cm-prefs')||'{}').flash, accent: document.documentElement.dataset.accent }));
+console.log('before', await read());
+await page.locator('[data-toggle=flash]').click(); await page.waitForTimeout(300);
+console.log('after toggle', await read());
+await page.locator('[data-toggle=flash]').click(); await page.waitForTimeout(300);
+console.log('after toggle 2', await read());
+const accents = await page.$$eval('[data-pref=accent] [data-value]', e => e.map(x => x.dataset.value));
+console.log('accents', accents);
+await page.locator('[data-pref=accent] [data-value="ocean"], [data-pref=accent] [data-value]:nth-child(3)').first().click(); await page.waitForTimeout(300);
+console.log('accent now', await read(), errs);
+await h.close();

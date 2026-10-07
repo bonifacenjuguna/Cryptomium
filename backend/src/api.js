@@ -13,9 +13,16 @@
 //   GET /api/logos/BTC.png     coin logo (the same files the banners use)
 //   GET /health                "ok" (handy for Railway health checks)
 //
-// It only READS the price cache the bot already keeps, so any number of
-// website visitors costs the same few price-source calls as the bot itself.
-// Nothing here can change a setting or post to Telegram.
+//   Push notifications (only when VAPID keys are configured; see push.js):
+//   GET    /api/push/key                the PUBLIC application server key
+//   POST   /api/push/devices            register a device's push subscription (returns its secret token)
+//   PUT    /api/push/devices/me         update subscription, preferences and the device's price alerts
+//   DELETE /api/push/devices/me         forget this device and its alerts
+//   POST   /api/push/devices/me/test    send one test notification to this device
+//
+// Everything above except /api/push/* only READS the price cache the bot already keeps, so any number of
+// website visitors costs the same few price-source calls as the bot itself. Nothing here can change a bot
+// setting or post to Telegram, and there is no endpoint that sends a notification to anyone else.
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -28,6 +35,7 @@ import { createLoader, createKeyedLoader, downsample } from './cache.js';
 import { buildSentiment } from './sentiment.js';
 import { fetchGlobal, buildBreadth } from './globalData.js';
 import { fetchNews } from './news.js';
+import { PushError } from './push.js';
 
 // History ranges offered to the website, with how long each reading is reused.
 // Longer ranges change slowly, so they are cached much longer.
@@ -182,6 +190,9 @@ export function createApiHandler({
   getNews = null,
   getHistory = null, // (ticker, rangeKey) -> { value, stale }
   getAlerts = null, //  ({ limit, ticker }) -> rows
+  push = null, // push service (see push.js); its routes exist only when this is set
+  allowWrite = () => true,    // stricter per-visitor limit for push writes
+  allowRegister = () => true, // strictest: creating a new device record
   proxyHops = 1,
   maxStreams = 1_500,
   streamLifetimeMs = 20 * 60_000,
@@ -226,8 +237,72 @@ export function createApiHandler({
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
     }
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', push ? 'GET, POST, PUT, DELETE, OPTIONS' : 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', push ? 'Content-Type, Authorization' : 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '600');
+  }
+
+  // Push writes carry a device secret, so when the site address is configured only that site may call them.
+  // (Browsers always send Origin on cross-site writes; a missing Origin means a script, not the app.)
+  function writeOriginOk(req) {
+    if (anyOrigin) return true;
+    const origin = req.headers.origin;
+    return Boolean(origin) && allowedOrigins.includes(origin.replace(/\/$/, ''));
+  }
+
+  async function readJsonBody(req, maxBytes = 16 * 1024) {
+    if (!/^application\/json(\s*;|$)/i.test(req.headers['content-type'] || '')) throw new PushError(415, 'Send JSON.');
+    const declared = Number(req.headers['content-length']);
+    if (Number.isFinite(declared) && declared > maxBytes) throw new PushError(413, 'Request is too large.');
+    const chunks = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += chunk.length;
+      if (size > maxBytes) { req.destroy(); throw new PushError(413, 'Request is too large.'); }
+      chunks.push(chunk);
+    }
+    try {
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('shape');
+      return body;
+    } catch {
+      throw new PushError(400, 'Invalid JSON.');
+    }
+  }
+
+  async function handlePush(req, res, url, ip) {
+    const NO_STORE = { 'Cache-Control': 'no-store' };
+    try {
+      if (url.pathname === '/api/push/key' && req.method === 'GET') {
+        return json(res, 200, { enabled: true, publicKey: push.publicKey }, { 'Cache-Control': 'public, max-age=3600' });
+      }
+      if (req.method === 'GET' || req.method === 'HEAD') return json(res, 404, { error: 'Not found.' });
+      if (!writeOriginOk(req)) return json(res, 403, { error: 'Not allowed from this site.' });
+      if (!allowWrite(ip)) return json(res, 429, { error: 'Too many requests. Try again in a minute.' }, { 'Retry-After': '60' });
+
+      if (url.pathname === '/api/push/devices' && req.method === 'POST') {
+        if (!allowRegister(ip)) return json(res, 429, { error: 'Too many requests. Try again in a minute.' }, { 'Retry-After': '60' });
+        const body = await readJsonBody(req);
+        return json(res, 201, await push.register(body), NO_STORE);
+      }
+      if (url.pathname === '/api/push/devices/me') {
+        if (req.method !== 'PUT' && req.method !== 'DELETE') return json(res, 405, { error: 'Method not allowed.' });
+        const device = await push.authenticate(req.headers.authorization);
+        if (req.method === 'DELETE') { await push.remove(device); res.writeHead(204, NO_STORE); return res.end(); }
+        return json(res, 200, await push.sync(device, await readJsonBody(req)), NO_STORE);
+      }
+      if (url.pathname === '/api/push/devices/me/test' && req.method === 'POST') {
+        const device = await push.authenticate(req.headers.authorization);
+        return json(res, 200, await push.test(device), NO_STORE);
+      }
+      return json(res, 404, { error: 'Not found.' });
+    } catch (err) {
+      if (err instanceof PushError) {
+        return json(res, err.status, { error: err.message }, err.status === 401 ? { ...NO_STORE, 'WWW-Authenticate': 'Bearer' } : NO_STORE);
+      }
+      console.error('[api] push request failed:', err.message);
+      return json(res, 500, { error: 'Server error.' });
+    }
   }
 
   function json(res, status, body, extra = {}) {
@@ -243,7 +318,8 @@ export function createApiHandler({
       res.writeHead(204);
       return res.end();
     }
-    if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'Method not allowed.' });
+    const isPush = url.pathname.startsWith('/api/push/');
+    if (req.method !== 'GET' && req.method !== 'HEAD' && !(isPush && push)) return json(res, 405, { error: 'Method not allowed.' });
 
     if (url.pathname === '/health') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -252,6 +328,11 @@ export function createApiHandler({
 
     if (!allow(clientIp(req, proxyHops))) {
       return json(res, 429, { error: 'Too many requests. Try again in a minute.' }, { 'Retry-After': '60' });
+    }
+
+    if (isPush) {
+      if (!push) return json(res, 404, { enabled: false, error: 'Notifications are not set up on this server.' }, { 'Cache-Control': 'public, max-age=300' });
+      return handlePush(req, res, url, clientIp(req, proxyHops));
     }
 
     if (url.pathname === '/api/prices') {
@@ -451,7 +532,7 @@ export function groupIntoCandles(points, count) {
 }
 
 /** Starts the API on CONFIG.port. Returns the server (call .close() to stop). */
-export function startApi({ recentAlerts }) {
+export function startApi({ recentAlerts, pushFactory = null }) {
   // Loaded on first use so the API module itself stays light (the logo code needs the canvas library).
   const ensureLogo = async ticker => (await import('./logoService.js')).ensureLogo(ticker);
   const hasLogo = async ticker => {
@@ -528,7 +609,15 @@ export function startApi({ recentAlerts }) {
     failTtlMs: 10_000,
   });
 
+  // Push notifications share the website's live price feed, so alerts are judged by exactly what visitors see.
+  const push = pushFactory
+    ? pushFactory({ getSnapshot, getMarket: async () => (await market()).value?.coins ?? null })
+    : null;
+
   const handler = createApiHandler({
+    push,
+    allowWrite: createRateLimiter({ limit: 30 }),
+    allowRegister: createRateLimiter({ limit: 6 }),
     getSnapshot,
     logosDir: LOGOS_DIR,
     ensureLogo,
@@ -551,7 +640,8 @@ export function startApi({ recentAlerts }) {
       res.end(JSON.stringify({ error: 'Server error.' }));
     });
   });
-  server.on('close', () => handler.stop());
+  server.on('close', () => { handler.stop(); push?.stop(); });
+  server.push = push;
   server.listen(CONFIG.port, '0.0.0.0', () => {
     console.log(`[api] Website API listening on port ${CONFIG.port} (origins: ${CONFIG.allowedOrigins.join(', ')}).`);
   });

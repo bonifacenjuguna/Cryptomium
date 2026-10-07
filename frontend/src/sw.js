@@ -9,6 +9,7 @@ const BUILD = '__VERSION__';
 const APP_VERSION = '__APP_VERSION__';
 const API_ORIGIN = '__API_ORIGIN__';
 const PRECACHE = __PRECACHE__;   // pages and files the app cannot work without
+const OFFLINE_HTML = __OFFLINE_HTML__; // the offline page, built into the worker so it can never be missing
 const OPTIONAL = __OPTIONAL__;   // coin pages and icons: nice to have offline, never block an update
 
 const SHELL = `cm3-shell-${BUILD}`;
@@ -74,7 +75,7 @@ async function page(event) {
   } catch {
     // Offline and never saved: any coin address still opens the generic coin page, which uses the saved prices.
     if (/^\/coin\/[^/]+$/.test(url.pathname)) { const generic = await fromShell('/coin'); if (generic) return generic; }
-    return (await fromShell('/offline')) || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+    return (await fromShell('/offline')) || new Response(OFFLINE_HTML, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
 }
 
@@ -124,3 +125,111 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') { event.respondWith(page(event)); return; }
   if (/\.(css|js|json|svg|png|jpg|webp|ico|woff2?|webmanifest)$/.test(url.pathname)) event.respondWith(asset(event));
 });
+
+// ---------------------------------------------------------------------------------------------------------
+// Push notifications
+//
+// The server sends a small encrypted JSON message ({ kind, title, body, tag, url, ... }). Here it becomes a
+// system notification; tapping it opens the right screen inside the app. Nothing secret is ever stored in this
+// file: the only credential the worker can use is the device's own token, saved by the page in PUSH_AUTH.
+const PUSH_AUTH = 'cmpush-v1';           // not named cm-/cm3-, so version clean-ups never delete it
+const PUSH_AUTH_URL = '/__cm/push-auth';
+const ICON = '/icons/icon-192.png';
+const BADGE = '/icons/badge-96.png';     // white-on-transparent: Android draws only its shape in the status bar
+const KINDS = ['target', 'milestone', 'test'];
+
+const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+
+/** Only same-site addresses are ever opened, whatever a message says. */
+function appPath(raw) {
+  try {
+    const u = new URL(raw || '/', self.location.origin);
+    if (u.origin !== self.location.origin || u.pathname === '/app' || u.pathname.startsWith('/app/') || u.pathname === '/sw.js') return '/';
+    return u.pathname + u.search + u.hash;
+  } catch { return '/'; }
+}
+
+function cleanMessage(raw) {
+  const d = raw && typeof raw === 'object' ? raw : {};
+  const kind = KINDS.includes(d.kind) ? d.kind : 'info';
+  return {
+    kind,
+    title: clip(d.title, 90) || 'Cryptomium',
+    body: clip(d.body, 220),
+    tag: /^[A-Za-z0-9_-]{1,64}$/.test(d.tag || '') ? d.tag : 'cm-alert',
+    url: appPath(d.url),
+    ticker: /^[A-Za-z0-9]{1,12}$/.test(d.ticker || '') ? d.ticker : '',
+    id: /^[A-Za-z0-9_-]{1,40}$/.test(d.id || '') ? d.id : '',
+    price: Number.isFinite(d.price) ? d.price : null,
+    ts: Number.isFinite(d.ts) ? d.ts : Date.now(),
+  };
+}
+
+const ACTIONS = {
+  target: [{ action: 'open', title: 'View chart' }, { action: 'manage', title: 'Manage alerts' }],
+  milestone: [{ action: 'open', title: 'View chart' }, { action: 'markets', title: 'Overview' }],
+};
+
+async function onPush(event) {
+  let raw = null;
+  try { raw = event.data ? event.data.json() : null; } catch { try { raw = { body: event.data.text() }; } catch { raw = null; } }
+  const msg = cleanMessage(raw);
+  const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  // Tell open windows (the app turns it into an in-app message and marks the alert as reached).
+  wins.forEach(w => { try { w.postMessage({ cm: 'push', msg }); } catch { /* window going away */ } });
+  // While the person is looking at the app, the in-app message is enough (browsers allow this). Otherwise, and
+  // always for the "send a test" button, show a real notification.
+  const looking = wins.some(w => w.focused && w.visibilityState === 'visible');
+  if (looking && msg.kind !== 'test') return;
+  await self.registration.showNotification(msg.title, {
+    body: msg.body,
+    tag: msg.tag,
+    renotify: true,
+    icon: ICON,
+    badge: BADGE,
+    timestamp: msg.ts,
+    vibrate: [120, 60, 120],
+    actions: ACTIONS[msg.kind] || [],
+    data: { url: msg.url, kind: msg.kind, ticker: msg.ticker, id: msg.id },
+  });
+}
+self.addEventListener('push', event => event.waitUntil(onPush(event)));
+
+async function openApp(path) {
+  const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const shell = wins.find(w => new URL(w.url).pathname === '/app');
+  const target = shell || wins[0];
+  if (target) {
+    try { await target.focus(); } catch { /* not allowed: fall through to the message below */ }
+    if (shell) { shell.postMessage({ cm: 'open', url: path }); return; }       // installed app: the shell opens it on top of the current screen
+    try { const moved = await target.navigate(new URL(path, self.location.origin).href); if (moved) return; } catch { /* use a new window */ }
+  }
+  await self.clients.openWindow(path); // app closed: a fresh launch (an installed phone app is handed to its shell by the page itself)
+}
+
+self.addEventListener('notificationclick', event => {
+  const n = event.notification;
+  n.close();
+  const d = n.data || {};
+  let path = appPath(d.url);
+  if (event.action === 'manage') path = '/settings/alerts';
+  else if (event.action === 'markets') path = '/markets';
+  event.waitUntil(openApp(path));
+});
+
+// The browser can replace a subscription on its own. Re-subscribe and tell the server, without the app being open.
+const b64ToBytes = s => { const p = s.replace(/-/g, '+').replace(/_/g, '/'); const raw = atob(p + '='.repeat((4 - (p.length % 4)) % 4)); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
+async function resubscribe(event) {
+  const hit = await (await caches.open(PUSH_AUTH)).match(PUSH_AUTH_URL);
+  if (!hit) return;
+  const auth = await hit.json();
+  if (!auth || !auth.api || !auth.id || !auth.token || !auth.key) return;
+  let sub = event.newSubscription;
+  if (!sub) sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: (event.oldSubscription && event.oldSubscription.options && event.oldSubscription.options.applicationServerKey) || b64ToBytes(auth.key) });
+  await fetch(`${auth.api}/api/push/devices/me`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.id}.${auth.token}` },
+    body: JSON.stringify({ subscription: sub.toJSON() }),
+  });
+}
+self.addEventListener('pushsubscriptionchange', event => event.waitUntil(resubscribe(event).catch(() => {})));

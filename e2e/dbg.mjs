@@ -1,0 +1,16 @@
+import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
+import { start } from './serve.mjs';
+const { server, url } = await start();
+const browser = await chromium.launch({ executablePath: process.env.CHROME, args: ['--no-sandbox'] });
+const ctx = await browser.newContext({ viewport: { width: 360, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const page = await ctx.newPage();
+const cdp = await ctx.newCDPSession(page);
+await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'display-mode', value: 'standalone' }] });
+await page.goto(url + '/app'); await page.waitForTimeout(2500);
+const f = page.frames().find(x => x.url() === url + '/');
+console.log(await f.evaluate(() => ({ exp: document.getElementById('menu-toggle')?.getAttribute('aria-expanded'), cls: document.documentElement.className, vis: !!document.getElementById('menu-toggle')?.offsetParent })));
+await f.tap('#menu-toggle'); await page.waitForTimeout(700);
+console.log(await f.evaluate(() => ({ exp: document.getElementById('menu-toggle')?.getAttribute('aria-expanded'), cls: document.documentElement.className, menuLeft: document.getElementById('menu').getBoundingClientRect().left })));
+console.log('shell-away', await page.evaluate(() => document.documentElement.className));
+await page.screenshot({ path: '/home/claude/e2e/s1.png' });
+await browser.close(); server.close();
