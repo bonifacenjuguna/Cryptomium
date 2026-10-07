@@ -29,6 +29,22 @@ const MAX_TAIL = 600;
 // The price scale always draws the same number of rows, evenly spaced. (Rows at "nice" round numbers came and
 // went as the range changed, so the grid jumped about while you dragged across the chart.)
 const GRID_ROWS = 5;
+// A phone only has a few hundred pixels across: drawing thousands of points per line (7 days of 5-minute prices, two lines when
+// comparing) buys nothing and overloads weak graphics chips. Keep the first and last point and the lowest and highest in each slice.
+function thin(pts, max) {
+  if (pts.length <= max) return pts;
+  const size = Math.ceil(pts.length / (max / 2));
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i += size) {
+    const end = Math.min(i + size, pts.length - 1);
+    let lo = pts[i], hi = pts[i];
+    for (let j = i; j < end; j++) { if (pts[j][1] < lo[1]) lo = pts[j]; if (pts[j][1] > hi[1]) hi = pts[j]; }
+    if (lo === hi) out.push(lo); else if (lo[0] < hi[0]) out.push(lo, hi); else out.push(hi, lo);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
 function gridTicks(min, max, n = GRID_ROWS) {
   const out = [];
   for (let k = 1; k <= n; k++) out.push(min + ((max - min) * k) / (n + 1));
@@ -339,7 +355,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     if (isCmp) {
       const g = svg('g', { 'clip-path': 'url(#cclip)' });
       cmp.forEach((s, k) => {
-        const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
+        const d = thin(s.pts, Math.max(120, Math.round(iw))).map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
         g.append(svg('path', { class: 'line', d, stroke: k ? color2 : color }));
       });
       root.append(g);
@@ -356,9 +372,10 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       const ly = y(lastV * rate);
       root.append(svg('line', { class: 'last-line', x1: padL, x2: W - padR, y1: ly, y2: ly, stroke: color }));
     } else {
-      const d = data.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[1] * rate).toFixed(1)}`).join('');
+      const lp = thin(data, Math.max(120, Math.round(iw)));
+      const d = lp.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1] * rate).toFixed(1)}`).join('');
       const g = svg('g', { 'clip-path': 'url(#cclip)' });
-      g.append(svg('path', { d: `${d}L${x(n - 1).toFixed(1)} ${padT + ih}L${x(0).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }), svg('path', { class: 'line', d, stroke: color }));
+      g.append(svg('path', { d: `${d}L${xt(lp.at(-1)[0]).toFixed(1)} ${padT + ih}L${xt(lp[0][0]).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }), svg('path', { class: 'line', d, stroke: color }));
       root.append(g);
     }
 

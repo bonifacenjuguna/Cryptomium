@@ -1,6 +1,6 @@
 {
   "name": "cryptomium-web",
-  "version": "3.12.0",
+  "version": "3.12.1",
   "private": true,
   "type": "module",
   "description": "Cryptomium website: live prices, coin pages and Telegram alerts feed (deploys on Vercel).",

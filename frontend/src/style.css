@@ -2626,3 +2626,13 @@ html.locked body > *:not(.lock-screen) { visibility: hidden !important; }
 .ptr.spin svg { animation: ptr-spin .7s linear infinite; }
 @keyframes ptr-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ptr.spin svg { animation: none; } }
+
+/* v3.12.1: calmer drawing for weak phone graphics chips (chart tiles showed garbage in candle and compare views) */
+.chart { contain: layout paint; isolation: isolate; }
+.chart svg .wick, .chart svg .candle { shape-rendering: crispEdges; }
+.chart svg { text-rendering: optimizeSpeed; }
+@media (max-width: 820px) {
+  html.is-app .app-tabbar { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html.is-app .site-header { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html.in-shell .app-tabbar, html.in-shell .site-header { view-transition-name: none; }
+}

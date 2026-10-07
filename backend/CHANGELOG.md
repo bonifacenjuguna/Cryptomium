@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.12.1
+
+- Charts: fixed garbled pixels and doubled range buttons under the chart in candle and compare views on some phones. The chart now draws at most about one point per pixel (keeping highs and lows), candles use crisp edges, the chart has its own paint area, and the blurred tab bar and page-transition layers are gone inside the installed app. Lines look the same.
+- If the glitch still shows on a phone, tell us the phone model and Android version.
+
 ## 3.12.0
 
 **Deploy the backend and the frontend together (new notification options need both). The database adds its new columns by itself on start.**
