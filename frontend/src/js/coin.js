@@ -3,7 +3,8 @@ import {
   isFav, toggleFav, onFavs, el, logoEl, tileEl, paintTile, DIR_SVG, prefs, setNum, copyText, toast,
 } from './common.js';
 import { createChart } from './chart.js';
-import { coinPicker } from './ui.js';
+import { coinPicker, openSheet } from './ui.js';
+import { navTo } from './pwa.js';
 import { pushLayer } from './backstack.js';
 import { createGauge, moodClass } from './gauge.js';
 import { loadTargets, addTarget, removeTarget, describe } from './targets.js';
@@ -437,11 +438,38 @@ async function boot() {
     const text = $('c-price').textContent.replace(/[^\d.,]/g, '');
     if (await copyText(text)) toast('Price copied: ' + $('c-price').textContent, { ms: 2200 });
   });
-  $('c-share').addEventListener('click', async () => {
+  // Share: a link, a picture card of the price, or straight to the converter.
+  const shareLink = async () => {
     const url = location.origin + '/coin/' + ticker;
     if (navigator.share) { try { await navigator.share({ title: `${known.name} price`, url }); return; } catch { return; } }
     if (await copyText(url)) toast('Link copied', { ms: 2200 });
-  });
+  };
+  const shareImage = async () => {
+    const c = state.coin;
+    if (!c?.price) { toast('Waiting for the price', { ms: 2200 }); return; }
+    const blob = await drawShareCard(c, known.name);
+    if (!blob) { toast('Could not make the picture', { ms: 2600 }); return; }
+    const file = new File([blob], `${ticker}-price.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: `${known.name} price` }); } catch { /* cancelled */ } return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Picture saved', { ms: 2200 });
+  };
+  $('c-share').addEventListener('click', () => openSheet({
+    title: 'Share ' + known.name, trigger: $('c-share'), value: '', searchable: false,
+    items: [
+      { value: 'link', title: 'Share a link', sub: 'Opens this coin page' },
+      { value: 'image', title: 'Share as a picture', sub: 'A clean card with the price and 24h change' },
+      { value: 'convert', title: 'Convert ' + ticker, sub: 'Open the converter with this coin' },
+    ],
+    onPick: v => { if (v === 'link') shareLink(); else if (v === 'image') shareImage(); else navTo(`/convert?from=${ticker}&to=${currency.code}&amount=1`); },
+  }));
+  // Hold the price to convert it.
+  let held = 0, heldTimer = 0;
+  const priceBtn = $('c-price');
+  priceBtn.addEventListener('pointerdown', () => { held = 0; clearTimeout(heldTimer); heldTimer = setTimeout(() => { held = Date.now(); navTo(`/convert?from=${ticker}&to=${currency.code}&amount=1`); }, 650); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) priceBtn.addEventListener(ev, () => clearTimeout(heldTimer));
+  priceBtn.addEventListener('click', e => { if (held && Date.now() - held < 1500) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   wireAlertCard();
   loadSentiment();
   setInterval(loadSentiment, 10 * 60 * 1000);
@@ -509,3 +537,32 @@ async function boot() {
 }
 
 boot();
+
+
+// The picture shared from a coin page: name, price and 24h move on a plain dark card.
+async function drawShareCard(c, name) {
+  try {
+    const W = 1080, H = 1080, cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#0b1118'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#f2b01e'; g.beginPath(); g.moveTo(90, 120); g.lineTo(135, 96); g.lineTo(180, 120); g.lineTo(135, 144); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff'; g.font = '700 44px sans-serif'; g.textBaseline = 'middle'; g.fillText((window.CRYPTOMIUM && window.CRYPTOMIUM.brand) || 'Cryptomium', 205, 120);
+    g.fillStyle = '#9aa8b6'; g.font = '600 40px sans-serif'; g.fillText(c.ticker, 90, 330);
+    g.fillStyle = '#ffffff'; g.font = '800 96px sans-serif'; g.fillText(name, 90, 420, W - 180);
+    const priceText = money(c.price, { stable: c.stable });
+    let size = 150; g.font = `800 ${size}px sans-serif`;
+    while (g.measureText(priceText).width > W - 180 && size > 60) { size -= 6; g.font = `800 ${size}px sans-serif`; }
+    g.fillText(priceText, 90, 600);
+    const ch = Number.isFinite(c.change24h) ? c.change24h : null;
+    if (ch !== null) {
+      const up = ch >= 0;
+      g.fillStyle = up ? '#2fd08a' : '#ff6b6b'; g.font = '800 72px sans-serif';
+      g.fillText(`${up ? '\u25B2' : '\u25BC'} ${Math.abs(ch).toFixed(2)}%  \u00B7  24h`, 90, 740);
+    }
+    g.fillStyle = '#6f7d8b'; g.font = '600 32px sans-serif';
+    g.fillText(new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }), 90, 940);
+    g.fillText('Prices can differ between exchanges.', 90, 990);
+    return await new Promise(res => cv.toBlob(res, 'image/png'));
+  } catch { return null; }
+}

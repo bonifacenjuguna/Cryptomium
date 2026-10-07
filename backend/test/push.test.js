@@ -135,8 +135,11 @@ test('alerts are validated: coin, type, price range, ids, duplicates and count',
 });
 
 test('preferences are validated', () => {
-  assert.deepEqual(validatePrefs({ milestones: true, coins: ['btc', 'ETH', 'BTC'] }, TICKERS), { milestones: true, coins: ['BTC', 'ETH'] });
-  assert.deepEqual(validatePrefs({ milestones: 'yes' }, TICKERS), { milestones: false, coins: [] });
+  assert.deepEqual(validatePrefs({ milestones: true, coins: ['btc', 'ETH', 'BTC'] }, TICKERS), { milestones: true, coins: ['BTC', 'ETH'], digest: false, recap: false, recapHour: 8, tz: 0 });
+  assert.deepEqual(validatePrefs({ milestones: 'yes' }, TICKERS), { milestones: false, coins: [], digest: false, recap: false, recapHour: 8, tz: 0 });
+  assert.deepEqual(validatePrefs({ digest: true, recap: true, recapHour: 21, tz: 180 }, TICKERS), { milestones: false, coins: [], digest: true, recap: true, recapHour: 21, tz: 180 });
+  assert.equal(validatePrefs({ recapHour: 25, tz: 9999 }, TICKERS).recapHour, 8, 'an impossible hour falls back');
+  assert.equal(validatePrefs({ recapHour: 25, tz: 9999 }, TICKERS).tz, 0, 'an impossible offset falls back');
   assert.throws(() => validatePrefs({ milestones: true, coins: ['NOPE'] }, TICKERS), PushError);
   assert.throws(() => validatePrefs(null, TICKERS), PushError);
 });
@@ -349,4 +352,45 @@ test('the test notification reaches only the caller and is rate limited', async 
   state.clock += 21_000;
   state.status = 410;
   await assert.rejects(() => service.test(device), e => e.status === 410);
+});
+
+test('devices that asked for it get alerts reached together as one notification', async () => {
+  const { service, state } = setup();
+  const grouped = browser(1); const single = browser(2);
+  await service.register({ subscription: grouped.subscription, prefs: { digest: true }, targets: [target({ id: 'a' }), target({ id: 'b', ticker: 'ETH', price: 2500 })] });
+  await service.register({ subscription: single.subscription, targets: [target({ id: 'a' }), target({ id: 'b', ticker: 'ETH', price: 2500 })] });
+  state.prices.BTC = 91_000;
+  const r = await service.tick();
+  assert.equal(r.sent, 4);
+  const toGrouped = state.calls.filter(c => c.url === grouped.subscription.endpoint);
+  const toSingle = state.calls.filter(c => c.url === single.subscription.endpoint);
+  assert.equal(toGrouped.length, 1, 'one notification for the device that asked for grouping');
+  const note = grouped.read(toGrouped[0].init.body);
+  assert.equal(note.kind, 'digest');
+  assert.equal(note.title, '2 alerts reached');
+  assert.equal(toSingle.length, 2, 'everyone else keeps one notification per alert');
+});
+
+test('the daily recap goes out once, at the hour the device chose in its own time zone', async () => {
+  const at = new Date('2026-10-07T05:10:00Z').getTime(); // 08:10 in UTC+3
+  const { service, state } = setup({ changes: { BTC: 1.2, ETH: 6.5 } });
+  state.clock = at;
+  const b = browser();
+  await service.register({ subscription: b.subscription, prefs: { recap: true, recapHour: 8, tz: 180 } });
+  let r = await service.recapTick();
+  assert.equal(r.sent, 1);
+  const note = b.read(state.calls[0].init.body);
+  assert.equal(note.kind, 'recap');
+  assert.match(note.title, /^Market recap: BTC /);
+  assert.match(note.body, /Top gainer ETH \+6\.5%/);
+  r = await service.recapTick();
+  assert.equal(r.sent, 0, 'never twice on the same day');
+});
+
+test('the recap waits for the chosen hour', async () => {
+  const at = new Date('2026-10-07T03:10:00Z').getTime(); // 06:10 in UTC+3
+  const { service, state } = setup({ changes: { BTC: 1, ETH: 2 } });
+  state.clock = at;
+  await service.register({ subscription: browser().subscription, prefs: { recap: true, recapHour: 8, tz: 180 } });
+  assert.equal((await service.recapTick()).sent, 0);
 });

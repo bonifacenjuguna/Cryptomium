@@ -86,7 +86,7 @@ test('full flow: register, sync an alert, send a test, then delete', async () =>
   assert.equal(r.status, 200);
   const synced = await r.json();
   assert.equal(synced.targets, 1);
-  assert.deepEqual(synced.prefs, { milestones: true, coins: ['BTC'] });
+  assert.deepEqual(synced.prefs, { milestones: true, coins: ['BTC'], digest: false, recap: false, recapHour: 8, tz: 0 });
 
   r = await s.call('POST', '/api/push/devices/me/test', { headers: bearer(reg), body: {} });
   assert.equal(r.status, 200);

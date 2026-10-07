@@ -18,10 +18,18 @@ A Trusted Web Activity runs your live site full-screen inside Chrome with no add
 Test on a real phone: install the APK, open from a notification, press Back, go offline and back, rotate. Without the
 fingerprint step the app opens with a visible address bar.
 
-## Two separate versions
+## Two versions, two release paths
 
-- **Web app version** = `frontend/package.json`. UI, features, notifications, the service worker and cached files. A website
-  deploy updates every installed copy, including this Android app, through the in-app Update Center. No Play Store release.
-- **Android shell version** = `twa/twa-manifest.json` (`appVersionName`, `appVersionCode`). Change it only when the Android
-  wrapper itself changes (package settings, icons, splash, permissions, Bubblewrap/Android library upgrades) and publish
-  through Play. Never bump it for a website change; always raise `appVersionCode` for each Play upload.
+| | Web app (this repo's `frontend/`) | Android shell (this folder) |
+|---|---|---|
+| Version | `frontend/package.json` (shown in the app: Settings, App updates) | `appVersionName` / `appVersionCode` in `twa-manifest.json` |
+| What changes it | UI, features, API calls, service worker, caches, notifications | Package id, signing key, icons, splash, Android-only settings, Bubblewrap/TWA library upgrades |
+| How it ships | `git push` > Vercel deploy > the app's Update Center installs it (automatic, or on Update now when set to Manual) | A new `.aab` through Play Console. Needed rarely |
+
+The shell only opens the live site, so a web release never needs a Play Store release. Do not bump the shell version for a web
+release, and do not copy the web version into `twa-manifest.json`. The web app contains no Android updater and never downloads an APK.
+
+A new shell release is only needed when `twa-manifest.json` changes (icons, colours, package settings, shortcuts) or Bubblewrap asks for it.
+
+Themed (monochrome) icon: `monochromeIconUrl` points at `icon-monochrome-512.png`. Android 13 and newer paints it in the wallpaper colours
+when the person turns on "Themed icons" in Wallpaper and style. Older Android versions keep the normal icon.

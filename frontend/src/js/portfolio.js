@@ -4,6 +4,7 @@
 import { coinPicker, openPanel } from './ui.js';
 import { API, initChrome, pollPrices, ledger, store, money, pct, el, logoEl, setNum, currency, onCurrency, toast } from './common.js';
 import { loadMarket } from './intel.js';
+import { lockConfig, verifyOwner } from './lock.js';
 import { positions, valued, newFolio, cleanTx, addSnapshot, toCsv, fromCsv, LIMITS } from './ledger.js';
 
 const $ = id => document.getElementById(id);
@@ -592,6 +593,7 @@ async function boot() {
   coins = await initChrome();
   tickers = new Set(coins.map(c => c.ticker));
   S = ledger.load();
+  if (store.get('cm-hide-start') === '1') S.hide = true; // the person asked for amounts to start hidden every time
   // Settle the first visit on 3.4 right away (older holdings become opening buys) so the portfolio keeps one stable id.
   if (!store.get('cm-pf2')) ledger.save(S);
   render();
@@ -601,7 +603,12 @@ async function boot() {
   $('px-add').addEventListener('click', () => openTxForm());
   $('px-first').addEventListener('click', () => openTxForm());
   $('px-more').addEventListener('click', openMore);
-  $('px-eye').addEventListener('click', () => { S.hide = !S.hide; save(); });
+  $('px-eye').addEventListener('click', async () => {
+    if (S.hide && lockConfig() && store.get('cm-reveal-lock') === '1') { // showing amounts can be made to ask for the phone's unlock
+      try { await verifyOwner(); } catch { toast('Amounts stay hidden'); return; }
+    }
+    S.hide = !S.hide; save();
+  });
   $('px-act-all').addEventListener('click', () => { showAllAct = !showAllAct; render(); });
   $('px-range').addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (!b) return; range = b.dataset.r; setTabs($('px-range'), 'r', range); render(); });
   $('px-sort').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b) return; sortKey = b.dataset.s; setTabs($('px-sort'), 's', sortKey); render(); });

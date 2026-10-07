@@ -90,7 +90,6 @@ const compose = html => withPwa(html.replace('<!--@header-->', header).replace('
 // Only this site, Google Fonts, and the backend may be used by the pages. Two public icon sets are
 // allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
 const apiOrigin = new URL(apiUrl).origin;
-import crypto from 'node:crypto';
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'inline-speculation-rules'",
@@ -101,17 +100,7 @@ const csp = [
   "base-uri 'self'",
   "form-action 'none'",
 ].join('; ');
-// A page that carries its own inline style/script (only the offline page, which must work with nothing else loaded) gets
-// those exact blocks allowed by hash; every other page keeps the strict policy.
-const sha = text => `'sha256-${crypto.createHash('sha256').update(text).digest('base64')}'`;
-const withCsp = html => {
-  const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => sha(m[1]));
-  const scripts = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => sha(m[1]));
-  let policy = csp;
-  if (styles.length) policy = policy.replace("style-src 'self'", `style-src 'self' ${styles.join(' ')}`);
-  if (scripts.length) policy = policy.replace("script-src 'self'", `script-src 'self' ${scripts.join(' ')}`);
-  return html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${policy}">`);
-};
+const withCsp = html => html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${csp}">`);
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
@@ -164,6 +153,7 @@ const pageFiles = [];
 
 // Build id: a hash of every input (pages, scripts, styles, coin list, settings, API address, version), so any
 // change at all gives a new id. It names the service-worker caches and busts css/js addresses.
+import crypto from 'node:crypto';
 const stamp = crypto.createHash('sha1');
 (function hashDir(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((x, y) => x.name.localeCompare(y.name))) {
@@ -188,13 +178,6 @@ for (const name of pageFiles) {
 
 write('coins.json', JSON.stringify(coins));
 write('version.json', JSON.stringify({ version: pkgVersion, build: ver }));
-
-// Every script-to-script import carries the build id too (./pwa.js -> ./pwa.js?v=<build>), like the page's own script tags.
-// The service worker can then tell which build a file belongs to and never mixes two builds in one page.
-for (const f of fs.readdirSync(path.join(dist, 'js')).filter(n => n.endsWith('.js'))) {
-  const file = path.join(dist, 'js', f);
-  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace(/((?:\bfrom\s+|\bimport\()\s*)(['"])(\.\/[a-z-]+\.js)\2/g, `$1$2$3?v=${ver}$2`));
-}
 
 // Web app manifest and service worker (the worker is stamped so every deploy refreshes its cache).
 const manifest = {
@@ -238,7 +221,7 @@ for (const c of coins) {
 // Everything non-HTML that carries tokens.
 write('robots.txt', fill(fs.readFileSync(path.join(src, 'robots.txt'), 'utf8')).replace(/^Sitemap:.*\n?/m, siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''));
 if (siteUrl) {
-  const urls = ['/', '/markets', '/screener', '/news', '/compare', '/about', '/privacy', ...coins.map(c => `/coin/${c.ticker}`)]; // /portfolio is noindex, so it is not listed
+  const urls = ['/', '/markets', '/screener', '/news', '/compare', '/convert', '/about', '/privacy', ...coins.map(c => `/coin/${c.ticker}`)]; // /portfolio is noindex, so it is not listed
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
 }
 

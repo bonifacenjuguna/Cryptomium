@@ -1,6 +1,6 @@
 // Compare: up to three coins as a metric matrix, with the better value marked and plain insights.
-import { initChrome, dragScroll, pollPrices, el, money, compactMoney, onCurrency, API } from './common.js';
-import { coinPicker } from './ui.js';
+import { initChrome, dragScroll, pollPrices, el, money, compactMoney, onCurrency, API, store, toast } from './common.js';
+import { coinPicker, openSheet } from './ui.js';
 import { loadMarket, buildRows, coinCell, changeSpan, distText, dateText, supplyText, insights, tag, RULES } from './intel.js';
 
 const $ = id => document.getElementById(id);
@@ -79,6 +79,38 @@ function paintInsights() {
   $('cp-rules').replaceChildren(...Object.entries(RULES).map(([k, v]) => el('li', '', v)));
 }
 
+// Saved sets: groups of coins to compare again later ("layer 1s", "memes"), kept on this device.
+const SETS_KEY = 'cm-compare-sets';
+function loadSets() {
+  try { const v = JSON.parse(store.get(SETS_KEY) || '[]'); return Array.isArray(v) ? v.filter(x => Array.isArray(x) && x.length >= 2 && x.length <= 3 && x.every(t => typeof t === 'string')).slice(0, 12) : []; } catch { return []; }
+}
+function initSets() {
+  const saveBtn = document.getElementById('cp-save'), listBtn = document.getElementById('cp-sets');
+  if (!saveBtn) return;
+  saveBtn.addEventListener('click', () => {
+    const key = state.picks.join(',');
+    const sets = loadSets().filter(s => s.join(',') !== key);
+    sets.unshift([...state.picks]);
+    try { store.set(SETS_KEY, JSON.stringify(sets.slice(0, 12))); } catch { /* private mode */ }
+    toast('Set saved');
+  });
+  listBtn.addEventListener('click', () => {
+    const sets = loadSets();
+    if (!sets.length) { toast('No saved sets yet'); return; }
+    const items = sets.map(s => ({ value: s.join(','), title: s.join('  \u00B7  '), sub: s.map(t => state.coins.find(c => c.ticker === t)?.name || t).join(', ') }));
+    items.push({ value: '__clear', title: 'Clear saved sets', sub: 'Removes every saved set from this device' });
+    openSheet({
+      title: 'Saved sets', trigger: listBtn, value: '', items, searchable: false,
+      onPick: v => {
+        if (v === '__clear') { try { store.set(SETS_KEY, '[]'); } catch { /* ignore */ } toast('Saved sets cleared'); return; }
+        const next = v.split(',').filter(t => state.coins.some(c => c.ticker === t)).slice(0, 3);
+        if (next.length < 2) return;
+        state.picks = next; sync(); paintPickers();
+      },
+    });
+  });
+}
+
 function paintPickers() {
   const box = $('cp-pick');
   box.replaceChildren();
@@ -114,7 +146,7 @@ async function boot() {
   const want = (new URLSearchParams(location.search).get('coins') || '').toUpperCase().split(',').filter(t => state.coins.some(c => c.ticker === t));
   state.picks = [...new Set(want)].slice(0, 3);
   for (const d of ['BTC', 'ETH']) if (state.picks.length < 2 && !state.picks.includes(d) && state.coins.some(c => c.ticker === d)) state.picks.push(d);
-  paintPickers(); sync();
+  paintPickers(); sync(); initSets();
   onCurrency(() => { paintTable(); });
   if (!API) return;
   let first = true;

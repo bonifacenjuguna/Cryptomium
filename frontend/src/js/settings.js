@@ -11,6 +11,7 @@ import { LESSONS, CATS, TERMS } from './learn-content.js';
 import { updates } from './pwa.js';
 import { sanitize as sanitizeLedger } from './ledger.js';
 import * as net from './net.js';
+import { lockConfig, lockSupported, enableLock, verifyOwner, disableLock, setLockAfter, lockNow } from './lock.js';
 
 const $ = id => document.getElementById(id);
 const page = document.body.dataset.page;
@@ -254,8 +255,7 @@ let alPick = null;
 function paintAlertHint() {
   const t = alPick ? alPick.get() : '';
   const l = live.get(t);
-  const codeEl = $('al-code');
-  if (codeEl) codeEl.textContent = currency.code;
+  const ac = $('al-code'); if (ac) ac.textContent = currency.code;
   if (!l) { $('al-now').textContent = ' '; return; }
   const now = money(l.price, { stable: l.stable });
   const k = $('al-dir').value;
@@ -398,8 +398,39 @@ function initNotifCard() {
     if (b.dataset.toggle === 'haptics' && prefs.get('haptics')) { try { navigator.vibrate?.(30); } catch { /* not supported */ } }
     paintNotif(); flashSaved();
   }));
+  initNotifExtras();
   document.addEventListener('cm:push', paintNotif);
   paintNotif();
+}
+
+const clockLabel = m => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+function pickTime(btn, { title, value, step, onPick }) {
+  const items = [];
+  for (let m = 0; m < 1440; m += step) items.push({ value: String(m), title: clockLabel(m) });
+  openSheet({ title, trigger: btn, value: String(value), items, searchable: false, onPick: v => onPick(Number(v)) });
+}
+// Grouped alerts, the daily recap and quiet hours (see push.js). Each one is saved the moment it is touched.
+function initNotifExtras() {
+  if (!$('grp-switch')) return;
+  const paint = () => {
+    const x = push.getExtras(), q = push.getQuiet();
+    switchOn($('grp-switch'), x.digest);
+    switchOn($('recap-switch'), x.recap);
+    $('recap-row').hidden = !x.recap;
+    $('recap-time').textContent = clockLabel(x.recapHour * 60);
+    switchOn($('quiet-switch'), q.on);
+    $('quiet-row').hidden = !q.on;
+    $('quiet-from').textContent = clockLabel(q.from);
+    $('quiet-to').textContent = 'to ' + clockLabel(q.to);
+  };
+  const extra = async patch => { const r = await push.setExtras(patch); if (!r.ok) $('notif-text').textContent = push.reasonText(r.reason); paint(); flashSaved(); };
+  $('grp-switch').addEventListener('click', () => extra({ digest: !push.getExtras().digest }));
+  $('recap-switch').addEventListener('click', () => extra({ recap: !push.getExtras().recap }));
+  $('recap-time').addEventListener('click', () => pickTime($('recap-time'), { title: 'Send recap at', value: push.getExtras().recapHour * 60, step: 60, onPick: m => extra({ recapHour: m / 60 }) }));
+  $('quiet-switch').addEventListener('click', async () => { await push.setQuiet({ on: !push.getQuiet().on }); paint(); flashSaved(); });
+  $('quiet-from').addEventListener('click', () => pickTime($('quiet-from'), { title: 'Quiet from', value: push.getQuiet().from, step: 30, onPick: async m => { await push.setQuiet({ from: m }); paint(); flashSaved(); } }));
+  $('quiet-to').addEventListener('click', () => pickTime($('quiet-to'), { title: 'Quiet until', value: push.getQuiet().to, step: 30, onPick: async m => { await push.setQuiet({ to: m }); paint(); flashSaved(); } }));
+  paint();
 }
 
 function initAlerts() {
@@ -415,9 +446,8 @@ function initAlerts() {
     const k = $('al-dir').value;
     const noPrice = k === 'ath' || k === 'atl';
     $('al-price-fld').hidden = noPrice;
-    const lab = $('al-price-l');
-    if (k === 'move') lab.textContent = 'Move in 24 hours';
-    else { lab.textContent = 'Price in '; const code = el('b', '', currency.code); code.id = 'al-code'; lab.append(code); }
+    const code = document.createElement('b'); code.id = 'al-code'; code.textContent = currency.code; // keep the element paintAlertHint writes to
+    $('al-price-l').replaceChildren(...(k === 'move' ? ['Move in 24 hours'] : ['Price in ', code]));
     $('al-sym').textContent = k === 'move' ? '%' : currencySymbol(currency.code).slice(0, 4);
     $('al-price').placeholder = k === 'move' ? '5' : '0.00';
     document.querySelectorAll('#al-types [data-kind]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.kind === k)));
@@ -513,6 +543,8 @@ function exportData() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  try { store.set('cm-last-backup', String(Date.now())); } catch { /* ignore */ }
+  paintBackup();
   flashSaved('Backup downloaded');
 }
 async function importData(file) {
@@ -548,14 +580,63 @@ async function importData(file) {
     flashSaved('That file is not a Cryptomium backup');
   }
 }
+function paintBackup() {
+  const n = Number(store.get('cm-last-backup') || 0);
+  const t = $('backup-last');
+  if (t) t.textContent = n ? 'Last backup from this device: ' + new Date(n).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '.' : 'No backup made on this device yet.';
+}
+function initBackup() {
+  paintBackup();
+  $('export-btn').addEventListener('click', exportData);
+  $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
+}
+
+// App lock page: set up, change and remove the phone-unlock gate (see js/lock.js).
+async function initLock() {
+  const sw = $('lock-switch'), text = $('lock-text'), opts = $('lock-opts');
+  const supported = await lockSupported();
+  const paint = () => {
+    const on = Boolean(lockConfig());
+    switchOn(sw, on);
+    opts.hidden = !on;
+    sw.disabled = !supported && !on;
+    text.textContent = on ? 'On. Asks for your phone\u2019s unlock when you open the app.' : supported ? 'Off.' : 'This phone or browser has no screen lock, fingerprint or face unlock available for apps.';
+    const after = lockConfig()?.after ?? 60;
+    $('lock-after').querySelectorAll('[data-value]').forEach(b => b.setAttribute('aria-checked', String(Number(b.dataset.value) === after)));
+  };
+  paint();
+  sw.addEventListener('click', async () => {
+    if (sw.disabled) return;
+    try {
+      if (lockConfig()) { await verifyOwner(); disableLock(); flashSaved('App lock off'); }
+      else { await enableLock(60); flashSaved('App lock on'); }
+    } catch { text.textContent = 'Not changed. Your phone\u2019s unlock was cancelled or did not work.'; return; }
+    paint();
+  });
+  $('lock-after').querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => { setLockAfter(Number(b.dataset.value)); paint(); flashSaved(); }));
+  $('lock-now').addEventListener('click', lockNow);
+
+  // Hide balances (the eye button itself lives in Portfolio)
+  const rev = $('reveal-lock'), hs = $('hide-start');
+  const paintBal = () => {
+    switchOn(hs, store.get('cm-hide-start') === '1');
+    const lockOn = Boolean(lockConfig());
+    switchOn(rev, lockOn && store.get('cm-reveal-lock') === '1');
+    rev.disabled = !lockOn;
+    $('reveal-text').textContent = lockOn ? 'Tapping the eye in Portfolio asks for your fingerprint, face or screen lock.' : 'Turn on App lock first.';
+  };
+  hs.addEventListener('click', () => { store.set('cm-hide-start', store.get('cm-hide-start') === '1' ? '0' : '1'); paintBal(); flashSaved(); });
+  rev.addEventListener('click', () => { if (rev.disabled) return; store.set('cm-reveal-lock', store.get('cm-reveal-lock') === '1' ? '0' : '1'); paintBal(); flashSaved(); });
+  sw.addEventListener('click', () => setTimeout(paintBal, 1500));
+  paintBal();
+}
+
 function initData() {
   renderStore();
   onCurrency(renderStore);
   document.addEventListener('cm:targets', renderStore);
   document.addEventListener('cm:holdings', renderStore);
   onFavs(renderStore);
-  $('export-btn').addEventListener('click', exportData);
-  $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
   const reset = $('reset-all');
   let armed = null;
   reset.addEventListener('click', () => {
@@ -664,7 +745,7 @@ function paintUpdates() {
     case 'applying': title = 'Installing\u2026'; sub = 'The app restarts on this screen.'; label = 'Updating\u2026'; busy = true; bar = true; break;
     case 'ready':
       title = 'Update ready';
-      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs by itself when you are not busy, or when you leave the app.' : 'Tap Update now when you are ready.');
+      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs when you next open or leave the app.' : 'Tap Update now when you are ready.');
       label = 'Update now'; action = () => updates.apply(); break;
     case 'uptodate': title = "You're up to date"; sub = `Version ${u.version} is the latest.`; break;
     case 'failed': {
@@ -737,6 +818,9 @@ async function boot() {
   if (page === 'watchlist') initWatchlist();
   if (page === 'alerts') initAlerts();
   if (page === 'data') initData();
+  if (page === 'backup') initBackup();
+  if (page === 'lock') initLock();
+  if (page === 'notifications') initNotifCard();
   if (page === 'learn') initLearn();
   if (page === 'sources') initSources();
   if (page === 'advanced') initAdvanced();
