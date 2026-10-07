@@ -1,5 +1,30 @@
 # Changelog
 
+## 3.10.0
+
+**Frontend release (the backend only changes its version number). Redeploy the frontend; installed apps pick it up through the Update Center.**
+
+### Update Center (hardened, not replaced) and Android (TWA) readiness
+- Same system as before: the service worker holds the new build until the app asks, the Update Center page shows status, and Automatic / Manual still decide when it installs. Nothing new was added on the Android side; the web app never downloads or installs an APK.
+- Automatic mode now truly installs: on launch, when the app is put away (including the Android app going to the background), and after 3 quiet minutes on screen. It never interrupts an open menu, sheet, full-screen chart or a half-typed form. Manual mode only installs on "Update now".
+- After an update the app comes back to the same tab and screens instead of its start screen.
+- Screens inside the app shell no longer all reload themselves on an update; the shell reloads once.
+- Update checks from the different screens share one timer instead of each asking the server.
+- Service worker: a page or script from another build is never answered from, or saved into, this build's caches (fixes a rare old/new mix on pages that were not pre-saved). Optional files (coin pages, icons) can no longer hold an update in "Downloading" on a slow connection.
+- Web version (`frontend/package.json`) and Android shell version (`twa/twa-manifest.json`) are now separate; `twa/README.md` explains both release paths.
+
+### Navigation
+- Back no longer replays loops. Tabs keep a trail of where you have been, each tab once: Overview, News, Overview, News then Back goes News, Overview, Home. Screens opened on top of a tab still close first.
+
+### Converter
+- New Converter page (menu > Converter): pick a coin or a currency on either side with the app's own picker, swap, quick amounts, and the value in other currencies. Opens at `/convert?from=BTC&to=KES&amount=2`.
+
+### Look and feel
+- Settings icons: same on the web and in the app: dark tile, white glyph, accent colour only when a non-default accent is chosen.
+- Coin header card: flat, no coloured glow around the logo, quieter chips.
+- Menu drawer: no empty strip at the top; app name and version moved to the bottom; the "market information only" line moved into About and Learn crypto.
+- Data sources removed from the settings list and the menu.
+
 ## 3.9.0
 
 ### App notifications (Web Push) and Android-readiness

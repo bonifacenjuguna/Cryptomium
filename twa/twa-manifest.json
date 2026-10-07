@@ -17,7 +17,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "fallbackType": "customtabs",
-  "appVersionName": "3.9.0",
+  "appVersionName": "1.0.0",
   "appVersionCode": 1,
   "shortcuts": [
     { "name": "Price alerts", "short_name": "Alerts", "url": "/app?go=/settings/alerts" },

@@ -4,6 +4,13 @@ const standaloneQuery = window.matchMedia('(display-mode: standalone)');
 const isStandalone = () => standaloneQuery.matches || window.navigator.standalone === true;
 export const isApp = isStandalone;
 export const inShell = () => document.documentElement.classList.contains('in-shell');
+/** Where the web app is running: 'twa' (inside the Android app), 'pwa' (installed from the browser) or 'browser' (a tab). The
+ *  website itself is identical in all three; this is only ever used to describe the situation, never to change how updates work. */
+export function appContext() {
+  let twa = false;
+  try { twa = (document.referrer || '').startsWith('android-app://') || sessionStorage.getItem('cm-twa') === '1'; if (twa) sessionStorage.setItem('cm-twa', '1'); } catch { /* ignore */ }
+  return twa ? 'twa' : isStandalone() ? 'pwa' : 'browser';
+}
 const TAB_ROOTS = { '/': 'home', '/markets': 'markets', '/screener': 'screener', '/news': 'news', '/portfolio': 'portfolio' };
 /** Go to an address like a native app: inside the app shell a main screen switches tab and anything else opens on top of the current screen. */
 export function navTo(href) {
@@ -53,7 +60,7 @@ const hadController = sw && Boolean(navigator.serviceWorker.controller);
 const updateListeners = new Set();
 function flagGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 function flagSet(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } }
-const snap = () => ({ ...U, version: CFG.version || '', build: CFG.build || '', mode: updates.mode(), supported: sw, online: navigator.onLine !== false });
+const snap = () => ({ ...U, version: CFG.version || '', build: CFG.build || '', mode: updates.mode(), supported: sw, online: navigator.onLine !== false, context: appContext() });
 function setU(patch) { Object.assign(U, patch); updateListeners.forEach(fn => fn(snap())); }
 
 const dirtyForm = () => [...document.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=search]):not([type=file]), textarea')].some(i => i.value && i.value !== i.defaultValue);
@@ -76,8 +83,10 @@ async function markReady(worker) {
   autoApply('ready');
 }
 
+const watched = new WeakSet();
 function watch(worker) {
-  if (!worker || !navigator.serviceWorker.controller) return; // the very first install has nothing to replace
+  if (!worker || !navigator.serviceWorker.controller || watched.has(worker)) return; // the very first install has nothing to replace
+  watched.add(worker);
   if (U.status !== 'checking') setU({ status: 'downloading', error: '' });
   worker.addEventListener('statechange', () => {
     if (worker.state === 'installed') markReady(worker);
@@ -85,16 +94,27 @@ function watch(worker) {
   });
 }
 
+// Overlays (menu, sheets, full-screen chart) and half-typed forms are never interrupted.
+const busyScreen = () => dirtyForm() || document.documentElement.classList.contains('menu-open') || document.body.classList.contains('sheet-open') || document.body.classList.contains('chart-open');
+let lastActive = Date.now();
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(ev => window.addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true, capture: true }));
+const IDLE_MS = 3 * 60 * 1000;
+
+// Automatic mode installs a downloaded version at the first safe moment: when the app was just opened and untouched, when it is put
+// away (phone locked, switched to another app, the Android app sent to the background), or after a few quiet minutes on screen.
 function autoApply(reason) {
-  if (updates.mode() !== 'auto' || U.status !== 'ready' || applying || dirtyForm()) return;
+  if (updates.mode() !== 'auto' || U.status !== 'ready' || applying || busyScreen()) return;
   const justOpened = !interacted && Date.now() - pageOpened < 8000;
-  if (reason === 'hidden' || (reason === 'ready' && (document.hidden || justOpened))) updates.apply();
+  const idle = Date.now() - lastActive > IDLE_MS;
+  if (reason === 'hidden' || (reason === 'idle' && idle) || (reason === 'ready' && (document.hidden || justOpened || idle))) updates.apply();
 }
 
 if (sw) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController) return; // first install taking control: nothing to reload
-    if (applying) { try { sessionStorage.setItem('cm-updated', (U.latest && U.latest.version) || CFG.version || '1'); } catch { /* ignore */ } location.reload(); return; }
+    if (applying) { try { sessionStorage.setItem('cm-updated', (U.latest && U.latest.version) || CFG.version || '1'); } catch { /* ignore */ } }
+    if (inShell()) return;      // a screen inside the app shell never reloads itself: the shell reloads once, brings every screen back and restores where you were
+    if (applying) { location.reload(); return; }
     // Another window (or the old worker) switched versions under this page: reload when nobody is looking.
     const go = () => { if (document.hidden) location.reload(); };
     if (document.hidden) location.reload(); else document.addEventListener('visibilitychange', go, { once: true });
@@ -106,23 +126,26 @@ if (sw) {
     reg.addEventListener('updatefound', () => watch(reg.installing));
     if (reg.waiting && navigator.serviceWorker.controller) markReady(reg.waiting);
     else if (reg.installing) watch(reg.installing);
-    if (updates.mode() === 'auto') setTimeout(() => updates.check({ silent: true }), 3000);
+    if (updates.mode() === 'auto') setTimeout(() => updates.check({ silent: true, minAge: 30 * 1000 }), 3000);
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { autoApply('hidden'); return; }
-    if (updates.mode() === 'auto' && Date.now() - U.checkedAt > 15 * 60 * 1000) updates.check({ silent: true });
+    if (updates.mode() === 'auto') updates.check({ silent: true, minAge: 15 * 60 * 1000 });
   });
-  setInterval(() => { if (!document.hidden && updates.mode() === 'auto') updates.check({ silent: true }); }, 30 * 60 * 1000);
-  onRecover(() => { if (updates.mode() === 'auto') updates.check({ silent: true }); });
+  setInterval(() => { if (!document.hidden && updates.mode() === 'auto') updates.check({ silent: true, minAge: 25 * 60 * 1000 }); }, 30 * 60 * 1000);
+  setInterval(() => { if (!document.hidden) autoApply('idle'); }, 30 * 1000);
+  onRecover(() => { if (updates.mode() === 'auto') updates.check({ silent: true, minAge: 60 * 1000 }); });
 }
 
 export const updates = {
   get: snap,
   on(fn) { updateListeners.add(fn); return () => updateListeners.delete(fn); },
   mode() { return flagGet(MODE_KEY) === 'manual' ? 'manual' : 'auto'; },
-  setMode(m) { flagSet(MODE_KEY, m === 'manual' ? 'manual' : 'auto'); updateListeners.forEach(fn => fn(snap())); },
+  setMode(m) { flagSet(MODE_KEY, m === 'manual' ? 'manual' : 'auto'); updateListeners.forEach(fn => fn(snap())); if (m !== 'manual') updates.check({ silent: true }); },
   /** Look for a new version. silent: background check, shows nothing unless an update is found. */
-  async check({ silent = false } = {}) {
+  async check({ silent = false, minAge = 0 } = {}) {
+    // Every screen of the app runs this file; the time of the last check is shared, so they do not all ask the server at once.
+    if (silent && minAge && Date.now() - (Number(flagGet(CHECKED_KEY)) || 0) < minAge) return;
     if (!sw) { if (!silent) setU({ status: 'failed', error: 'unsupported' }); return; }
     if (['checking', 'downloading', 'applying', 'ready'].includes(U.status)) return;
     if (!reg) { try { reg = await navigator.serviceWorker.getRegistration(); } catch { /* none */ } }

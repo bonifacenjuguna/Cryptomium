@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Crypto Converter | {{BRAND}}</title>
+  <meta name="description" content="Convert any supported coin into your currency, a currency into a coin, or one coin into another, at the live price.">
+  <link rel="canonical" href="{{SITE_URL}}/convert">
+  <meta property="og:title" content="Crypto Converter | {{BRAND}}">
+  <meta property="og:description" content="Convert coins and currencies at the live price.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{SITE_URL}}/convert">
+  <meta property="og:image" content="{{SITE_URL}}/og.png">
+</head>
+<body data-page="convert">
+<!--@header-->
+<main id="main">
+  <div class="wrap cvp">
+    <div class="page-top">
+      <h1>Converter</h1>
+      <p class="fresh-note" data-fresh hidden></p>
+      <p class="lede">Turn any coin into the currency you use, or the other way round, at the live price.</p>
+    </div>
+
+    <section class="cvp-card" aria-label="Convert">
+      <div class="cvp-side" id="cvp-from">
+        <span class="cvp-k">From</span>
+        <div class="cvp-line">
+          <input id="cvp-amount" class="cvp-amount" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="1" aria-label="Amount to convert">
+          <button type="button" class="cvp-pick" id="cvp-from-btn" aria-haspopup="dialog"></button>
+        </div>
+      </div>
+      <button type="button" class="cvp-swap" id="cvp-swap" aria-label="Swap the two sides"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4v16M4 16l4 4 4-4M16 20V4m-4 4 4-4 4 4"/></svg></button>
+      <div class="cvp-side cvp-to" id="cvp-to">
+        <span class="cvp-k">To</span>
+        <div class="cvp-line">
+          <output id="cvp-result" class="cvp-amount cvp-result" aria-live="polite">–</output>
+          <button type="button" class="cvp-pick" id="cvp-to-btn" aria-haspopup="dialog"></button>
+        </div>
+      </div>
+      <p class="cvp-rate num" id="cvp-rate">&nbsp;</p>
+      <div class="cvp-chips" id="cvp-chips" role="group" aria-label="Quick amounts"></div>
+    </section>
+
+    <section class="cvp-more" id="cvp-more" hidden>
+      <h2>Worth in other currencies</h2>
+      <ul class="cvp-list" id="cvp-list"></ul>
+    </section>
+
+    <p class="s-hint">Uses live coin prices and hourly exchange rates. Information only, not financial advice.</p>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/convert.js"></script>
+</body>
+</html>
