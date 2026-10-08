@@ -70,11 +70,6 @@ function paintBreadth() {
   }));
   bar.setAttribute('aria-label', `${up} up, ${flat} flat, ${down} down over 24 hours`);
   $('br-legend').replaceChildren(el('span', 'up', `${up} up`), el('span', 'flat', `${flat} flat`), el('span', 'down', `${down} down`));
-  const lean = up / r.length;
-  $('mk-lede').textContent = lean >= .7 ? `Broad strength: ${up} of ${r.length} tracked coins are up today.`
-    : lean <= .3 ? `Broad weakness: ${down} of ${r.length} tracked coins are down today.`
-    : `A mixed market: ${up} tracked coins up, ${down} down today.`;
-
   // Tracked market value over 7 days = sum of (7d price points x circulating supply), stablecoins excluded.
   const parts = rows().filter(x => !x.stable && x.spark.length > 8 && x.circ);
   if (!parts.length) return;
@@ -88,9 +83,9 @@ function paintBreadth() {
 }
 
 const EXPLAIN = {
-  moves: p => `Biggest price changes over ${LABEL[p]}. Stablecoins are left out.`,
-  active: () => 'Most active = 24h volume as a share of market cap. A high share means the coin is trading unusually hard for its size. It is measured from volume, not from page views.',
-  ath: () => 'Highs: closest to their all-time high. Lows: furthest below it, and the biggest recoveries from the all-time low.',
+  moves: p => `Biggest changes, ${LABEL[p]}.`,
+  active: () => 'Volume as a share of market cap.',
+  ath: () => 'Distance from all-time highs and lows.',
 };
 
 function list(title, items, render, tone) {

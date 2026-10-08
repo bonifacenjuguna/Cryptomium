@@ -310,6 +310,8 @@ function initInShell() {
   const root = document.documentElement;
   const TABS = { '/': 'home', '/markets': 'markets', '/screener': 'screener', '/news': 'news', '/portfolio': 'portfolio' };
   const send = m => { try { parent.postMessage({ cm: m.cm, ...m }, location.origin); } catch { /* ignore */ } };
+  // The first tap tells the shell the person is really using the app (it needs that to keep Back reliable).
+  addEventListener('pointerup', () => send({ cm: 'act' }), { once: true, capture: true, passive: true });
   // Every ordinary link opens like a native screen: on top of this one, which stays exactly as it is underneath.
   document.addEventListener('click', e => {
     if (e.defaultPrevented || e.button || e.ctrlKey || e.metaKey || e.shiftKey) return;

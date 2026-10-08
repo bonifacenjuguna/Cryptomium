@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.12.0
+
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
+
+### Charts
+- Fixed the corrupted band across the lower half of charts (seen on 24H, 7D, 30D, 90D and 1Y, in lines, candles and comparisons). Cause: the screen underneath an opened screen (for example Home under a coin page) was kept drawn, dimmed with a filter and shadowed, and kept redrawing behind the chart. Screens underneath are now hidden once the new one has slid in, the chart no longer runs an endless animation, and it sits on its own isolated surface.
+- Charts draw far fewer shapes on long ranges: lines keep the high and low of each stretch instead of every point, candles merge into slots when there are more than the screen can show.
+- Comparison now works with candles: both coins are drawn side by side in each slot (filled body: closed higher, hollow: closed lower), in percent change. Switching between line and candles keeps the comparison.
+
+### Navigation
+- Back retraces exactly the way you came, one place at a time, and Home is always the last stop before the app closes. Returning to a place you already passed drops the loop in between (Home, Overview, News, Overview, Portfolio: Back goes Overview, Home, out).
+- Fixed Back closing the app straight from Settings and other screens: Chrome skips history entries a page adds before the first tap, so the app's own back step could be jumped over. A second step is added on the first tap and both are handled.
+
+### Settings and fixes
+- Data saver follows only its own setting. An old hidden Live updates choice could switch it on while Settings showed Off.
+- The Notifications switch no longer flips itself off while the permission question or registration is in progress, and when turning on fails the reason now stays on screen.
+- Settings pages lose their top taglines and the grey explanations under each setting; Overview, Screener, News, Compare, Converter and Portfolio lose their intro lines; alerts, update and notification messages are shorter. Longer explanations stay in Learn crypto, Data sources, Help and about and Data and privacy.
+- No dead space under the last item: the end-of-screen dot and the extra bottom spacing are gone, and a screen opened from the menu (where the tab bar is tucked away) no longer keeps room for the bar.
+
 ## 3.11.0
 
 **Frontend release plus a backend update (daily digest and quiet hours need the new backend; the database adds its own columns on first start).**

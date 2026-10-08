@@ -617,7 +617,7 @@ th, td { padding-block: 16px; }
 .chart .cross-pill rect { fill: var(--ink); }
 .chart .pill-t { fill: var(--bg); font: 700 11px var(--text); }
 .chart .tag-t { fill: #fff; font: 700 11px var(--text); }
-.chart .live-ring { transform-box: fill-box; transform-origin: center; animation: ring 2.2s ease-out infinite; }
+.chart .live-ring { display: none; } /* no endless animation inside the chart: it kept the graphics layer redrawing */
 .chart .live-dot { stroke: var(--surface); stroke-width: 2; }
 @keyframes ring { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(3.4); opacity: 0; } }
 .chart .wick { stroke-width: 1.4; stroke-linecap: round; }
@@ -1090,7 +1090,9 @@ td.go { vertical-align: middle; }
 .sheet-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 
 /* Chart zoom */
-.chart { position: relative; touch-action: pan-y; }
+.chart { position: relative; touch-action: pan-y; contain: layout paint; isolation: isolate; }
+.chart svg { display: block; shape-rendering: geometricPrecision; }
+.chart .candle, .chart .wick, .chart .grid-line, .chart .last-line { shape-rendering: crispEdges; }
 .chart.is-zoomed { cursor: grab; }
 .chart.is-panning { cursor: grabbing; }
 .zoom-btns { position: absolute; left: 8px; top: 6px; z-index: 2; display: flex; gap: 6px; }
@@ -2400,8 +2402,12 @@ html.in-shell.splash::after { display: none; }
 }
 
 /* ---------- v3.8 native navigation: screens stack on top of each tab ---------- */
-.tab-frame.under { visibility: visible; transform: translate3d(-22%, 0, 0); filter: brightness(.82); pointer-events: none; }
-.tab-frame.pushed { z-index: 2; box-shadow: -10px 0 30px rgba(0, 0, 0, .28); }
+/* The screen underneath is only drawn while the new one slides over it. After that it is hidden: a full-screen page kept alive,
+   filtered and re-drawn behind an opaque one is what corrupted the lower half of charts on some phones. */
+.tab-frame.under { visibility: hidden; pointer-events: none; }
+.tab-frame.under.slide-under { visibility: visible; transform: translate3d(-22%, 0, 0); }
+.tab-frame.pushed { z-index: 2; }
+.tab-frame.pushed.enter, .tab-frame.pushed.leave { box-shadow: -10px 0 24px rgba(0, 0, 0, .22); }
 .tab-frame.pushed.on { visibility: visible; }
 .tab-frame.enter { animation: scr-in .28s cubic-bezier(.2, .8, .2, 1) both; }
 .tab-frame.leave { z-index: 3; visibility: visible; animation: scr-out .24s ease-in both; pointer-events: none; }
@@ -2639,3 +2645,14 @@ html[data-touch="big"] .icon-btn { min-width: 52px; }
 .hub-card, html.is-app .hub-card { grid-template-areas: "ic t ch"; grid-template-rows: auto; align-items: center; align-content: center; }
 .hub-card .hub-t, html.is-app .hub-card .hub-t { align-self: center; }
 .hub-card .hub-ic, html.is-app .hub-card .hub-ic { align-self: center; grid-row: auto; }
+
+
+/* ---------- v3.12 no dead space ---------- */
+html.is-app .app-end, html.is-app .site-footer { display: none !important; }
+html.is-app main, html.is-app .wrap { padding-bottom: 0; margin-bottom: 0; }
+html.is-app .s-hint, html.is-app .app-about { padding-bottom: 0; }
+@media (max-width: 820px) {
+  html.is-app body { padding-bottom: calc(61px + env(safe-area-inset-bottom, 0px)); }
+  html.is-app.in-shell.bar-away body, html.is-app.kb-open body { padding-bottom: 0; }
+  html.is-app .px { padding-bottom: 0; }
+}

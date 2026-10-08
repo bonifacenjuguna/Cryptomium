@@ -37,10 +37,15 @@ function makeFrame(tab, url, pushed) {
   return f;
 }
 const topOf = tab => stacks[tab][stacks[tab].length - 1];
-// Where you have been, each place once, most recent last. Back walks it in reverse, so going Overview, News, Overview,
-// News and then Back gives Overview, then wherever you were before, never the same place twice.
+// The way you came, each place once, most recent last. Back retraces it exactly, one step at a time, ending at Home:
+// Home, Overview, News, Overview (the News detour is dropped), Portfolio, then Back gives Overview, Home, out.
 const trail = [];
-const visit = tab => { const i = trail.indexOf(tab); if (i >= 0) trail.splice(i, 1); trail.push(tab); try { localStorage.setItem('cm-last-tab', tab); } catch { /* ignore */ } };
+const visit = tab => {
+  const i = trail.indexOf(tab);
+  if (i >= 0) trail.length = i + 1; // back to a place you already passed: the loop since then is forgotten
+  else trail.push(tab);
+  try { localStorage.setItem('cm-last-tab', tab); } catch { /* ignore */ }
+};
 const snap = () => ({ tab: active, d: Object.fromEntries(ORDER.map(t => [t, stacks[t].length || 1])) });
 
 // What is visible: the active tab's top screen, plus the one beneath it while a screen is sliding.
@@ -58,7 +63,16 @@ function show() {
   const ui = (top && top._ui) || {}; // a screen that comes back with its menu open brings the bar's state back too
   root.classList.toggle('shell-away', !!ui.away || !!(top && top._hold)); // _hold: opened from the menu, so the bar stays away until you are back out
   root.classList.toggle('kb-open', !!ui.kb);
+  syncBar(top);
   try { topOf(active).contentWindow.focus(); } catch { /* ignore */ }
+}
+// While the bar is tucked away (menu open, opened from the menu, keyboard) the screen keeps no room for it.
+function syncBar(f) {
+  if (!f) return;
+  const away = root.classList.contains('shell-away') || root.classList.contains('kb-open');
+  const apply = () => { try { f.contentDocument.documentElement.classList.toggle('bar-away', away); } catch { /* still loading */ } };
+  apply();
+  if (!f._barHook) { f._barHook = true; f.addEventListener('load', () => { f._barLoaded = true; syncBar(f); }); }
 }
 
 function ensureTab(tab) { if (!stacks[tab].length) stacks[tab].push(makeFrame(tab, ROOTS[tab], false)); }
@@ -79,6 +93,7 @@ function pushScreen(url, { animate = true, record = true } = {}) {
   if (topPath && path === topPath) return; // already there
   const from = topOf(active);
   const f = makeFrame(active, path, true);
+  if (from && animate && motion()) { from.classList.add('slide-under'); setTimeout(() => from.classList.remove('slide-under'), 340); }
   // Opened from the open menu (or from a screen that was): the tab bar stays hidden, like in a native app's drawer flow.
   f._hold = !!(from && ((from._ui && from._ui.away) || from._hold));
   stack.push(f);
@@ -207,10 +222,24 @@ function goBackInApp() {
   }
   return false;
 }
+// Chrome skips history entries that a page added before the person ever touched it, so the first guard could be jumped
+// straight over by Back (the app then closed from Settings or any other screen). A second guard is added on the first tap,
+// when it counts, and a Back that lands on either guard is handled the same way.
+let armed = false;
+const arm = () => {
+  if (armed) return;
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+  armed = true;
+  try { history.pushState({ cmGuard: 2 }, ''); } catch { /* ignore */ }
+};
 try { history.replaceState({ cmBase: 1 }, ''); history.pushState({ cmGuard: 1 }, ''); } catch { /* no history API */ }
+['pointerup', 'click', 'keydown', 'touchend'].forEach(ev => addEventListener(ev, arm, { capture: true, passive: true }));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) arm(); });
 addEventListener('popstate', e => {
-  if (!e.state || !e.state.cmBase) return;
-  if (goBackInApp()) { try { history.pushState({ cmGuard: 1 }, ''); } catch { /* ignore */ } } else { try { history.back(); } catch { /* ignore */ } }
+  const st = e.state;
+  if (!st || !(st.cmBase || st.cmGuard)) return;
+  if (goBackInApp()) { if (st.cmBase) { try { history.pushState({ cmGuard: 1 }, ''); } catch { /* ignore */ } } } // landed on a spare guard: it is still on top of Back
+  else { try { history.back(); } catch { /* ignore */ } }                                                      // nowhere left: let Back leave the app
 });
 
 addEventListener('message', e => {
@@ -219,10 +248,12 @@ addEventListener('message', e => {
   if (!fromFrame) return;
   const [from, frame] = fromFrame;
   const m = e.data;
+  arm();
   const isTop = from === active && frame === topOf(active);
+  if (m.cm === 'act') return;
   if (m.cm === 'ui') {                                            // a menu, sheet or the keyboard is open: the bar steps aside
     frame._ui = { away: !!m.away, kb: !!m.kb };
-    if (isTop) { root.classList.toggle('shell-away', !!m.away || !!frame._hold); root.classList.toggle('kb-open', !!m.kb); }
+    if (isTop) { root.classList.toggle('shell-away', !!m.away || !!frame._hold); root.classList.toggle('kb-open', !!m.kb); syncBar(frame); }
   } else if (m.cm === 'tab' && ORDER.includes(m.tab) && isTop) {   // a link to another tab
     if (m.tab === active) reselect(m.tab); else switchTo(m.tab);
   } else if (m.cm === 'push' && isTop && typeof m.url === 'string') {

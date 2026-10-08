@@ -312,15 +312,15 @@ export async function shouldOffer() {
 }
 
 const REASONS = {
-  denied: 'Notifications are blocked for Cryptomium. Allow them in your browser or phone settings, then turn them on here.',
-  dismissed: 'No problem. You can turn notifications on any time in Settings, Price alerts.',
-  unsupported: 'This browser cannot receive notifications. Alerts still show here while the app is open.',
-  install: 'To get notifications on iPhone, add Cryptomium to your Home Screen first (Share, then Add to Home Screen).',
-  unavailable: 'Notifications are not available right now. Alerts still show here while the app is open.',
-  offline: 'You are offline. Connect to the internet and try again.',
-  network: 'Could not reach Cryptomium. Check your connection and try again.',
-  server: 'Something went wrong turning notifications on. Please try again in a moment.',
-  worker: 'The app is still starting up. Try again in a few seconds.',
+  denied: 'Blocked. Allow notifications in phone settings.',
+  dismissed: 'Not now.',
+  unsupported: 'Not supported here.',
+  install: 'Add Cryptomium to your Home Screen first.',
+  unavailable: 'Not available right now.',
+  offline: 'You are offline.',
+  network: 'Could not connect. Try again.',
+  server: 'Something went wrong. Try again.',
+  worker: 'Still starting. Try again.',
 };
 export const reasonText = r => REASONS[r] || REASONS.server;
 
@@ -340,8 +340,8 @@ export function offerCard({ onDone } = {}) {
   };
   if (needsInstall()) { finish(REASONS.install, false); return card; }
   card.append(
-    el('strong', 'push-offer-title', 'Get this alert even when the app is closed'),
-    el('p', 'push-offer-text', 'Turn on notifications and we will tell you the moment your price is reached, without you keeping Cryptomium open.')
+    el('strong', 'push-offer-title', 'Get alerts with the app closed'),
+    el('p', 'push-offer-text', 'Turn on notifications.')
   );
   const actions = el('div', 'push-offer-actions');
   const yes = el('button', 'btn btn-accent btn-sm', 'Turn on notifications');
@@ -351,7 +351,7 @@ export function offerCard({ onDone } = {}) {
     yes.disabled = no.disabled = true;
     yes.textContent = 'Turning on\u2026';
     const r = await enable();
-    if (r.ok) finish('Notifications are on. You will be told when your price is reached.', true);
+    if (r.ok) finish('Notifications on.', true);
     else { if (r.reason === 'dismissed') ls.set(OFFER_KEY, Date.now()); finish(reasonText(r.reason), false); }
   });
   no.addEventListener('click', () => { ls.set(OFFER_KEY, Date.now()); card.remove(); onDone && onDone(); });

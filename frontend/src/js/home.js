@@ -601,8 +601,8 @@ async function boot() {
       if (s !== 'live' && !state.live.size) {
         $('board-note').hidden = false;
         $('board-note').textContent = s === 'offline'
-          ? "You're offline and no prices are saved on this device yet. They will appear on their own as soon as you're back online."
-          : 'Prices are taking longer than usual to load. We keep trying, so this page will fill in on its own.';
+          ? "You're offline. Prices appear when you're back."
+          : 'Prices are slow to load. Still trying.';
       }
     }
   );

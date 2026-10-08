@@ -75,10 +75,10 @@ selectPicker(document.getElementById('nw-pub'), { title: 'Publisher', searchable
       for (const p of data.publishers) { const o = el('option', '', p.name); o.value = p.id; $('nw-pub').append(o); }
       $('nw-pub').value = keep;
       const saved = getJSON.savedAt('/api/news');
-      $('nw-status').textContent = `${data.items.length} headlines from ${data.publishers.map(p => p.name).join(', ')}, updated ${ago(data.updatedAt)}.` + (data.unavailable.length ? ` ${data.unavailable.join(', ')} could not be reached right now.` : '') + (data.stale ? ' Showing the last good copy.' : '') + (saved ? ' Offline or unreachable: showing the copy saved ' + ago(new Date(saved).toISOString()) + '.' : '');
+      $('nw-status').textContent = `Updated ${ago(data.updatedAt)}.` + (data.unavailable.length ? ` ${data.unavailable.join(', ')} unavailable.` : '') + ((data.stale || saved) ? ' Saved copy.' : '');
       paint();
     } catch {
-      if (!state.items.length) $('nw-status').textContent = 'The news feeds are not reachable right now and nothing is saved yet. Headlines will load when you are back online.';
+      if (!state.items.length) $('nw-status').textContent = 'News unavailable right now.';
     }
   };
   await load();

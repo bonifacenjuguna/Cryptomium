@@ -10,6 +10,6 @@ assert.ok(info.wickPaths >= 1 && info.wickPaths <= 2 && info.bodyPaths >= 1 && i
 assert.equal(info.oldRects + info.oldLines, 0);
 assert.ok(info.total < 80, 'whole chart under 80 elements, was 500+: ' + info.total);
 await page.mouse.move(150, 400);
-await page.screenshot({ path: '/home/claude/e2e/candles.png' });
+await page.screenshot({ path: '/tmp/candles.png' });
 console.log('errors', errs);
 await h.close();

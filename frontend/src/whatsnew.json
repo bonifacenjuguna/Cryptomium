@@ -1,5 +1,17 @@
 [
  {
+  "v": "3.12.0",
+  "notes": [
+   "Charts: fixed the glitched bottom of charts on every period, candles and lines",
+   "Compare two coins as candles too",
+   "Back retraces exactly the way you came, ending at Home",
+   "Data saver only turns on when you switch it on",
+   "Notifications switch no longer flips itself off",
+   "Shorter wording across the app",
+   "Dead space at the bottom of pages removed"
+  ]
+ },
+ {
   "v": "3.11.0",
   "notes": [
    "New Settings: Notifications, Security and privacy (app lock, hide balances), Data saver, Region and format, Accessibility",

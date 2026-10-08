@@ -187,8 +187,8 @@ export function agoText(ms) {
   return d + (d === 1 ? ' day ago' : ' days ago');
 }
 export const WORDS = {
-  offline: { title: "You're offline", chip: 'Offline', line: 'Offline — showing last available data.', body: "Showing the latest data from your last successful update. Some live information may be unavailable. We'll reconnect automatically when your connection returns." },
-  api: { title: 'Live data is temporarily unavailable', chip: 'Delayed', line: 'Live data temporarily unavailable. Showing the latest available data.', body: "Your connection is fine, but the price service isn't delivering right now. Showing the latest available data. We'll keep trying and update on our own." },
+  offline: { title: "You're offline", chip: 'Offline', line: 'Offline. Showing saved data.', body: 'Showing saved data. Reconnecting automatically.' },
+  api: { title: 'Live data paused', chip: 'Delayed', line: 'Live data paused. Showing saved data.', body: 'Prices are paused. Still trying.' },
 };
 
 // ---------- Banner and header chip ----------

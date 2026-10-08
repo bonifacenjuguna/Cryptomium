@@ -111,7 +111,7 @@ async function loadCoinNews() {
     if (mine.length) { $('cn-list').replaceChildren(...mine.map(row)); $('cn-note').hidden = true; return; }
     // No headline names this coin right now: say so, and show the latest general ones so the section is never empty.
     const latest = data.items.slice(0, 3);
-    $('cn-note').textContent = `No recent headlines name ${state.coin?.name || ticker}. Here is the latest from the wider market.`;
+    $('cn-note').textContent = `No recent ${state.coin?.name || ticker} headlines. Latest market news:`;
     $('cn-note').hidden = false;
     $('cn-list').replaceChildren(...latest.map(row));
   } catch {
@@ -188,12 +188,14 @@ async function loadChart() {
   const same = () => state.type === type && state.range === range && state.cmp === cmp;
   try {
     if (cmp) {
+      const style = type === 'candles' ? '&style=candles' : ''; // candles stay candles when a second coin is laid over
       const [a, b] = await Promise.all([
-        getJSON(`/api/history/${ticker}?range=${range}`),
-        getJSON(`/api/history/${cmp}?range=${range}`),
+        getJSON(`/api/history/${ticker}?range=${range}${style}`),
+        getJSON(`/api/history/${cmp}?range=${range}${style}`),
       ]);
       if (!same()) return;
-      chart.setData({ type: 'compare', range, series: [{ label: ticker, points: a.points }, { label: cmp, points: b.points }] });
+      const key = type === 'candles' && a.candles?.length > 1 && b.candles?.length > 1 ? 'candles' : 'points';
+      chart.setData({ type: 'compare', range, series: [{ label: ticker, [key]: a[key] }, { label: cmp, [key]: b[key] }] });
       return;
     }
     const h = await getJSON(`/api/history/${ticker}?range=${range}${type === 'candles' ? '&style=candles' : ''}`);
@@ -207,7 +209,7 @@ async function loadChart() {
 
 function paintToolbar() {
   $('ranges').querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.range === state.range)));
-  $('chart-type').querySelectorAll('.seg').forEach(t => t.setAttribute('aria-pressed', String(!state.cmp && t.dataset.type === state.type)));
+  $('chart-type').querySelectorAll('.seg').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.type === state.type)));
   cmpPick?.set(state.cmp);
   $('cmp-clear').hidden = !state.cmp;
   $('chart-card').classList.toggle('is-compare', Boolean(state.cmp));
@@ -367,7 +369,7 @@ function wireAlertCard() {
     }
     addTarget({ ticker, dir: acDir, price: usd });
     $('ac-price').value = '';
-    setHint(`Done. We will tell you when ${ticker} ${acDir === 'above' ? 'reaches' : 'drops to'} ${money(usd, { stable: state.coin?.stable })}.`);
+    setHint(`Alert set for ${money(usd, { stable: state.coin?.stable })}.`);
     // No permission pop-up out of nowhere: explain first, and only ask if the person agrees.
     push.shouldOffer().then(yes => { if (yes && !document.querySelector('.push-offer')) $('ac-hint').after(push.offerCard()); });
   });
@@ -469,9 +471,8 @@ async function boot() {
   });
   $('chart-type').addEventListener('click', e => {
     const b = e.target.closest('[data-type]');
-    if (!b || (b.dataset.type === state.type && !state.cmp)) return;
-    state.type = b.dataset.type;
-    state.cmp = '';
+    if (!b || b.dataset.type === state.type) return;
+    state.type = b.dataset.type; // a comparison stays: the same two coins, drawn the other way
     paintToolbar();
     loadChart();
   });

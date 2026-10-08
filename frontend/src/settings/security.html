@@ -23,23 +23,22 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Security and privacy</h1><p class="lede">Keep your portfolio to yourself.</p></div>
+        <div class="s-head"><h1>Security and privacy</h1></div>
         <section class="s-card" aria-labelledby="h-lock">
           <h2 id="h-lock">App lock</h2>
-          <p class="s-hint">This is a screen lock, like a banking app's. It keeps people who pick up your phone out of the app. It does not encrypt what is stored on the device.</p>
-          <div class="s-row"><div class="s-label"><b>Lock the app</b><span id="lock-switch-s">Ask for your fingerprint, face, screen lock or PIN.</span></div><button type="button" class="switch" role="switch" id="lock-switch" aria-checked="false" aria-label="Lock the app"><span></span></button></div>
+          <div class="s-row"><div class="s-label"><b>Lock the app</b><span id="lock-switch-s"></span></div><button type="button" class="switch" role="switch" id="lock-switch" aria-checked="false" aria-label="Lock the app"><span></span></button></div>
           <div id="lock-opts" hidden>
-          <div class="s-row"><div class="s-label"><b>Auto-lock</b><span>How long after you leave.</span></div><select id="lock-after" hidden aria-label="Auto-lock"><option value="0">Immediately</option><option value="30">After 30 seconds</option><option value="60">After 1 minute</option><option value="300">After 5 minutes</option><option value="900">After 15 minutes</option></select></div>
-          <div class="s-row"><div class="s-label"><b>What to lock</b><span>Everything, or only the sensitive parts.</span></div><select id="lock-scope" hidden aria-label="What to lock"><option value="app">The whole app</option><option value="sensitive">Only Portfolio and deleting data</option></select></div>
+          <div class="s-row"><div class="s-label"><b>Auto-lock</b></div><select id="lock-after" hidden aria-label="Auto-lock"><option value="0">Immediately</option><option value="30">After 30 seconds</option><option value="60">After 1 minute</option><option value="300">After 5 minutes</option><option value="900">After 15 minutes</option></select></div>
+          <div class="s-row"><div class="s-label"><b>What to lock</b></div><select id="lock-scope" hidden aria-label="What to lock"><option value="app">The whole app</option><option value="sensitive">Only Portfolio and deleting data</option></select></div>
           <div class="s-row"><div class="s-label"><b>Phone unlock</b><span id="lock-bio-s">Checking…</span></div><button type="button" class="btn btn-ghost btn-sm" id="lock-bio">Set up</button></div>
-          <div class="s-row"><div class="s-label"><b>PIN</b><span>A fallback that always works.</span></div><button type="button" class="btn btn-ghost btn-sm" id="lock-pin">Change</button></div>
+          <div class="s-row"><div class="s-label"><b>PIN</b></div><button type="button" class="btn btn-ghost btn-sm" id="lock-pin">Change</button></div>
           <div class="s-actions"><button type="button" class="btn btn-ghost" id="lock-now">Lock now</button></div>
           </div>
         </section>
         <section class="s-card" aria-labelledby="h-priv">
           <h2 id="h-priv">Privacy</h2>
-          <div class="s-row"><div class="s-label"><b>Start with balances hidden</b><span>Your Portfolio opens blurred. Use the eye to show it.</span></div><button type="button" class="switch" role="switch" data-toggle="hideBalStart" aria-checked="false" aria-label="Start with balances hidden"><span></span></button></div>
-          <div class="s-row"><div class="s-label"><b>Cover the app in recent apps</b><span>Hides the app's contents in your phone's app switcher.</span></div><button type="button" class="switch" role="switch" data-toggle="blurRecents" aria-checked="false" aria-label="Cover the app in recent apps"><span></span></button></div>
+          <div class="s-row"><div class="s-label"><b>Start with balances hidden</b></div><button type="button" class="switch" role="switch" data-toggle="hideBalStart" aria-checked="false" aria-label="Start with balances hidden"><span></span></button></div>
+          <div class="s-row"><div class="s-label"><b>Cover the app in recent apps</b></div><button type="button" class="switch" role="switch" data-toggle="blurRecents" aria-checked="false" aria-label="Cover the app in recent apps"><span></span></button></div>
         </section>
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>

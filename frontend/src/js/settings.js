@@ -46,7 +46,7 @@ function paintHub() {
   set('hv-sources', 'Live from the exchanges');
   set('hv-about', 'About ' + (window.CRYPTOMIUM?.brand || 'Cryptomium'));
   set('hv-data', 'Stays on this device');
-  set('hv-advanced', prefs.get('liveMode') === 'saver' ? 'Data saver on' : 'Auto updates');
+  set('hv-advanced', '\u00a0');
   set('hv-updates', `Version ${window.CRYPTOMIUM?.version || ''} \u00b7 ${updates.mode() === 'auto' ? 'Automatic' : 'Manual'}`);
   set('hv-experimental', prefs.get('sound') || prefs.get('haptics') ? 'Some on' : 'All off');
 }
@@ -276,9 +276,9 @@ function paintAlertHint() {
   if ((k === 'above' || k === 'below') && typed > 0) {
     const away = ((typed / currency.rate - l.price) / l.price) * 100;
     const wrong = (k === 'above' && away <= 0) || (k === 'below' && away >= 0);
-    line = wrong ? `${t} is already ${k === 'above' ? 'above' : 'below'} that. Pick a ${k === 'above' ? 'higher' : 'lower'} price.` : `${t} is ${now} now. That is ${Math.abs(away).toFixed(1)}% ${away > 0 ? 'higher' : 'lower'}.`;
-  } else if (k === 'move' && typed > 0) line = `You will be told if ${t} moves ${typed}% or more in 24 hours.`;
-  else if (k === 'ath') line = `You will be told when ${t} sets a new all-time high.`;
+    line = wrong ? `${t} is already ${k === 'above' ? 'above' : 'below'} that.` : `Now ${now}, ${Math.abs(away).toFixed(1)}% away.`;
+  } else if (k === 'move' && typed > 0) line = `${t} moves ${typed}% in 24 hours.`;
+  else if (k === 'ath') line = `${t} new all-time high.`;
   else if (k === 'atl') line = `You will be told when ${t} sets a new all-time low.`;
   $('al-now').textContent = line;
 }
@@ -337,28 +337,32 @@ function updateTargetMeta() {
 // and privacy. The Price alerts page keeps just the push switch and a link here.
 const switchOn = (btn, on) => btn && btn.setAttribute('aria-checked', String(on));
 const hide = (id, yes) => { const n = $(id); if (n) n.hidden = yes; };
+let notifBusy = false;   // a turn on / off is in progress: nothing else may repaint the switch under the finger
+let notifNote = '';      // why the last attempt did not work, kept on screen until the next attempt
 async function paintNotif() {
   const sw = $('notif-switch'), text = $('notif-text') || $('notif-switch-s');
-  if (!sw || !text) return;
+  if (!sw || !text || notifBusy) return;
   const s = await push.getState();
+  if (notifBusy) return;
   const on = s.status === 'on';
   switchOn(sw, on);
   sw.disabled = ['unsupported', 'unavailable', 'install'].includes(s.status);
   hide('push-prefs', !on);
   hide('notif-fine', s.status === 'unsupported' || s.status === 'unavailable');
   text.textContent = {
-    on: 'On. Notifications reach you even when Cryptomium is closed.',
-    off: 'Off. Turn on to be told with the app closed.',
-    blocked: 'Blocked in your phone or browser settings. Allow notifications for Cryptomium there, then switch this on.',
+    on: 'On',
+    off: 'Off',
+    blocked: 'Blocked in phone settings.',
     install: push.reasonText('install'),
-    unsupported: 'This browser cannot show notifications. You still get a message in the app.',
-    unavailable: 'Not available right now. You still get a message in the app.',
+    unsupported: 'Not supported here.',
+    unavailable: 'Not available right now.',
   }[s.status];
+  if (notifNote && s.status !== 'on') text.textContent = notifNote;
   if (on) {
     switchOn($('ms-switch'), s.milestones);
     hide('ms-scope-row', !s.milestones);
     switchOn($('ms-starred'), s.scope === 'starred');
-    const sub = $('ms-starred-s'); if (sub) sub.textContent = favCount() ? 'Skip milestones for coins you have not starred.' : 'Star some coins first, or this sends nothing.';
+    const sub = $('ms-starred-s'); if (sub) sub.textContent = favCount() ? '' : 'Star some coins first.';
   }
   switchOn($('dg-switch'), Boolean(prefs.get('digestOn')));
   hide('dg-row', !prefs.get('digestOn'));
@@ -382,21 +386,20 @@ function initNotifCard() {
   const sw = $('notif-switch');
   if (!sw) return;
   sw.addEventListener('click', async () => {
-    if (sw.disabled) return;
+    if (sw.disabled || notifBusy) return;
     const turningOn = sw.getAttribute('aria-checked') !== 'true';
+    const note = $('notif-text') || $('notif-switch-s');
+    notifBusy = true; notifNote = '';
     sw.disabled = true;
-    switchOn(sw, turningOn);                    // answers the tap at once; the real result repaints below
-    if (turningOn) {
-      const r = await push.enable();
-      await paintNotif();
-      if (!r.ok) ($('notif-text') || $('notif-switch-s')).textContent = push.reasonText(r.reason); else flashSaved('Notifications on');
-    } else {
-      await push.disable();
-      await paintNotif();
-      flashSaved('Notifications off');
-    }
+    switchOn(sw, turningOn);                    // answers the tap at once; nothing repaints it until the result is known
+    let r = { ok: true };
+    try { r = turningOn ? await push.enable() : await push.disable(); } catch { r = { ok: false, reason: 'server' }; }
+    notifBusy = false;
     sw.disabled = false;
-    paintNotif();
+    if (!r.ok) notifNote = push.reasonText(r.reason);
+    await paintNotif();
+    if (r.ok) flashSaved(turningOn ? 'Notifications on' : 'Notifications off');
+    else if (note) note.textContent = notifNote;
   });
   $('notif-test')?.addEventListener('click', async () => {
     const b = $('notif-test');
@@ -404,8 +407,8 @@ function initNotifCard() {
     const r = await push.sendTest();
     b.disabled = false;
     if (r.ok) flashSaved('Test sent');
-    else if (r.reason === 'gone') { await paintNotif(); ($('notif-text') || $('notif-switch-s')).textContent = 'This device was no longer registered. Switch notifications on again.'; }
-    else ($('notif-text') || $('notif-switch-s')).textContent = r.reason === 'wait' ? 'Wait a few seconds before sending another test.' : push.reasonText(r.reason);
+    else if (r.reason === 'gone') { await paintNotif(); ($('notif-text') || $('notif-switch-s')).textContent = 'Turn notifications on again.'; }
+    else ($('notif-text') || $('notif-switch-s')).textContent = r.reason === 'wait' ? 'Wait a moment.' : push.reasonText(r.reason);
   });
   const savePrefs = async () => {
     const r = await push.setMilestones({ milestones: $('ms-switch').getAttribute('aria-checked') === 'true', scope: $('ms-starred').getAttribute('aria-checked') === 'true' ? 'starred' : 'all' });
@@ -440,8 +443,8 @@ function paintSaver() {
   if (!n) return;
   const c = navigator.connection;
   n.textContent = dataSaverOn()
-    ? 'Saving data now: prices refresh less often, and charts wait until you tap Load chart.'
-    : prefs.get('saver') === 'cellular' ? `Not saving right now (${c && c.type ? c.type : 'not on mobile data'}). It turns on by itself on mobile data.` : 'Not saving data.';
+    ? 'Saving data now.'
+    : prefs.get('saver') === 'cellular' ? 'Not on mobile data right now.' : '';
 }
 navigator.connection?.addEventListener?.('change', paintSaver);
 
@@ -778,12 +781,12 @@ function initAdvanced() {
 
 // ---------------------------------------------------------------- app updates
 const ERR = {
-  offline: ["You're offline", "Updates need a connection. Cryptomium keeps working with the version you have, and you can check again when you're back online."],
-  network: ["We couldn't check for updates", 'The update service could not be reached. Cryptomium will continue using the current version.'],
-  timeout: ["We couldn't complete the update", 'It took too long. Cryptomium will continue using the current version.'],
-  install: ["We couldn't complete the update", 'The new version did not download completely. Cryptomium will continue using the current version.'],
-  activate: ["We couldn't complete the update", 'Cryptomium will continue using the current version.'],
-  unsupported: ['Updates are not available here', 'This browser does not support app updates. Reload the page to get the newest version.'],
+  offline: ["You're offline", 'Connect to update.'],
+  network: ["We couldn't check for updates", 'Try again later.'],
+  timeout: ["We couldn't complete the update", 'Took too long.'],
+  install: ["We couldn't complete the update", 'Download incomplete.'],
+  activate: ["We couldn't complete the update", 'Still on the current version.'],
+  unsupported: ['Updates are not available here', 'Reload to get the newest version.'],
 };
 function paintUpdates() {
   const u = updates.get();

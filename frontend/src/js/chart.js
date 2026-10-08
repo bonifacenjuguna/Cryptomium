@@ -57,6 +57,35 @@ function tipTime(ms, range) {
 }
 const signed = v => pct(v);
 
+// Keep what is drawn small however long the range is: a few hundred points is all a phone screen can show, and a huge path
+// redrawn on every touch is what corrupted charts on some phones.
+function thinLine(arr, target) {
+  if (arr.length <= target) return arr;
+  const buckets = Math.max(1, Math.floor(target / 2));
+  const per = (arr.length - 2) / buckets;
+  const out = [arr[0]];
+  for (let b = 0; b < buckets; b++) {
+    const from = 1 + Math.floor(b * per), to = Math.min(arr.length - 1, 1 + Math.floor((b + 1) * per));
+    let lo = null, hi = null;
+    for (let i = from; i < to; i++) { if (!lo || arr[i][1] < lo[1]) lo = arr[i]; if (!hi || arr[i][1] > hi[1]) hi = arr[i]; }
+    if (lo && hi) { if (lo[0] <= hi[0]) out.push(lo, ...(hi !== lo ? [hi] : [])); else out.push(hi, lo); }
+  }
+  out.push(arr.at(-1));
+  return out;
+}
+/** Merge candles into `count` equal time slots (open of the first, high, low, close of the last). Empty slots stay null. */
+function slotCandles(arr, t0, span, count) {
+  const out = new Array(count).fill(null);
+  for (const c of arr) {
+    const k = Math.min(count - 1, Math.max(0, Math.floor(((c[0] - t0) / span) * count)));
+    const b = out[k];
+    if (!b) out[k] = [c[0], c[1], c[2], c[3], c[4]];
+    else { b[2] = Math.max(b[2], c[2]); b[3] = Math.min(b[3], c[3]); b[4] = c[4]; }
+  }
+  return out;
+}
+const stepOf = arr => (arr.length > 1 ? (arr.at(-1)[0] - arr[0][0]) / (arr.length - 1) : 1);
+
 export function createChart(host, { stable = false, legend = null, onChange = () => {} } = {}) {
   const st = {
     type: 'line', // line | candles | compare
@@ -64,7 +93,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     base: null, // [[t, usd]] from the server
     tail: [], // live points added since
     candles: null, // [[t, o, h, l, c]] in usd
-    series: null, // compare: [{ label, points: [[t, usd]] }]
+    series: null, // compare: [{ label, points: [[t, usd]] }] or, for candles, [{ label, candles: [[t, o, h, l, c]] }]
     message: 'Loading chart',
     sel: null, // selected moment (ms) or null
     win: null, // zoom window { a, b, pinned } in ms, or null for the whole range
@@ -129,7 +158,8 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
   }
 
   // ---------------------------------------------------------------- zoom window
-  const fullData = () => (st.type === 'compare' ? st.series?.[0]?.points ?? null : st.type === 'candles' ? st.candles : lineSeries());
+  const cmpCandles = () => st.type === 'compare' && Boolean(st.series?.[0]?.candles);
+  const fullData = () => (st.type === 'compare' ? (st.series?.[0]?.candles ?? st.series?.[0]?.points ?? null) : st.type === 'candles' ? st.candles : lineSeries());
   function resolveWin(arr) {
     const T0 = arr[0][0], T1 = arr.at(-1)[0];
     const total = Math.max(1, T1 - T0);
@@ -246,7 +276,9 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const mode = st.type;
     const isC = mode === 'candles';
     const isCmp = mode === 'compare';
-    const whole = isCmp ? st.series?.[0]?.points : isC ? st.candles : lineSeries();
+    const cmpC = isCmp && cmpCandles();
+    const slot = isC || cmpC; // candles sit in evenly spaced slots; lines are placed by time
+    const whole = isCmp ? (st.series?.[0]?.candles ?? st.series?.[0]?.points) : isC ? st.candles : lineSeries();
     if (!whole || whole.length < 2) {
       host.append(el('div', 'chart-msg', st.message || 'Loading chart'));
       if (legend) legend.replaceChildren();
@@ -254,31 +286,59 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     }
     const win = whole.length > 2 ? resolveWin(whole) : { a: whole[0][0], b: whole.at(-1)[0], T0: whole[0][0], T1: whole.at(-1)[0], total: 1, zoomed: false };
     st.dom = { T0: win.T0, T1: win.T1 };
-    const data = isCmp ? slice(whole, win, true) : slice(whole, win, !isC);
     const rate = currency.rate;
     const W = host.clientWidth || 640;
     const H = host.clientHeight || 320;
     const inside = W < 560; // phones: the price scale sits over the chart so the data gets the full width
     const padL = 4, padT = 12, padB = 26;
+    const room = Math.max(120, W - padL - (inside ? 6 : 70)); // rough plot width: only decides how much detail is worth drawing
 
+    let data = isCmp ? slice(whole, win, true) : slice(whole, win, !isC);
+    if (isC) {
+      const maxN = Math.floor(room / 3.4);
+      if (data.length > maxN && data.length > 2) {
+        const t0c = data[0][0], span = data.at(-1)[0] - t0c + stepOf(data);
+        data = slotCandles(data, t0c, span, maxN).filter(Boolean);
+      }
+    } else if (!cmpC) data = thinLine(data, Math.round(room * 0.9));
+
+    const nearestIn = times => t => {
+      let lo = 0, hi = times.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (times[m] < t) lo = m; else hi = m; }
+      return Math.abs(times[lo] - t) <= Math.abs(times[hi] - t) ? lo : hi;
+    };
     // Compare mode works in percent change from the start, so two very different prices share one scale.
     let cmp = null;
-    if (isCmp) {
+    if (cmpC) {
+      // Candles: both coins share the same time slots; each slot holds one candle per coin.
+      const A = data;
+      const t0c = A[0][0], span = A.at(-1)[0] - t0c + stepOf(A);
+      const count = Math.max(2, Math.min(A.length, Math.floor(room / 7)));
+      const sl = st.series.map((s, k) => slotCandles(k === 0 ? A : slice(s.candles, win, true), t0c, span, count));
+      const keep = [];
+      for (let i = 0; i < count; i++) if (sl.some(a => a[i])) keep.push(i);
+      data = keep.map(i => sl.map(a => a[i]).find(Boolean)); // one entry per slot; only its time is used
+      cmp = sl.map((arr, k) => {
+        const rows = keep.map(i => arr[i]);
+        const base = (rows.find(Boolean) || [0, 1])[1] || 1;
+        const f = v => (v / base - 1) * 100;
+        let prev = 0;
+        const cds = rows.map(c => (c ? [c[0], f(c[1]), f(c[2]), f(c[3]), f(c[4])] : null));
+        const pts = rows.map((c, i) => { if (c) prev = f(c[4]); return [data[i][0], prev]; });
+        return { label: st.series[k].label, pts, cds, nearest: nearestIn(pts.map(p => p[0])) };
+      });
+    } else if (isCmp) {
+      const target = Math.round(room * 0.9);
+      data = thinLine(data, target);
       cmp = st.series.map((s, k) => {
         // Percent change is measured from the first point on screen, so a zoomed view starts at 0% again.
-        const part = k === 0 ? data : slice(s.points, win, true);
+        const part = k === 0 ? data : thinLine(slice(s.points, win, true), target);
         const pts = part.map(p => [p[0], (p[1] / part[0][1] - 1) * 100]);
-        const times = pts.map(p => p[0]);
-        const nearest = t => {
-          let lo = 0, hi = times.length - 1;
-          while (hi - lo > 1) { const m = (lo + hi) >> 1; if (times[m] < t) lo = m; else hi = m; }
-          return Math.abs(times[lo] - t) <= Math.abs(times[hi] - t) ? lo : hi;
-        };
-        return { label: s.label, pts, nearest };
+        return { label: s.label, pts, nearest: nearestIn(pts.map(p => p[0])) };
       });
     }
 
-    const vals = isCmp ? cmp.flatMap(s => s.pts.map(p => p[1])) : isC ? data.flatMap(c => [c[2] * rate, c[3] * rate]) : data.map(p => p[1] * rate);
+    const vals = isCmp ? (cmpC ? cmp.flatMap(s => s.cds.flatMap(c => (c ? [c[2], c[3]] : []))) : cmp.flatMap(s => s.pts.map(p => p[1]))) : isC ? data.flatMap(c => [c[2] * rate, c[3] * rate]) : data.map(p => p[1] * rate);
     let lo = Math.min(...vals), hi = Math.max(...vals);
     const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.01 || 1;
     lo -= pad; hi += pad;
@@ -292,11 +352,11 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const iw = W - padL - padR, ih = H - padT - padB;
     const y = v => padT + (1 - (v - lo) / (hi - lo)) * ih;
 
-    const t0 = isC ? data[0][0] : win.a, t1 = isC ? data.at(-1)[0] : win.b;
+    const t0 = slot ? data[0][0] : win.a, t1 = slot ? data.at(-1)[0] : win.b;
     st.lr = t1 - t0 <= 3 * 864e5 && st.range !== '24h' ? '24h' : null; // a zoomed-in view shows clock times
     const n = data.length;
     const band = iw / n;
-    const x = isC ? i => padL + band * (i + 0.5) : i => padL + ((data[i][0] - t0) / (t1 - t0 || 1)) * iw;
+    const x = slot ? i => padL + band * (i + 0.5) : i => padL + ((data[i][0] - t0) / (t1 - t0 || 1)) * iw;
     const xt = t => padL + ((t - t0) / (t1 - t0 || 1)) * iw;
 
     const first = isCmp ? 0 : data[0][1];
@@ -314,6 +374,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const clip = svg('clipPath', { id: 'cclip' });
     clip.append(svg('rect', { x: padL, y: 0, width: Math.max(1, iw), height: H }));
     defs.append(clip);
+    const clipAttr = win.zoomed ? { 'clip-path': 'url(#cclip)' } : {}; // only a zoomed view has anything to cut off
     root.append(defs);
 
     for (const v of tickValues) {
@@ -332,15 +393,33 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     const ticks = W < 520 ? 2 : 4;
     for (let k = 0; k <= ticks; k++) {
       const i = Math.round((k / ticks) * (n - 1));
-      const tt = isC ? data[i][0] : t0 + (k / ticks) * (t1 - t0);
-      const tx = isC ? x(i) : xt(tt);
+      const tt = slot ? data[i][0] : t0 + (k / ticks) * (t1 - t0);
+      const tx = slot ? x(i) : xt(tt);
       const t = svg('text', { class: 'axis-t', x: tx, y: H - 6, 'text-anchor': k === 0 ? 'start' : k === ticks ? 'end' : 'middle' });
       t.textContent = timeLabel(tt, st.lr || st.range);
       root.append(t);
     }
 
-    if (isCmp) {
-      const g = svg('g', { 'clip-path': 'url(#cclip)' });
+    if (cmpC) {
+      // Two coins as candles: side by side in each slot. Each coin keeps its own colour; a filled body closed higher, a hollow one lower.
+      const bw = Math.max(1.6, Math.min(9, band * 0.36));
+      cmp.forEach((s, k) => {
+        const col = k ? color2 : color;
+        let wick = '', full = '', hollow = '';
+        s.cds.forEach((c, i) => {
+          if (!c) return;
+          const cx = x(i) + (k ? bw * 0.6 : -bw * 0.6);
+          wick += `M${cx.toFixed(1)} ${y(c[2]).toFixed(1)}V${y(c[3]).toFixed(1)}`;
+          const top = y(Math.max(c[1], c[4])), bot = y(Math.min(c[1], c[4]));
+          const body = `M${(cx - bw / 2).toFixed(1)} ${top.toFixed(1)}h${bw.toFixed(1)}v${Math.max(1.5, bot - top).toFixed(1)}h${(-bw).toFixed(1)}Z`;
+          if (c[4] >= c[1]) full += body; else hollow += body;
+        });
+        if (wick) root.append(svg('path', { class: 'wick', d: wick, stroke: col, fill: 'none' }));
+        if (full) root.append(svg('path', { class: 'candle', d: full, fill: col }));
+        if (hollow) root.append(svg('path', { class: 'candle', d: hollow, fill: 'none', stroke: col, 'stroke-width': 1.2 }));
+      });
+    } else if (isCmp) {
+      const g = svg('g', clipAttr);
       cmp.forEach((s, k) => {
         const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
         g.append(svg('path', { class: 'line', d, stroke: k ? color2 : color }));
@@ -367,7 +446,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       root.append(svg('line', { class: 'last-line', x1: padL, x2: W - padR, y1: ly, y2: ly, stroke: color }));
     } else {
       const d = data.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[1] * rate).toFixed(1)}`).join('');
-      const g = svg('g', { 'clip-path': 'url(#cclip)' });
+      const g = svg('g', clipAttr);
       g.append(svg('path', { d: `${d}L${x(n - 1).toFixed(1)} ${padT + ih}L${x(0).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }), svg('path', { class: 'line', d, stroke: color }));
       root.append(g);
     }
@@ -386,11 +465,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       tag.append(tagT);
       root.append(tag);
     }
-    if (!isC && !isCmp && !win.zoomed || (!isC && !isCmp && win.b >= win.T1 - win.total * 0.004)) {
-      const ring = svg('circle', { class: 'live-ring', cx: x(n - 1), cy: ey, r: 5, fill: color });
-      ring.style.animationDelay = `${-(Date.now() % 2200)}ms`;
-      root.append(ring, svg('circle', { class: 'live-dot', cx: x(n - 1), cy: ey, r: 3.6, fill: color }));
-    }
+    if (!isC && !isCmp && atEdge) root.append(svg('circle', { class: 'live-dot', cx: x(n - 1), cy: ey, r: 3.6, fill: color }));
 
     // Crosshair (hidden until a moment is selected).
     const vline = svg('line', { class: 'cursor', y1: padT, y2: padT + ih, visibility: 'hidden' });
@@ -423,7 +498,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       host.append(chip);
     }
 
-    view = { zoomed: win.zoomed, lo, hi, mode, data, isC, isCmp, cmp, x, xt, y, n, W, H, padL, padR, padT, ih, iw, rate, vline, hline, dot, dot2, pill, pillR, pillT, tagW, tagX, color, band, t0, t1, times: isCmp ? cmp[0].pts.map(p => p[0]) : null };
+    view = { zoomed: win.zoomed, lo, hi, mode, data, isC, isCmp, cmpC, slot, cmp, x, xt, y, n, W, H, padL, padR, padT, ih, iw, rate, vline, hline, dot, dot2, pill, pillR, pillT, tagW, tagX, color, band, t0, t1, times: isCmp ? cmp[0].pts.map(p => p[0]) : null };
 
     if (isCmp) onChange(null, st.range);
     else onChange(signed(((lastV - first) / first) * 100), st.range);
@@ -443,8 +518,8 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
   function indexFromClientX(clientX) {
     const r = host.getBoundingClientRect();
     const px = clientX - r.left;
-    const { isC, n, band, padL, iw, t0, t1 } = view;
-    if (isC) return Math.max(0, Math.min(n - 1, Math.floor((px - padL) / band)));
+    const { slot, n, band, padL, iw, t0, t1 } = view;
+    if (slot) return Math.max(0, Math.min(n - 1, Math.floor((px - padL) / band)));
     const t = t0 + ((px - padL) / iw) * (t1 - t0);
     return indexOfTime(t);
   }
@@ -461,7 +536,7 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     host.classList.add('has-sel');
     const i = indexOfTime(st.sel);
     const d = v.data[i];
-    const px = v.isC ? v.x(i) : v.xt(d[0]);
+    const px = v.slot ? v.x(i) : v.xt(d[0]);
     v.vline.setAttribute('x1', px); v.vline.setAttribute('x2', px); v.vline.setAttribute('visibility', 'visible');
 
     if (v.isCmp) {
@@ -469,8 +544,9 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
       v.pill.setAttribute('visibility', 'hidden');
       [v.dot, v.dot2].forEach((dt, k) => {
         const s = v.cmp[k];
-        const p = s.pts[s.nearest(d[0])];
-        dt.setAttribute('cx', v.xt(p[0])); dt.setAttribute('cy', v.y(p[1])); dt.setAttribute('visibility', 'visible');
+        const j = s.nearest(d[0]);
+        const p = s.pts[j];
+        dt.setAttribute('cx', v.cmpC ? v.x(j) : v.xt(p[0])); dt.setAttribute('cy', v.y(p[1])); dt.setAttribute('visibility', 'visible');
       });
       paintLegend(i);
       return;

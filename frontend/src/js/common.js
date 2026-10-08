@@ -162,7 +162,7 @@ function ensureFeed() {
 
 /** Data saver: fewer price updates and no charts until asked. 'cellular' follows the phone's connection. */
 export function dataSaverOn() {
-  const mode = prefData.liveMode === 'saver' && prefData.saver === 'off' ? 'always' : prefData.saver;
+  const mode = prefData.saver; // exactly what Settings shows: an old hidden "Live updates" choice no longer switches it on
   if (mode === 'always') return true;
   if (mode !== 'cellular') return false;
   const c = navigator.connection;
@@ -237,6 +237,7 @@ if (store.get('cm-prefs') && store.get('cm-prefs-v') !== '2') {
 }
 store.set('cm-prefs-v', '2');
 if (!['auto', 'comfortable', 'compact'].includes(prefData.density)) prefData.density = 'auto';
+if (prefData.liveMode === 'saver' || !['off', 'cellular', 'always'].includes(prefData.saver)) { prefData.liveMode = 'auto'; if (!['off', 'cellular', 'always'].includes(prefData.saver)) prefData.saver = 'off'; store.set('cm-prefs', JSON.stringify(prefData)); } // v3.12: Data saver follows its own setting only
 const prefListeners = new Set();
 const phoneQuery = window.matchMedia('(max-width: 820px)');
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
