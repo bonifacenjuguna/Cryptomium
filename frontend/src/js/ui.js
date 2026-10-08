@@ -251,6 +251,7 @@ export function selectPicker(select, { title = '', searchable = false, className
     onPick: v => { select.value = v; select.dispatchEvent(new Event('change', { bubbles: true })); paint(); },
   }));
   select.addEventListener('change', paint);
+  select.addEventListener('input', paint);
   new MutationObserver(paint).observe(select, { childList: true, subtree: true });
   paint();
   return btn;

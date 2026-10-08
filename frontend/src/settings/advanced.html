@@ -27,10 +27,6 @@
         <section class="s-card" aria-labelledby="h-beh">
           <h2 id="h-beh">Behaviour</h2>
           <div class="s-row">
-            <div class="s-label"><b>Live updates</b><span>Auto keeps prices moving every couple of seconds. Data saver updates every 15 seconds and uses much less data. Applies the next time a page opens.</span></div>
-            <div class="segs" role="radiogroup" aria-label="Live updates" data-pref="liveMode"><button type="button" role="radio" class="seg" data-value="auto">Auto</button><button type="button" role="radio" class="seg" data-value="saver">Data saver</button></div>
-          </div>
-          <div class="s-row">
             <div class="s-label"><b>Keyboard shortcuts</b><span>Press / to search, and use + − 0 on a focused chart to zoom (or tap the + and − buttons on the chart).</span></div>
             <button type="button" class="switch" role="switch" data-toggle="shortcuts" aria-checked="false" aria-label="Keyboard shortcuts"><span></span></button>
           </div>
@@ -38,6 +34,7 @@
 
         <section class="s-card" aria-labelledby="h-maint">
           <h2 id="h-maint">Maintenance</h2>
+          <div class="s-row"><div class="s-label"><b>Report a problem</b><span>Copies a short summary (version, connection, recent errors) you can send us. No personal data.</span></div><button type="button" class="btn btn-ghost btn-sm" id="diag-copy">Copy</button></div>
           <div class="s-row">
             <div class="s-label"><b>Clear recent searches</b><span>The coins that show up when you open search.</span></div>
             <button type="button" class="btn btn-ghost btn-sm" id="clear-recent">Clear</button>
@@ -46,15 +43,6 @@
             <div class="s-label"><b>Refresh the page</b><span>Loads the newest version of the site.</span></div>
             <button type="button" class="btn btn-ghost btn-sm" id="reload-now">Refresh now</button>
           </div>
-          <div class="s-row">
-            <div class="s-label"><b>Notifications</b><span>Alerts that reach you with the app closed.</span></div>
-            <a class="btn btn-ghost btn-sm" href="/settings/alerts">Manage</a>
-          </div>
-        </section>
-
-
-        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
-      </div>
     </div>
   </div>
 </main>

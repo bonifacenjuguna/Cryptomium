@@ -54,7 +54,14 @@
           <p class="empty" id="al-empty" hidden>No alerts yet. Add one above, or from any coin page.</p>
         </section>
 
-        <p class="s-hint al-more">Push, sound and vibration are in <a href="/settings/notifications">Notifications</a>.</p>
+        <section class="s-card" id="push-card" aria-labelledby="h-notif">
+          <h2 id="h-notif">Notifications</h2>
+          <div class="s-row">
+            <div class="s-label"><b>Push notifications</b><span id="notif-text" aria-live="polite">&nbsp;</span></div>
+            <button type="button" class="switch" role="switch" id="notif-switch" aria-checked="false" aria-label="Push notifications"><span></span></button>
+          </div>
+          <a class="s-link" href="/settings/notifications">Sound, quiet hours, digest and more</a>
+        </section>
 
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>

@@ -4,13 +4,6 @@
 //    page...) slides in on TOP of it, and the screen underneath stays exactly as it was, scroll position and all.
 //  - Back (the arrow in the top bar or the phone's Back button) slides the top screen away and you are exactly
 //    where you came from. Switching tabs is instant and every tab keeps its own stack.
-//  - Tabs have a trail: the tabs you visited, most recent last, each listed ONCE. Overview > News > Overview > News
-//    leaves the trail Home, Overview, News, so Back goes News > Overview > Home, never round the same loop again.
-//    Home is always the first stop of the trail and the last one before the app closes.
-//  - The browser history is only a sentinel: one spare entry exists while there is somewhere to go back to inside the
-//    app, so the phone's Back button reaches us instead of leaving. When there is nowhere left to go, the sentinel is
-//    dropped and the next Back leaves the app (or closes the Android app) as usual.
-import './lock.js';
 const ROOTS = { home: '/', markets: '/markets', screener: '/screener', news: '/news', portfolio: '/portfolio' };
 const ORDER = ['home', 'markets', 'screener', 'news', 'portfolio'];
 const TITLES = { home: 'Home', markets: 'Overview', screener: 'Screener', news: 'News', portfolio: 'Portfolio' };
@@ -20,9 +13,6 @@ const bar = document.querySelector('.app-tabbar');
 const stacks = { home: [], markets: [], screener: [], news: [], portfolio: [] };
 const motion = () => root.getAttribute('data-motion') !== 'off' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
 let active = 'home';
-let trail = ['home'];   // tabs visited, each once, most recent last; the last one is the active tab
-let guard = false;      // is the spare history entry in place?
-let quiet = 0;          // popstate events caused by our own history.back() that must be ignored
 
 const tabOfPath = p => {
   const first = (p.replace(/\/+$/, '') || '/').split('/')[1] || '';
@@ -47,6 +37,11 @@ function makeFrame(tab, url, pushed) {
   return f;
 }
 const topOf = tab => stacks[tab][stacks[tab].length - 1];
+// Where you have been, each place once, most recent last. Back walks it in reverse, so going Overview, News, Overview,
+// News and then Back gives Overview, then wherever you were before, never the same place twice.
+const trail = [];
+const visit = tab => { const i = trail.indexOf(tab); if (i >= 0) trail.splice(i, 1); trail.push(tab); try { localStorage.setItem('cm-last-tab', tab); } catch { /* ignore */ } };
+const snap = () => ({ tab: active, d: Object.fromEntries(ORDER.map(t => [t, stacks[t].length || 1])) });
 
 // What is visible: the active tab's top screen, plus the one beneath it while a screen is sliding.
 function show() {
@@ -68,18 +63,15 @@ function show() {
 
 function ensureTab(tab) { if (!stacks[tab].length) stacks[tab].push(makeFrame(tab, ROOTS[tab], false)); }
 
-function switchTo(tab) {
+function switchTo(tab, { push = true } = {}) {
   ensureTab(tab);
   if (tab === active) return;
-  // Home is where every visit begins and ends: going to Home clears the trail, so Back from Home leaves the app. Any other tab
-  // moves to the front of the trail instead of appearing twice.
-  trail = tab === 'home' ? ['home'] : ['home', ...trail.filter(t => t !== tab && t !== 'home'), tab];
   active = tab;
   show();
-  syncGuard();
+  visit(tab);
 }
 
-function pushScreen(url, { animate = true } = {}) {
+function pushScreen(url, { animate = true, record = true } = {}) {
   const path = clean(url);
   if (!path) return;
   const stack = stacks[active];
@@ -92,39 +84,31 @@ function pushScreen(url, { animate = true } = {}) {
   stack.push(f);
   show();
   if (animate && motion()) { f.classList.add('enter'); setTimeout(() => f.classList.remove('enter'), 320); }
-  syncGuard();
 }
 
-// Slide the top screen of the active tab away (a tab's main screen is never removed).
-function popScreen() {
-  const stack = stacks[active];
-  if (stack.length < 2) return false;
-  const f = stack.pop();
+function removeFrame(tab, f, animate) {
+  const i = stacks[tab].indexOf(f);
+  if (i > 0) stacks[tab].splice(i, 1); // the main screen of a tab is never removed
+  if (animate && motion() && tab === active) { f.classList.add('leave'); setTimeout(() => f.remove(), 260); } else f.remove();
+}
+
+// Apply a remembered state (Back / Forward): show that tab and shrink each stack to its remembered depth.
+function applyState(st) {
+  if (!st || !ORDER.includes(st.tab)) return;
+  ensureTab(st.tab);
+  const wasActive = active;
+  ORDER.forEach(t => {
+    const want = Math.max(1, (st.d && st.d[t]) || 1);
+    while (stacks[t].length > want) {
+      const f = stacks[t][stacks[t].length - 1];
+      stacks[t].pop();
+      if (t === st.tab && t === wasActive) { f.classList.add('leave'); f.classList.add('on'); setTimeout(() => f.remove(), motion() ? 260 : 0); if (!motion()) f.remove(); }
+      else f.remove();
+    }
+  });
+  active = st.tab;
   show();
-  if (motion()) { f.classList.add('leave', 'on'); setTimeout(() => f.remove(), 260); } else f.remove();
-  return true;
-}
-
-const canBack = () => stacks[active].length > 1 || trail.length > 1;
-
-// One step back: first the screens opened on top of the current tab, then the tabs in the order they were visited.
-function stepBack() {
-  if (popScreen()) return true;
-  if (trail.length > 1) {
-    trail.pop();
-    active = trail[trail.length - 1];
-    ensureTab(active);
-    show();
-    return true;
-  }
-  return false;
-}
-
-// Keep exactly one spare history entry while there is something to go back to; none when there is not.
-function syncGuard() {
-  const want = canBack();
-  if (want && !guard) { try { history.pushState({ cmShell: 1 }, ''); guard = true; } catch { /* ignore */ } }
-  else if (!want && guard) { guard = false; quiet += 1; try { history.back(); } catch { quiet -= 1; } }
+  // The sliding-out screen is no longer in a stack, so show() has not touched it: keep it visible while it leaves.
 }
 
 function reselect(tab) {
@@ -134,34 +118,40 @@ function reselect(tab) {
     while (stack.length > 1) { const x = stack.pop(); if (x !== f) x.remove(); }
     if (motion()) { f.classList.add('leave', 'on'); setTimeout(() => f.remove(), 260); } else f.remove();
     show();
-    syncGuard();
     return;
   }
   try { stack[0].contentWindow.scrollTo({ top: 0, behavior: motion() ? 'smooth' : 'auto' }); } catch { /* ignore */ }
 }
 
 // ---- start
+// After an app update restarts the shell, come back to the screen the person was on (not always Home).
+const RESUME = 'cm-resume';
+function stashResume() {
+  try { const f = topOf(active); const l = f && f.contentWindow.location; if (l && l.pathname) sessionStorage.setItem(RESUME, l.pathname + l.search + l.hash); } catch { /* start from the launch address */ }
+}
+function takeResume() { try { const v = sessionStorage.getItem(RESUME); sessionStorage.removeItem(RESUME); return v; } catch { return null; } }
 let startPath = '/';
 let start = 'home';
-let restore = null;
 try {
-  const go = clean(new URLSearchParams(location.search).get('go') || '/');
+  const resumed = takeResume();
+  const asked = new URLSearchParams(location.search).get('go');
+  const go = clean(resumed || asked || '/');
   if (go) { startPath = go; start = tabOfPath(go.split(/[?#]/)[0]) || 'home'; }
-  // The app just reloaded itself to install an update: come back to the same tab and screens (see saveForReload).
-  const saved = JSON.parse(sessionStorage.getItem('cm-shell-restore') || 'null');
-  sessionStorage.removeItem('cm-shell-restore');
-  if (saved && Date.now() - saved.t < 30000 && ORDER.includes(saved.tab)) { restore = saved; start = saved.tab; startPath = ROOTS[start]; }
+  // Plain launch (no deep link, not a restart after an update): open on the tab chosen in Settings, Preferences.
+  if (!resumed && !asked) {
+    let p = {}; try { p = JSON.parse(localStorage.getItem('cm-prefs') || '{}') || {}; } catch { /* defaults */ }
+    const want = p.startTab === 'last' ? localStorage.getItem('cm-last-tab') : p.startTab;
+    if (want && ORDER.includes(want)) { start = want; startPath = ROOTS[want]; }
+  }
 } catch { /* default */ }
 const startIsRoot = startPath.split(/[?#]/)[0].replace(/\/+$/, '') === (ROOTS[start] === '/' ? '' : ROOTS[start]) && !/[?]/.test(startPath);
 active = start;
-trail = start === 'home' ? ['home'] : ['home', start]; // opened elsewhere (a link, an update): Back still ends at Home
-stacks[start].push(makeFrame(start, ROOTS[start], false));
+stacks[start].push(makeFrame(start, startIsRoot ? ROOTS[start] : ROOTS[start], false));
 show();
-try { history.replaceState({ cmShell: 1 }, ''); } catch { /* ignore */ }
-if (restore) {
-  (restore.s[start] || []).forEach(u => pushScreen(u, { animate: false }));
-} else if (!startIsRoot) { // opened on a coin or another screen: its tab's main screen sits underneath, and Back has a real step to use
-  pushScreen(startPath, { animate: false });
+if (start !== 'home') trail.push('home');   // Home is always the bottom of the trail, even when the app was opened straight onto another screen
+visit(start);
+if (!startIsRoot) { // opened on a coin or another screen: its tab's main screen sits underneath, and Back has a real history step to use
+  pushScreen(startPath, { animate: false, record: true });
 }
 
 // Load the other tabs one at a time once the app is idle.
@@ -190,14 +180,37 @@ bar.addEventListener('click', e => {
   if (tab === active) reselect(tab); else switchTo(tab);
 });
 
-// The phone's Back button: our spare entry was used up, so take one step back inside the app and put the entry back if
-// there is still somewhere to go. (Screens that open their own overlays handle their own Back; see backstack.js.)
-addEventListener('popstate', () => {
-  if (quiet > 0) { quiet -= 1; return; }
-  if (!guard) return;
-  guard = false;
-  stepBack();
-  syncGuard();
+// Android Back. The browser keeps two entries for us (base, then a guard on top). Back lands on base, we step back one place
+// inside the app and put the guard back; with nowhere left to go we let the real Back through, which leaves the app.
+function goBackInApp() {
+  const stack = stacks[active];
+  if (stack.length > 1) {
+    const f = stack.pop();
+    f.classList.add('leave', 'on');
+    if (motion()) setTimeout(() => f.remove(), 260); else f.remove();
+    show();
+    return true;
+  }
+  if (trail.length > 1) {
+    trail.pop();
+    active = trail[trail.length - 1];
+    ensureTab(active);
+    show();
+    return true;
+  }
+  if (active !== 'home') {            // never leave the app from another tab: Home comes first
+    active = 'home';
+    trail.length = 0; trail.push('home');
+    ensureTab('home');
+    show();
+    return true;
+  }
+  return false;
+}
+try { history.replaceState({ cmBase: 1 }, ''); history.pushState({ cmGuard: 1 }, ''); } catch { /* no history API */ }
+addEventListener('popstate', e => {
+  if (!e.state || !e.state.cmBase) return;
+  if (goBackInApp()) { try { history.pushState({ cmGuard: 1 }, ''); } catch { /* ignore */ } } else { try { history.back(); } catch { /* ignore */ } }
 });
 
 addEventListener('message', e => {
@@ -215,7 +228,7 @@ addEventListener('message', e => {
   } else if (m.cm === 'push' && isTop && typeof m.url === 'string') {
     pushScreen(m.url);
   } else if (m.cm === 'back' && isTop) {
-    if (stepBack()) syncGuard();
+    goBackInApp();
   }
 });
 
@@ -243,25 +256,29 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// A new version of the app: this shell is the one page that is never reloaded by the pages inside it. It remembers the tab
-// and the screens that were open, so an update brings the person back to exactly where they were.
-function saveForReload() {
-  try {
-    const path = f => { try { const l = f.contentWindow.location; return l.pathname + l.search; } catch { return ''; } };
-    const s = {};
-    ORDER.forEach(t => { s[t] = stacks[t].slice(1).map(path).filter(Boolean); });
-    sessionStorage.setItem('cm-shell-restore', JSON.stringify({ t: Date.now(), tab: active, s }));
-  } catch { /* private mode: the app simply opens on its start screen */ }
-}
+// A new version of the app: this shell is the one page that is never reloaded by the pages inside it.
 if ('serviceWorker' in navigator) {
-  const had = !!navigator.serviceWorker.controller;
-  let reloading = false;
+  let had = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!had || reloading) return;
-    reloading = true;
-    saveForReload();
+    if (!had) { had = true; return; } // the first take-over of this session; later switches must reload
+    stashResume();
     setTimeout(() => location.reload(), 400);
   });
+  // Same build as the worker serving it? If not (the app was frozen in the background during a switch), reload once.
+  const sameBuild = async () => {
+    const ctl = navigator.serviceWorker.controller; const mine = (window.CRYPTOMIUM || {}).build;
+    if (!ctl || !mine) return;
+    const v = await new Promise(resolve => { try { const ch = new MessageChannel(); const t = setTimeout(() => resolve(null), 1500); ch.port1.onmessage = e => { clearTimeout(t); resolve(e.data); }; ctl.postMessage({ type: 'GET_VERSION' }, [ch.port2]); } catch { resolve(null); } });
+    if (!v || !v.build) return;
+    let n = 0; try { n = Number(sessionStorage.getItem('cm-reconcile-shell') || 0); } catch { /* ignore */ }
+    if (v.build === mine) { try { sessionStorage.removeItem('cm-reconcile-shell'); } catch { /* ignore */ } return; }
+    if (n >= 2) return;
+    try { sessionStorage.setItem('cm-reconcile-shell', String(n + 1)); } catch { /* ignore */ }
+    stashResume();
+    location.reload();
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sameBuild(); });
+  setTimeout(sameBuild, 2000);
 }
 
 // The shell page paints the tab bar, so it must follow the theme the person picks inside any screen (the gold
@@ -282,3 +299,5 @@ function syncTheme() {
 }
 addEventListener('storage', e => { if (e.key === 'cm-prefs' || e.key === null) syncTheme(); });
 mq.addEventListener && mq.addEventListener('change', syncTheme);
+
+import('./lock.js').then(m => m.init({ top: true })).catch(() => {});

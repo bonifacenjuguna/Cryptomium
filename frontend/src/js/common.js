@@ -1,5 +1,3 @@
-import './lock.js';
-import './pull.js';
 import { sanitize, fromLegacy, positions } from './ledger.js';
 import { isApp, updates, takeUpdatedNote, navTo, goBack, inShell } from './pwa.js';
 import { pushLayer, leave } from './backstack.js';
@@ -132,7 +130,7 @@ function ensureFeed() {
     if (quiet > 25000) net.feedQuiet(quiet);
     syncState();
   }
-  const saver = prefData.liveMode === 'saver';
+  const saver = dataSaverOn();
   const start = () => {
     clearInterval(watchdog);
     resumedAt = Date.now(); // coming back from the background is not an outage
@@ -160,6 +158,15 @@ function ensureFeed() {
   };
   if (net.status() === 'offline') showSaved(); else setTimeout(showSaved, 2500);
   net.onChange(s => { if (s !== 'live') showSaved(); });
+}
+
+/** Data saver: fewer price updates and no charts until asked. 'cellular' follows the phone's connection. */
+export function dataSaverOn() {
+  const mode = prefData.liveMode === 'saver' && prefData.saver === 'off' ? 'always' : prefData.saver;
+  if (mode === 'always') return true;
+  if (mode !== 'cellular') return false;
+  const c = navigator.connection;
+  return Boolean(c && (c.saveData || c.type === 'cellular' || /(^|-)2g$|3g/.test(c.effectiveType || '')));
 }
 
 export function pollPrices(onData, onState = () => {}) {
@@ -200,6 +207,19 @@ export const PREF_DEFAULTS = {
   sound: false, // a soft chime when a price alert is reached
   haptics: false, // a light tap on phones while moving across a chart
   selectText: false, // long-press selects text on touch screens (off: it feels like an app; fields always allow it)
+  startTab: 'home', // home | markets | screener | news | portfolio | last: the tab the app opens on
+  numFmt: 'auto', // auto | us (1,234.56) | eu (1.234,56) | fr (1 234,56) | in (12,34,567.89)
+  timeFmt: 'auto', // auto | 12 | 24
+  contrast: false, // stronger text and lines
+  bigTouch: false, // larger tap targets
+  chime: 'soft', // soft | bell | pulse (the in-app alert sound)
+  saver: 'off', // off | cellular | always: slower refresh, no charts until asked
+  quietOn: false, quietFrom: 22, quietTo: 7, // alerts arrive silently in these hours
+  digestOn: false, digestHour: 8, // a once-a-day summary of your starred coins
+  notifyHide: false, // notifications say that an alert was reached, without the amounts
+  blurRecents: true, // cover the app in the phone's recent-apps view
+  hideBal: false, // portfolio amounts are blurred
+  hideBalStart: false, // always start with them blurred
 };
 let prefData = { ...PREF_DEFAULTS };
 try { Object.assign(prefData, JSON.parse(store.get('cm-prefs') || '{}')); } catch { /* start from defaults */ }
@@ -221,8 +241,23 @@ const prefListeners = new Set();
 const phoneQuery = window.matchMedia('(max-width: 820px)');
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
 
+// "Start with balances hidden": once per app session, blur them again whatever it was last time.
+try {
+  if (prefData.hideBalStart && !sessionStorage.getItem('cm-bal-init')) { sessionStorage.setItem('cm-bal-init', '1'); prefData.hideBal = true; store.set('cm-prefs', JSON.stringify(prefData)); }
+} catch { /* private mode */ }
+// The last few problems, kept on the device so "Report a problem" can include them. Nothing is sent anywhere.
+function noteError(text) {
+  try {
+    const list = JSON.parse(localStorage.getItem('cm-errors') || '[]');
+    list.push(`${new Date().toISOString().slice(11, 19)} ${String(text).slice(0, 160)}`);
+    localStorage.setItem('cm-errors', JSON.stringify(list.slice(-8)));
+  } catch { /* ignore */ }
+}
+addEventListener('error', e => noteError(e.message + (e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : '')));
+addEventListener('unhandledrejection', e => noteError('Promise: ' + (e.reason && (e.reason.message || e.reason))));
 export function applyPrefs() {
   const root = document.documentElement;
+  if (prefData.hideBal) root.dataset.bal = 'hidden'; else delete root.dataset.bal;
   const theme = prefData.theme === 'auto' ? (systemDark.matches ? 'dark' : 'light') : prefData.theme;
   const changed = root.dataset.theme !== theme;
   root.dataset.theme = theme;
@@ -231,6 +266,8 @@ export function applyPrefs() {
   if (prefData.motion === false) root.dataset.motion = 'off'; else delete root.dataset.motion;
   if (prefData.tape === false) root.dataset.tape = 'off'; else delete root.dataset.tape;
   if (prefData.selectText === true) root.dataset.select = 'on'; else delete root.dataset.select;
+  if (prefData.contrast === true) root.dataset.contrast = 'high'; else delete root.dataset.contrast;
+  if (prefData.bigTouch === true) root.dataset.touch = 'big'; else delete root.dataset.touch;
   for (const [attr, key, def] of [['size', 'textSize', 'default'], ['palette', 'palette', 'classic']]) {
     if (prefData[key] && prefData[key] !== def) root.dataset[attr] = prefData[key]; else delete root.dataset[attr];
   }
@@ -349,6 +386,23 @@ function decimalsFor(v, stable) {
   return Math.min(12, Math.ceil(-Math.log10(v)) + 3 + more);
 }
 
+// How numbers are written: grouping and the decimal mark. 'auto' follows the phone's language.
+const NUM_FORMATS = {
+  us: { dec: '.', group: n => n.toLocaleString('en-US') },
+  eu: { dec: ',', group: n => n.toLocaleString('de-DE') },
+  fr: { dec: ',', group: n => n.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, '\u00a0') },
+  in: { dec: '.', group: n => n.toLocaleString('en-IN') },
+};
+function autoFormat() {
+  try { const d = new Intl.NumberFormat(navigator.language).formatToParts(1234.5).find(p => p.type === 'decimal'); const g = new Intl.NumberFormat(navigator.language).formatToParts(12345678).find(p => p.type === 'group'); if (d && d.value === ',') return g && /[\s\u00a0\u202f]/.test(g.value) ? 'fr' : 'eu'; if (/-IN$/i.test(navigator.language)) return 'in'; } catch { /* us */ }
+  return 'us';
+}
+Object.defineProperty(NUM_FORMATS, 'auto', { get: () => NUM_FORMATS[autoFormat()], enumerable: false });
+/** Clock text in the chosen style (12 or 24 hour). */
+export function clockText(date) {
+  const h12 = prefData.timeFmt === '12' ? true : prefData.timeFmt === '24' ? false : undefined;
+  return new Date(date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: h12 });
+}
 function numberText(v, stable) {
   let text = v.toFixed(decimalsFor(v, stable));
   if (!stable && v < 0.01 && text.includes('.')) {
@@ -356,8 +410,9 @@ function numberText(v, stable) {
     text = w + '.' + f.replace(/0+$/, '').padEnd(4, '0');
   }
   const [whole, frac] = text.split('.');
-  const grouped = Number(whole).toLocaleString('en-US');
-  return frac === undefined ? grouped : grouped + '.' + frac;
+  const f = NUM_FORMATS[prefData.numFmt] || NUM_FORMATS.us;
+  const grouped = f.group(Number(whole));
+  return frac === undefined ? grouped : grouped + f.dec + frac;
 }
 
 const sym = () => SYMBOLS[currency.code] || currency.code + '\u00a0';
@@ -1016,6 +1071,7 @@ export async function initChrome() {
   // Exchange rates arrive quietly; the currency follows when they do.
   getJSON('/api/rates').then(r => setRates(r.rates)).catch(() => {});
   import('./targets.js').then(m => m.start()).catch(() => {});
+  import('./lock.js').then(m => m.init({ top: !document.documentElement.classList.contains('in-shell') })).catch(() => {}); // the app lock and recent-apps cover: the shell page handles them for the screens inside it
   import('./push.js').then(m => m.start()).catch(() => {}); // app notifications: only acts when this device has turned them on
   return coins;
 }

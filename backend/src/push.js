@@ -70,9 +70,29 @@ export function validatePrefs(prefs, tickerSet) {
   if (coins.length > MAX_MILESTONE_COINS) throw new PushError(400, 'Too many coins selected.');
   const clean = [...new Set(coins.map(c => String(c).toUpperCase()))];
   if (clean.some(c => !tickerSet.has(c))) throw new PushError(400, 'Unknown coin selected.');
-  const recapHour = Number.isInteger(prefs.recapHour) && prefs.recapHour >= 0 && prefs.recapHour <= 23 ? prefs.recapHour : 8;
-  const tz = Number.isInteger(prefs.tz) && Math.abs(prefs.tz) <= 840 ? prefs.tz : 0; // minutes east of UTC, as the phone reports it
-  return { milestones: prefs.milestones === true, coins: clean, digest: prefs.digest === true, recap: prefs.recap === true, recapHour, tz };
+  const hour = v => (Number.isInteger(v) && v >= 0 && v <= 23 ? v : null);
+  const tz = v => (Number.isInteger(v) && v >= -840 && v <= 840 ? v : 0);
+  const d = prefs.digest && typeof prefs.digest === 'object' ? prefs.digest : {};
+  const q = prefs.quiet && typeof prefs.quiet === 'object' ? prefs.quiet : {};
+  const dcoins = [...new Set((Array.isArray(d.coins) ? d.coins : []).slice(0, MAX_MILESTONE_COINS).map(c => String(c).toUpperCase()))].filter(c => tickerSet.has(c));
+  return {
+    milestones: prefs.milestones === true, coins: clean,
+    digest: { on: d.on === true && hour(d.hour) !== null, hour: hour(d.hour) ?? 8, tz: tz(d.tz), coins: dcoins },
+    quiet: { on: q.on === true && hour(q.from) !== null && hour(q.to) !== null, from: hour(q.from) ?? 22, to: hour(q.to) ?? 7, tz: tz(q.tz) },
+  };
+}
+
+/** Local clock for a device: its stored offset (minutes behind UTC, like JavaScript's getTimezoneOffset). */
+export function localParts(ms, tz) {
+  const d = new Date(ms - tz * 60_000);
+  return { hour: d.getUTCHours(), day: d.toISOString().slice(0, 10) };
+}
+export function inQuiet(device, ms) {
+  if (!device.quietOn) return false;
+  const h = localParts(ms, device.quietTz).hour;
+  const { quietFrom: a, quietTo: b } = device;
+  if (a === b) return false;
+  return a < b ? h >= a && h < b : h >= a || h < b;
 }
 
 // ---------------------------------------------------------------- stores
@@ -121,7 +141,7 @@ export function createMemoryPushStore() {
       if (t.attempts < MAX_FIRE_ATTEMPTS) { t.firedAt = null; t.firedPrice = null; }
     },
     async recordSend(id, ok) { const d = devices.get(id); if (d) d.failures = ok ? 0 : d.failures + 1; },
-    async listRecapDevices() { return [...devices.values()].filter(d => d.recap && d.failures < BAD_DEVICE_FAILURES).map(d => ({ ...d })); },
+    async listDigestDevices() { return [...devices.values()].filter(d => d.digestOn && d.failures < BAD_DEVICE_FAILURES); },
     async listMilestoneDevices(ticker) {
       return [...devices.values()].filter(d => d.milestones && d.failures < BAD_DEVICE_FAILURES && (d.milestoneCoins.length === 0 || d.milestoneCoins.includes(ticker)));
     },
@@ -138,7 +158,8 @@ export function createPgPushStore(pool) {
   const toDevice = r => r && ({
     id: r.id, tokenHash: r.token_hash, endpoint: r.endpoint, p256dh: r.p256dh, auth: r.auth,
     milestones: r.milestones, milestoneCoins: r.milestone_coins ? r.milestone_coins.split(',') : [],
-    digest: Boolean(r.digest), recap: Boolean(r.recap), recapHour: r.recap_hour ?? 8, tz: r.tz_min ?? 0, lastRecap: r.last_recap || '',
+    digestOn: r.digest_on, digestHour: r.digest_hour, digestTz: r.digest_tz, digestCoins: r.digest_coins ? r.digest_coins.split(',') : [], digestLast: r.digest_last,
+    quietOn: r.quiet_on, quietFrom: r.quiet_from, quietTo: r.quiet_to, quietTz: r.quiet_tz,
     failures: r.failures, lastSeen: new Date(r.last_seen).getTime(),
   });
   return {
@@ -169,25 +190,39 @@ export function createPgPushStore(pool) {
           attempts INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (device_id, target_id)
         )`);
-      for (const col of ['digest BOOLEAN NOT NULL DEFAULT FALSE', 'recap BOOLEAN NOT NULL DEFAULT FALSE', 'recap_hour INTEGER NOT NULL DEFAULT 8', 'tz_min INTEGER NOT NULL DEFAULT 0', "last_recap TEXT NOT NULL DEFAULT ''"]) {
-        await pool.query(`ALTER TABLE push_devices ADD COLUMN IF NOT EXISTS ${col}`);
-      }
+      await pool.query(`
+        ALTER TABLE push_devices
+          ADD COLUMN IF NOT EXISTS digest_on BOOLEAN NOT NULL DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS digest_hour INTEGER NOT NULL DEFAULT 8,
+          ADD COLUMN IF NOT EXISTS digest_tz INTEGER NOT NULL DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS digest_coins TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS digest_last TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS quiet_on BOOLEAN NOT NULL DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS quiet_from INTEGER NOT NULL DEFAULT 22,
+          ADD COLUMN IF NOT EXISTS quiet_to INTEGER NOT NULL DEFAULT 7,
+          ADD COLUMN IF NOT EXISTS quiet_tz INTEGER NOT NULL DEFAULT 0`);
       await pool.query('CREATE INDEX IF NOT EXISTS push_targets_armed_idx ON push_targets (ticker) WHERE fired_at IS NULL');
     },
     async count() { return Number((await pool.query('SELECT count(*) AS n FROM push_devices')).rows[0].n); },
     async findByEndpoint(endpoint) { return toDevice((await pool.query('SELECT * FROM push_devices WHERE endpoint = $1', [endpoint])).rows[0]); },
     async insertDevice(d) {
       await pool.query(
-        `INSERT INTO push_devices (id, token_hash, endpoint, p256dh, auth, milestones, milestone_coins, digest, recap, recap_hour, tz_min) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [d.id, d.tokenHash, d.endpoint, d.p256dh, d.auth, d.milestones, d.milestoneCoins.join(','), Boolean(d.digest), Boolean(d.recap), d.recapHour ?? 8, d.tz ?? 0]
+        `INSERT INTO push_devices (id, token_hash, endpoint, p256dh, auth, milestones, milestone_coins,
+           digest_on, digest_hour, digest_tz, digest_coins, quiet_on, quiet_from, quiet_to, quiet_tz)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+        [d.id, d.tokenHash, d.endpoint, d.p256dh, d.auth, d.milestones, d.milestoneCoins.join(','),
+         d.digestOn, d.digestHour, d.digestTz, d.digestCoins.join(','), d.quietOn, d.quietFrom, d.quietTo, d.quietTz]
       );
     },
     async getDevice(id) { return toDevice((await pool.query('SELECT * FROM push_devices WHERE id = $1', [id])).rows[0]); },
     async updateDevice(id, patch) {
-      const cols = { endpoint: 'endpoint', p256dh: 'p256dh', auth: 'auth', milestones: 'milestones', digest: 'digest', recap: 'recap', recapHour: 'recap_hour', tz: 'tz_min', lastRecap: 'last_recap' };
+      const cols = { endpoint: 'endpoint', p256dh: 'p256dh', auth: 'auth', milestones: 'milestones' };
       const sets = []; const vals = [id];
       for (const [k, col] of Object.entries(cols)) if (k in patch) { vals.push(patch[k]); sets.push(`${col} = $${vals.length}`); }
       if ('milestoneCoins' in patch) { vals.push(patch.milestoneCoins.join(',')); sets.push(`milestone_coins = $${vals.length}`); }
+      const more = { digestOn: 'digest_on', digestHour: 'digest_hour', digestTz: 'digest_tz', digestLast: 'digest_last', quietOn: 'quiet_on', quietFrom: 'quiet_from', quietTo: 'quiet_to', quietTz: 'quiet_tz' };
+      for (const [k, col] of Object.entries(more)) if (k in patch) { vals.push(patch[k]); sets.push(`${col} = $${vals.length}`); }
+      if ('digestCoins' in patch) { vals.push(patch.digestCoins.join(',')); sets.push(`digest_coins = $${vals.length}`); }
       if ('lastSeen' in patch) sets.push('last_seen = now()');
       if ('failures' in patch) { vals.push(patch.failures); sets.push(`failures = $${vals.length}`); }
       if (sets.length) await pool.query(`UPDATE push_devices SET ${sets.join(', ')} WHERE id = $1`, vals);
@@ -247,10 +282,7 @@ export function createPgPushStore(pool) {
     async recordSend(id, ok) {
       await pool.query(ok ? 'UPDATE push_devices SET failures = 0 WHERE id = $1 AND failures <> 0' : 'UPDATE push_devices SET failures = failures + 1 WHERE id = $1', [id]);
     },
-    async listRecapDevices() {
-      const { rows } = await pool.query('SELECT * FROM push_devices WHERE recap AND failures < $1', [BAD_DEVICE_FAILURES]);
-      return rows.map(toDevice);
-    },
+    async listDigestDevices() { return (await pool.query('SELECT * FROM push_devices WHERE digest_on AND failures < $1', [BAD_DEVICE_FAILURES])).rows.map(toDevice); },
     async listMilestoneDevices(ticker) {
       const { rows } = await pool.query(
         `SELECT * FROM push_devices WHERE milestones AND failures < $1
@@ -285,31 +317,11 @@ export function targetPayload({ targetId, ticker, dir, price }, coin, now) {
   };
 }
 
-/** Several alerts reached in the same check, sent as one notification to devices that asked for that. */
-export function digestPayload(items, now) {
-  const lines = items.map(({ target, coin }) => targetPayload(target, coin, now).title);
-  const shown = lines.slice(0, 3).join(' \u00B7 ');
-  return {
-    v: 1, kind: 'digest', title: `${items.length} alerts reached`,
-    body: lines.length > 3 ? `${shown} \u00B7 and ${lines.length - 3} more` : shown,
-    tag: 'digest', url: '/settings/alerts', ts: now,
-  };
-}
-
-/** The daily market recap: Bitcoin plus the biggest 24h gainer and loser. Null when there is not enough data. */
-export function recapPayload(snap, now) {
-  const ok = snap.coins.filter(c => Number.isFinite(c.price) && c.price > 0 && Number.isFinite(c.change24h));
-  const movers = ok.filter(c => !c.stable);
-  if (movers.length < 2) return null;
-  const btc = ok.find(c => c.ticker === 'BTC');
-  const up = [...movers].sort((a, b) => b.change24h - a.change24h)[0];
-  const down = [...movers].sort((a, b) => a.change24h - b.change24h)[0];
-  return {
-    v: 1, kind: 'recap',
-    title: btc ? `Market recap: BTC ${formatPrice(btc.price)} (${upDown(btc.change24h)})` : 'Market recap',
-    body: `Top gainer ${up.ticker} ${upDown(up.change24h)} \u00B7 Top loser ${down.ticker} ${upDown(down.change24h)}`,
-    tag: 'recap', url: '/markets', ts: now,
-  };
+export function digestPayload(device, byTicker, now) {
+  const wanted = (device.digestCoins.length ? device.digestCoins : ['BTC', 'ETH', 'SOL']).map(t => byTicker.get(t)).filter(c => c && c.price > 0);
+  const top = (device.digestCoins.length ? [...wanted].sort((a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0)) : wanted).slice(0, 4);
+  const line = c => `${c.ticker} ${formatPrice(c.price, { stable: Boolean(c.stable) })}${typeof c.change24h === 'number' ? ' ' + upDown(c.change24h) : ''}`;
+  return { v: 1, kind: 'digest', title: 'Your daily summary', body: top.map(line).join('  \u00b7  ') || 'Open Cryptomium to see the market.', tag: 'digest', url: '/', ts: now };
 }
 
 export function milestonePayload({ ticker, price, direction }, stable, now) {
@@ -336,6 +348,12 @@ export function createPushService({
   let timers = [];
 
   const newSecret = bytes => crypto.randomBytes(bytes).toString('base64url');
+  const prefFields = p => ({
+    milestones: p.milestones, milestoneCoins: p.coins,
+    digestOn: p.digest.on, digestHour: p.digest.hour, digestTz: p.digest.tz, digestCoins: p.digest.coins,
+    quietOn: p.quiet.on, quietFrom: p.quiet.from, quietTo: p.quiet.to, quietTz: p.quiet.tz,
+  });
+  const prefsOf = d => ({ milestones: d.milestones, coins: d.milestoneCoins, digest: { on: d.digestOn, hour: d.digestHour, tz: d.digestTz, coins: d.digestCoins }, quiet: { on: d.quietOn, from: d.quietFrom, to: d.quietTo, tz: d.quietTz } });
 
   /** Resolves "Bearer <id>.<token>" to a device or throws 401. The hash comparison runs even for unknown ids. */
   async function authenticate(header) {
@@ -350,7 +368,7 @@ export function createPushService({
 
   async function register({ subscription, prefs, targets }) {
     const sub = validateSubscription(subscription, extraHosts);
-    const cleanPrefs = prefs === undefined ? validatePrefs({}, tickerSet) : validatePrefs(prefs, tickerSet);
+    const cleanPrefs = prefs === undefined ? { milestones: false, coins: [], digest: { on: false, hour: 8, tz: 0, coins: [] }, quiet: { on: false, from: 22, to: 7, tz: 0 } } : validatePrefs(prefs, tickerSet);
     const cleanTargets = targets === undefined ? [] : validateTargets(targets, tickerSet);
     // Whoever holds this subscription is the device. A re-install loses its token, so the old record is replaced.
     const existing = await store.findByEndpoint(sub.endpoint);
@@ -358,7 +376,7 @@ export function createPushService({
     else if ((await store.count()) >= maxDevices) throw new PushError(503, 'Notifications are at capacity right now. Try again later.');
     const id = newSecret(16);
     const token = newSecret(32);
-    await store.insertDevice({ id, tokenHash: sha256(token).toString('hex'), ...sub, milestones: cleanPrefs.milestones, milestoneCoins: cleanPrefs.coins, digest: cleanPrefs.digest, recap: cleanPrefs.recap, recapHour: cleanPrefs.recapHour, tz: cleanPrefs.tz, now: now() });
+    await store.insertDevice({ id, tokenHash: sha256(token).toString('hex'), ...sub, ...prefFields(cleanPrefs), digestLast: '', now: now() });
     const fired = await store.replaceTargets(id, cleanTargets);
     return { deviceId: id, token, prefs: cleanPrefs, targets: cleanTargets.length, fired };
   }
@@ -376,19 +394,18 @@ export function createPushService({
     let cleanPrefs = null;
     if (prefs !== undefined) {
       cleanPrefs = validatePrefs(prefs, tickerSet);
-      patch.milestones = cleanPrefs.milestones;
-      patch.milestoneCoins = cleanPrefs.coins;
-      Object.assign(patch, { digest: cleanPrefs.digest, recap: cleanPrefs.recap, recapHour: cleanPrefs.recapHour, tz: cleanPrefs.tz });
+      Object.assign(patch, prefFields(cleanPrefs));
     }
     const cleanTargets = targets === undefined ? null : validateTargets(targets, tickerSet);
     await store.updateDevice(device.id, patch);
     const fired = cleanTargets ? await store.replaceTargets(device.id, cleanTargets) : [];
-    return { ok: true, prefs: cleanPrefs ?? { milestones: device.milestones, coins: device.milestoneCoins, digest: Boolean(device.digest), recap: Boolean(device.recap), recapHour: device.recapHour ?? 8, tz: device.tz ?? 0 }, targets: cleanTargets ? cleanTargets.length : await store.countTargets(device.id), fired };
+    return { ok: true, prefs: cleanPrefs ?? prefsOf(device), targets: cleanTargets ? cleanTargets.length : await store.countTargets(device.id), fired };
   }
 
   async function remove(device) { await store.deleteDevice(device.id); }
 
   async function deliver(device, payload, opts) {
+    if (payload.kind !== 'test' && inQuiet(device, now())) payload = { ...payload, quiet: true };
     const r = await webpush.send(device, payload, opts);
     if (r.gone) { await store.deleteDevice(device.id); return r; }
     await store.recordSend(device.id, r.ok);
@@ -440,29 +457,16 @@ export function createPushService({
       let market = null;
       if (getMarket && armed.some(t => t.dir === 'ath' || t.dir === 'atl')) { try { market = await getMarket(); } catch { /* ATH/ATL alerts wait for market data */ } }
       const hits = armed.filter(t => live.has(t.ticker) && reached(t, live.get(t.ticker), market));
-      const byDevice = new Map();
-      for (const t of hits) { if (!byDevice.has(t.deviceId)) byDevice.set(t.deviceId, []); byDevice.get(t.deviceId).push(t); }
-      const groups = [...byDevice.entries()];
-      for (let i = 0; i < groups.length; i += 8) {
-        await Promise.all(groups.slice(i, i + 8).map(async ([deviceId, list]) => {
-          const claimed = [];
-          for (const t of list) if (await store.claimFire(deviceId, t.targetId, { price: live.get(t.ticker).price, now: now() })) claimed.push(t);
-          if (!claimed.length) return; // already handled
-          const device = await store.getDevice(deviceId);
+      for (let i = 0; i < hits.length; i += 8) {
+        await Promise.all(hits.slice(i, i + 8).map(async t => {
+          const coin = live.get(t.ticker);
+          if (!(await store.claimFire(t.deviceId, t.targetId, { price: coin.price, now: now() }))) return; // already handled
+          const device = await store.getDevice(t.deviceId);
           if (!device) return;
-          if (device.digest && claimed.length > 1) { // this device asked for alerts that arrive together to be one notification
-            const r = await deliverWithRetry(device, digestPayload(claimed.map(target => ({ target, coin: live.get(target.ticker) })), now()), { ttl: 3600, urgency: 'high', topic: 'digest' });
-            if (r.ok) out.sent += claimed.length;
-            else if (r.gone) out.removed++;
-            else { out.retried++; for (const t of claimed) await store.failFire(deviceId, t.targetId); }
-            return;
-          }
-          for (const t of claimed) {
-            const r = await deliverWithRetry(device, targetPayload(t, live.get(t.ticker), now()), { ttl: 3600, urgency: 'high', topic: `t${t.targetId}`.slice(0, 32) });
-            if (r.ok) out.sent++;
-            else if (r.gone) { out.removed++; break; }
-            else { out.retried++; await store.failFire(deviceId, t.targetId); }
-          }
+          const r = await deliverWithRetry(device, targetPayload(t, coin, now()), { ttl: 3600, urgency: 'high', topic: `t${t.targetId}`.slice(0, 32) });
+          if (r.ok) out.sent++;
+          else if (r.gone) out.removed++;
+          else { out.retried++; await store.failFire(t.deviceId, t.targetId); }
         }));
       }
       return out;
@@ -486,25 +490,22 @@ export function createPushService({
     return { sent, devices: devices.length };
   }
 
-  /** Once per local day, at the hour each device chose, send the market recap. Checked every few minutes. */
-  async function recapTick() {
-    const devices = await store.listRecapDevices();
-    if (!devices.length) return { sent: 0 };
+  /** Once a day, at the hour each device chose (in its own time zone), a short summary of its starred coins. */
+  async function digestTick() {
+    const t = now();
+    const due = (await store.listDigestDevices()).filter(d => { const p = localParts(t, d.digestTz); return p.hour === d.digestHour && d.digestLast !== p.day; });
+    if (!due.length) return { sent: 0 };
     let snap;
     try { snap = await getSnapshot(); } catch { return { sent: 0, noPrices: true }; }
     if (!snap || snap.stale) return { sent: 0, stale: true };
-    const t = now();
-    const payload = recapPayload(snap, t);
-    if (!payload) return { sent: 0 };
+    const byTicker = new Map(snap.coins.map(c => [c.ticker, c]));
     let sent = 0;
-    for (const d of devices) {
-      const local = new Date(t + (d.tz || 0) * 60_000);
-      const day = local.toISOString().slice(0, 10);
-      if (local.getUTCHours() !== d.recapHour || d.lastRecap === day) continue;
-      await store.updateDevice(d.id, { lastRecap: day }); // claim today's recap first: a slow send can never repeat it
-      const r = await deliverWithRetry(d, payload, { ttl: 6 * 3600, urgency: 'low', topic: 'recap' });
-      if (r.ok) sent++;
-      else if (!r.gone) await store.updateDevice(d.id, { lastRecap: '' });
+    for (let i = 0; i < due.length; i += 10) {
+      await Promise.all(due.slice(i, i + 10).map(async d => {
+        await store.updateDevice(d.id, { digestLast: localParts(t, d.digestTz).day }); // claimed first: never twice in a day
+        const r = await deliverWithRetry(d, digestPayload(d, byTicker, t), { ttl: 6 * 3600, urgency: 'low', topic: 'digest' });
+        if (r.ok) sent++;
+      }));
     }
     return { sent };
   }
@@ -517,11 +518,11 @@ export function createPushService({
 
   function start() {
     const safe = (name, fn) => () => fn().catch(err => log.error(`[push] ${name} failed:`, err.message));
-    timers = [setInterval(safe('Alert check', tick), checkMs), setInterval(safe('Recap', recapTick), 5 * 60_000), setInterval(safe('Cleanup', prune), 6 * 3600_000)];
+    timers = [setInterval(safe('Alert check', tick), checkMs), setInterval(safe('Digest', digestTick), 60_000), setInterval(safe('Cleanup', prune), 6 * 3600_000)];
     timers.forEach(t => t.unref?.());
     safe('Cleanup', prune)();
   }
   function stop() { timers.forEach(clearInterval); timers = []; }
 
-  return { publicKey: webpush.publicKey, authenticate, register, sync, remove, test, tick, recapTick, notifyMilestone, prune, start, stop };
+  return { publicKey: webpush.publicKey, authenticate, register, sync, remove, test, tick, digestTick, notifyMilestone, prune, start, stop };
 }

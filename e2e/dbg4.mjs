@@ -1,0 +1,18 @@
+import { open } from './harness.mjs';
+const h = await open({ standalone: true }); const { page, url } = h;
+await page.goto(url + '/app?go=/settings/notifications'); await page.waitForTimeout(3000);
+const f = page.frames().filter(x => x.url().includes('/settings/notifications')).pop();
+console.log('push-prefs visible:', await f.locator('#push-prefs').isVisible());
+await f.tap('#qh-switch'); await page.waitForTimeout(400);
+console.log('qh-row visible:', await f.locator('#qh-row').isVisible(), 'quietOn:', await f.evaluate(() => JSON.parse(localStorage.getItem('cm-prefs')||'{}').quietOn));
+await f.tap('#qh-from + .sel-btn'); await page.waitForTimeout(500);
+console.log('sheet items:', await f.locator('.sheet li').count());
+await f.locator('.sheet li').filter({ hasText: '23:00' }).first().tap(); await page.waitForTimeout(400);
+console.log('quietFrom:', await f.evaluate(() => JSON.parse(localStorage.getItem('cm-prefs')||'{}').quietFrom));
+await f.tap('[data-toggle="sound"]'); await page.waitForTimeout(300);
+await f.tap('#chime-pick + .sel-btn'); await page.waitForTimeout(500);
+await f.locator('.sheet li').filter({ hasText: 'Bell' }).first().tap(); await page.waitForTimeout(300);
+console.log('chime:', await f.evaluate(() => JSON.parse(localStorage.getItem('cm-prefs')||'{}').chime));
+await f.tap('[data-reset]'); await page.waitForTimeout(500);
+console.log('after reset quietOn:', await f.evaluate(() => JSON.parse(localStorage.getItem('cm-prefs')||'{}').quietOn));
+await h.close();

@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/theme-init.js"></script>
   <title>Notifications | {{BRAND}}</title>
-  <meta name="description" content="Push notifications, milestone alerts, sound and vibration.">
+  <meta name="description" content="Choose which notifications you get and when.">
   <meta name="robots" content="noindex">
   <link rel="canonical" href="{{SITE_URL}}/settings/notifications">
 </head>
@@ -23,54 +23,35 @@
     <div class="settings-layout">
       <!--@settings-nav-->
       <div class="settings-body">
-        <div class="s-head"><h1>Notifications</h1><p class="lede">Choose how {{BRAND}} reaches you when a price alert is reached.</p></div>
-        <section class="s-card" id="push-card" aria-labelledby="h-notif">
-          <h2 id="h-notif">Notifications</h2>
-          <div class="s-row">
-            <div class="s-label"><b>Push notifications</b><span id="notif-text" aria-live="polite">&nbsp;</span></div>
-            <button type="button" class="switch" role="switch" id="notif-switch" aria-checked="false" aria-label="Push notifications"><span></span></button>
-          </div>
+        <div class="s-head"><h1>Notifications</h1><p class="lede">Everything the app can tell you, and how loudly.</p></div>
+        <section class="s-card" aria-labelledby="h-push">
+          <h2 id="h-push">Delivery</h2>
+          <div class="s-row"><div class="s-label"><b>Push notifications</b><span id="notif-switch-s">Off</span></div><button type="button" class="switch" role="switch" id="notif-switch" aria-checked="false" aria-label="Push notifications"><span></span></button></div>
           <div id="push-prefs" hidden>
-            <div class="s-row">
-              <div class="s-label"><b>Market milestones</b><span>Round-number alerts from our Telegram channel.</span></div>
-              <button type="button" class="switch" role="switch" id="ms-switch" aria-checked="false" aria-label="Market milestones"><span></span></button>
-            </div>
-            <div class="s-row" id="ms-scope-row" hidden>
-              <div class="s-label"><b>Only my starred coins</b><span id="ms-scope-hint">Skip milestones for coins you have not starred.</span></div>
-              <button type="button" class="switch" role="switch" id="ms-starred" aria-checked="false" aria-label="Only my starred coins"><span></span></button>
-            </div>
-            <div class="s-row">
-              <div class="s-label"><b>Group alerts</b><span>Alerts reached at the same moment arrive as one notification.</span></div>
-              <button type="button" class="switch" role="switch" id="grp-switch" aria-checked="false" aria-label="Group alerts"><span></span></button>
-            </div>
-            <div class="s-row">
-              <div class="s-label"><b>Daily market recap</b><span>Bitcoin and the day's biggest mover up and down, once a day.</span></div>
-              <button type="button" class="switch" role="switch" id="recap-switch" aria-checked="false" aria-label="Daily market recap"><span></span></button>
-            </div>
-            <div class="s-row" id="recap-row" hidden>
-              <div class="s-label"><b>Send recap at</b><span>Your local time.</span></div>
-              <button type="button" class="sel-btn" id="recap-time" aria-haspopup="dialog"></button>
-            </div>
-            <div class="s-row">
-              <div class="s-label"><b>Quiet hours</b><span>Notifications still arrive, but without sound or vibration.</span></div>
-              <button type="button" class="switch" role="switch" id="quiet-switch" aria-checked="false" aria-label="Quiet hours"><span></span></button>
-            </div>
-            <div class="s-row" id="quiet-row" hidden>
-              <div class="s-label"><b>Quiet from</b><span>Until the second time, even past midnight.</span></div>
-              <div class="s-pair"><button type="button" class="sel-btn" id="quiet-from" aria-haspopup="dialog"></button><button type="button" class="sel-btn" id="quiet-to" aria-haspopup="dialog"></button></div>
-            </div>
-            <div class="s-actions"><button type="button" class="btn btn-ghost" id="notif-test">Send a test notification</button></div>
+          <div class="s-row"><div class="s-label"><b>Market milestones</b><span id="ms-switch-s">Round-number alerts from our Telegram channel.</span></div><button type="button" class="switch" role="switch" id="ms-switch" aria-checked="false" aria-label="Market milestones"><span></span></button></div>
+          <div id="ms-scope-row" hidden><div class="s-row"><div class="s-label"><b>Only my starred coins</b><span id="ms-starred-s">Skip milestones for coins you have not starred.</span></div><button type="button" class="switch" role="switch" id="ms-starred" aria-checked="false" aria-label="Only my starred coins"><span></span></button></div></div>
+          <div class="s-row"><div class="s-label"><b>Daily digest</b><span id="dg-switch-s">One short summary of your starred coins each day.</span></div><button type="button" class="switch" role="switch" id="dg-switch" aria-checked="false" aria-label="Daily digest"><span></span></button></div>
+          <div id="dg-row" hidden><div class="s-row"><div class="s-label"><b>Digest time</b><span>When it arrives.</span></div><select id="dg-hour" hidden aria-label="Digest time"><option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option></select></div></div>
+          <div class="s-actions"><button type="button" class="btn btn-ghost" id="notif-test">Send a test notification</button></div>
           </div>
-          <div class="s-row">
-            <div class="s-label"><b>Sound</b><span>A soft chime when an alert is reached while the app is open.</span></div>
-            <button type="button" class="switch" role="switch" data-toggle="sound" aria-checked="false" aria-label="Sound"><span></span></button>
-          </div>
-          <div class="s-row">
-            <div class="s-label"><b>Vibration</b><span>A short buzz with in-app alerts, where your phone allows it.</span></div>
-            <button type="button" class="switch" role="switch" data-toggle="haptics" aria-checked="false" aria-label="Vibration"><span></span></button>
-          </div>
-          <p class="s-hint" id="notif-fine">With push on, this device is registered with Cryptomium so alerts reach you with the app closed. We store the device's push address, your alerts and your milestone choice, with no account. Turning push off deletes it all.</p>
+          <p class="s-hint" id="notif-fine">With push on, this device is registered with Cryptomium so notifications reach you with the app closed. We store the device's push address and your choices, with no account. Turning push off deletes them.</p>
         </section>
+        <section class="s-card" aria-labelledby="h-quiet">
+          <h2 id="h-quiet">Quiet hours</h2>
+          <div class="s-row"><div class="s-label"><b>Quiet hours</b><span id="qh-switch-s">Alerts still arrive, but silently.</span></div><button type="button" class="switch" role="switch" id="qh-switch" aria-checked="false" aria-label="Silence alerts at night"><span></span></button></div>
+          <div id="qh-row" hidden><div class="s-row"><div class="s-label"><b>From</b><span>Start of quiet time.</span></div><select id="qh-from" hidden aria-label="From"><option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option></select></div><div class="s-row"><div class="s-label"><b>Until</b><span>End of quiet time.</span></div><select id="qh-to" hidden aria-label="Until"><option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option></select></div></div>
+        </section>
+        <section class="s-card" aria-labelledby="h-sound">
+          <h2 id="h-sound">Sound</h2>
+          <div class="s-row"><div class="s-label"><b>Alert sound</b><span>A soft chime when an alert is reached while the app is open.</span></div><button type="button" class="switch" role="switch" data-toggle="sound" aria-checked="false" aria-label="Alert sound"><span></span></button></div>
+          <div class="s-row"><div class="s-label"><b>Sound</b><span>Pick the chime.</span></div><select id="chime-pick" hidden aria-label="Sound"><option value="soft">Soft</option><option value="bell">Bell</option><option value="pulse">Pulse</option></select></div>
+          <div class="s-row"><div class="s-label"><b>Try it</b><span>Plays the chime once. Notifications that arrive with the app closed use your phone's own notification sound.</span></div><button type="button" class="btn btn-ghost btn-sm" id="test-sound">Play</button></div>
+        </section>
+        <section class="s-card" aria-labelledby="h-nprivacy">
+          <h2 id="h-nprivacy">Privacy</h2>
+          <div class="s-row"><div class="s-label"><b>Hide amounts</b><span>Notifications say an alert was reached without showing prices.</span></div><button type="button" class="switch" role="switch" data-toggle="notifyHide" aria-checked="false" aria-label="Hide amounts"><span></span></button></div>
+        </section>
+        <div class="s-actions"><button type="button" class="btn btn-ghost" data-reset="sound,chime,quietOn,quietFrom,quietTo,digestOn,digestHour,notifyHide">Reset this page</button></div>
         <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
       </div>
     </div>

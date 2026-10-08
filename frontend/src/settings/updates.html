@@ -39,15 +39,14 @@
         <section class="s-card" aria-labelledby="h-mode">
           <h2 id="h-mode">Install updates</h2>
           <div class="s-row">
-            <div class="s-label"><b>Mode</b><span id="upd-mode-note">Automatic installs a new version when you open or leave the app.</span></div>
+            <div class="s-label"><b>Mode</b><span id="upd-mode-note">Automatic downloads and installs new versions by itself. Manual waits for you.</span></div>
             <div class="segs" role="radiogroup" aria-label="Update mode" id="upd-mode"><button type="button" role="radio" class="seg" data-value="auto">Automatic</button><button type="button" role="radio" class="seg" data-value="manual">Manual</button></div>
           </div>
         </section>
-
-        <section class="s-card" aria-labelledby="h-off">
-          <h2 id="h-off">Offline and saved data</h2>
-          <ul class="store-list" id="net-list"></ul>
-          <div class="s-actions"><button type="button" class="btn btn-ghost" id="net-clear">Clear saved market data</button><span class="s-saved" id="saved" aria-live="polite"></span></div>
+        <section class="s-card" aria-labelledby="h-new">
+          <h2 id="h-new">What is new</h2>
+          <div id="whatsnew" class="whatsnew"></div>
+          <div class="s-actions"><button type="button" class="btn btn-ghost btn-sm" id="wn-more" hidden>Show older versions</button><span class="s-saved" id="saved" aria-live="polite"></span></div>
         </section>
 
         <section class="s-card" aria-labelledby="h-fix">

@@ -16,11 +16,9 @@ assert.equal(saved.length, 1); assert.equal(saved[0].dir, 'below'); assert.ok(sa
 const rows = await f.locator('.al-row').count();
 console.log('alerts listed:', rows, '| track bar:', await f.locator('.al-track').count());
 assert.equal(rows, 1);
-// sound toggle persists and is visible to the other screens
-await f.tap('#push-card [data-toggle="sound"]'); await page.waitForTimeout(400);
-const home = page.frames().find(x => x.url() === url + '/');
-console.log('sound pref seen by Home screen:', await home.evaluate(() => JSON.parse(localStorage.getItem('cm-prefs')).sound));
-// push is not configured on this mock server: the switch must say so, not lie
+// the alerts page keeps one small push switch plus a link to the full Notifications section
+assert.equal(await f.locator('#notif-switch').count(), 1);
+assert.equal(await f.locator('a.s-link[href="/settings/notifications"]').count(), 1);
 console.log('push switch:', await f.locator('#notif-switch').getAttribute('aria-checked'), '| text:', await f.locator('#notif-text').textContent());
 console.log('errors', errs);
 // offline page renders styled (no CSP block)

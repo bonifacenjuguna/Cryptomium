@@ -81,25 +81,24 @@ const settings = () => { const c = creds(); return { milestones: !!(c && c.prefs
 function armedAlerts() {
   return loadTargets().filter(t => !t.firedAt).map(t => ({ id: t.id, ticker: t.ticker, dir: t.dir, price: t.price, rev: Math.floor(t.armedAt || t.created || 0) }));
 }
-const EXTRA_KEY = 'cm-push-extra';   // how alerts are delivered: grouped, and the daily recap
-const QUIET_KEY = 'cm-quiet';        // quiet hours (kept on the phone; the service worker applies them)
-export const getExtras = () => { const v = ls.get(EXTRA_KEY) || {}; return { digest: v.digest === true, recap: v.recap === true, recapHour: Number.isInteger(v.recapHour) ? v.recapHour : 8 }; };
-export const getQuiet = () => { const v = ls.get(QUIET_KEY) || {}; return { on: v.on === true, from: Number.isInteger(v.from) ? v.from : 22 * 60, to: Number.isInteger(v.to) ? v.to : 7 * 60 }; };
-
 function wantedPrefs() {
   const s = settings();
-  const x = { ...getExtras(), tz: -new Date().getTimezoneOffset() }; // minutes east of UTC, so "8:00" means 8:00 where the person is
-  if (!s.milestones) return { milestones: false, coins: [], ...x };
-  if (s.scope === 'all') return { milestones: true, coins: [], ...x };
+  const tz = new Date().getTimezoneOffset(); // minutes behind UTC; the backend turns the chosen hours into this phone's time
+  const out = {
+    digest: { on: Boolean(prefs.get('digestOn')), hour: Number(prefs.get('digestHour')) || 0, coins: favList().slice(0, 40), tz },
+    quiet: { on: Boolean(prefs.get('quietOn')), from: Number(prefs.get('quietFrom')) || 0, to: Number(prefs.get('quietTo')) || 0, tz },
+  };
+  if (!s.milestones) return { milestones: false, coins: [], ...out };
+  if (s.scope === 'all') return { milestones: true, coins: [], ...out };
   const coins = favList();
-  return coins.length ? { milestones: true, coins: coins.slice(0, 40), ...x } : { milestones: false, coins: [], ...x }; // no starred coins: nothing to send
+  return coins.length ? { milestones: true, coins: coins.slice(0, 40), ...out } : { milestones: false, coins: [], ...out }; // no starred coins: nothing to send
 }
 
 async function writeAuthForWorker(c) {
   try {
     const cache = await caches.open(AUTH_CACHE);
     if (!c) { await cache.delete(AUTH_URL); return; }
-    await cache.put(AUTH_URL, new Response(JSON.stringify({ api: API, id: c.id, token: c.token, key: c.key }), { headers: { 'Content-Type': 'application/json' } }));
+    await cache.put(AUTH_URL, new Response(JSON.stringify({ api: API, id: c.id, token: c.token, key: c.key, hide: Boolean(prefs.get('notifyHide')) }), { headers: { 'Content-Type': 'application/json' } }));
   } catch { /* the worker simply cannot re-subscribe on its own */ }
 }
 
@@ -233,15 +232,12 @@ export async function syncNow({ force = false } = {}) {
   if (!c || Notification.permission !== 'granted' || navigator.onLine === false) return false;
   if (syncing) return syncing;
   const body = { prefs: wantedPrefs(), targets: armedAlerts() };
-  if (!force && ls.get(LAST_KEY) === fingerprint(body)) {
-    // Nothing new to send, but still ask now and then which alerts fired while the app was closed.
-    if (Date.now() - (ls.get(SYNCED_KEY) || 0) < PASSIVE_SYNC_MS) return true;
-  }
   syncing = (async () => {
     try {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg && (await reg.pushManager.getSubscription());
-      if (!sub) { await enable(); return true; }   // the browser dropped the subscription: quietly make a new one
+      if (!sub) { await enable(); return true; }   // the browser dropped the subscription (a Repair does this): quietly make a new one
+      if (!force && ls.get(LAST_KEY) === fingerprint(body) && Date.now() - (ls.get(SYNCED_KEY) || 0) < PASSIVE_SYNC_MS) return true; // nothing new, and asked recently
       const send = { ...body, subscription: sub.toJSON() };
       const r = await call('PUT', '/api/push/devices/me', send, c);
       if (r.status === 401) { ls.del(KEY); await register(sub, c.key || (await serverKey())); return true; } // the backend forgot this device
@@ -265,25 +261,6 @@ export async function setMilestones({ milestones, scope }) {
   const ok = await syncNow({ force: true });
   if (!ok) { ls.set(KEY, { ...c, prefs: before }); return { ok: false, reason: navigator.onLine === false ? 'offline' : 'network' }; }
   document.dispatchEvent(new CustomEvent('cm:push'));
-  return { ok: true };
-}
-
-/** Grouped alerts and the daily recap. Saved on the phone, then sent to the server if push is on. */
-export async function setExtras(patch) {
-  const before = getExtras();
-  ls.set(EXTRA_KEY, { ...before, ...patch });
-  if (!creds()) return { ok: true };
-  const ok = await syncNow({ force: true });
-  if (!ok) { ls.set(EXTRA_KEY, before); return { ok: false, reason: navigator.onLine === false ? 'offline' : 'network' }; }
-  document.dispatchEvent(new CustomEvent('cm:push'));
-  return { ok: true };
-}
-
-/** Quiet hours: notifications still arrive but without sound or vibration. Applied by the service worker, so it works with the app closed. */
-export async function setQuiet(patch) {
-  const q = { ...getQuiet(), ...patch };
-  ls.set(QUIET_KEY, q);
-  try { await (await caches.open(AUTH_CACHE)).put('/__cm/quiet', new Response(JSON.stringify(q), { headers: { 'Content-Type': 'application/json' } })); } catch { /* the setting still applies in the app */ }
   return { ok: true };
 }
 
@@ -401,6 +378,10 @@ export function start() {
   });
 
   document.addEventListener('cm:targets', () => syncSoon());
+  prefs.onChange(key => {
+    if (['digestOn', 'digestHour', 'quietOn', 'quietFrom', 'quietTo', '*'].includes(key)) syncSoon(800);
+    if ((key === 'notifyHide' || key === '*') && creds()) writeAuthForWorker(creds());
+  });
   onFavs(() => { if (settings().milestones && settings().scope === 'starred') syncSoon(); });
   onRecover(() => { finishForget(); syncSoon(500); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSoon(800); });

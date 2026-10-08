@@ -5,13 +5,14 @@ import {
 } from './common.js';
 import { loadTargets, addTarget, removeTarget, clearReached, rearm, chime, describe } from './targets.js';
 import * as push from './push.js';
-import { openSheet, coinPicker } from './ui.js';
+import * as lock from './lock.js';
+import { dataSaverOn, clockText } from './common.js';
+import { openSheet, coinPicker, selectPicker } from './ui.js';
 import { createChart } from './chart.js';
 import { LESSONS, CATS, TERMS } from './learn-content.js';
 import { updates } from './pwa.js';
 import { sanitize as sanitizeLedger } from './ledger.js';
 import * as net from './net.js';
-import { lockConfig, lockSupported, enableLock, verifyOwner, disableLock, setLockAfter, lockNow } from './lock.js';
 
 const $ = id => document.getElementById(id);
 const page = document.body.dataset.page;
@@ -126,6 +127,16 @@ function initPreferences() {
     $('cur-pick').addEventListener('click', openCurrencySheet);
     onCurrency(paintCurrencies);
   }
+  document.querySelectorAll('[data-select]').forEach(sel => bindSelect(sel.id, sel.dataset.select));
+  document.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => {
+    const next = prefs.all();
+    for (const k of b.dataset.reset.split(',')) next[k] = PREF_DEFAULTS[k];
+    prefs.replace(next);
+    paintPrefs(); paintFormats(); paintSaver(); document.dispatchEvent(new CustomEvent('cm:push'));
+    flashSaved('Back to the defaults');
+  }));
+  paintFormats(); paintSaver();
+  prefs.onChange(() => { paintFormats(); paintSaver(); });
   $('reset-prefs')?.addEventListener('click', () => {
     const next = prefs.all();
     for (const n of document.querySelectorAll('[data-pref],[data-toggle]')) { const k = n.dataset.pref || n.dataset.toggle; next[k] = PREF_DEFAULTS[k]; }
@@ -255,7 +266,8 @@ let alPick = null;
 function paintAlertHint() {
   const t = alPick ? alPick.get() : '';
   const l = live.get(t);
-  const ac = $('al-code'); if (ac) ac.textContent = currency.code;
+  const codeEl = $('al-code');
+  if (codeEl) codeEl.textContent = currency.code;
   if (!l) { $('al-now').textContent = ' '; return; }
   const now = money(l.price, { stable: l.stable });
   const k = $('al-dir').value;
@@ -321,20 +333,21 @@ function updateTargetMeta() {
   });
 }
 
-// Notifications card (Price alerts page): real switches. Push on/off, the channel's milestone alerts, and the
-// in-app sound and vibration, each remembered and each with its own state.
-const switchOn = (btn, on) => btn.setAttribute('aria-checked', String(on));
+// Notifications. One switch for push, plus (on the Notifications page) milestones, the daily digest, quiet hours, sound
+// and privacy. The Price alerts page keeps just the push switch and a link here.
+const switchOn = (btn, on) => btn && btn.setAttribute('aria-checked', String(on));
+const hide = (id, yes) => { const n = $(id); if (n) n.hidden = yes; };
 async function paintNotif() {
-  const sw = $('notif-switch'), text = $('notif-text');
+  const sw = $('notif-switch'), text = $('notif-text') || $('notif-switch-s');
   if (!sw || !text) return;
   const s = await push.getState();
   const on = s.status === 'on';
   switchOn(sw, on);
   sw.disabled = ['unsupported', 'unavailable', 'install'].includes(s.status);
-  $('push-prefs').hidden = !on;
-  $('notif-fine').hidden = s.status === 'unsupported' || s.status === 'unavailable';
+  hide('push-prefs', !on);
+  hide('notif-fine', s.status === 'unsupported' || s.status === 'unavailable');
   text.textContent = {
-    on: 'On. Alerts reach you even when Cryptomium is closed.',
+    on: 'On. Notifications reach you even when Cryptomium is closed.',
     off: 'Off. Turn on to be told with the app closed.',
     blocked: 'Blocked in your phone or browser settings. Allow notifications for Cryptomium there, then switch this on.',
     install: push.reasonText('install'),
@@ -343,22 +356,31 @@ async function paintNotif() {
   }[s.status];
   if (on) {
     switchOn($('ms-switch'), s.milestones);
-    $('ms-scope-row').hidden = !s.milestones;
+    hide('ms-scope-row', !s.milestones);
     switchOn($('ms-starred'), s.scope === 'starred');
-    $('ms-scope-hint').textContent = favCount() ? 'Skip milestones for coins you have not starred.' : 'Star some coins first, or this sends nothing.';
+    const sub = $('ms-starred-s'); if (sub) sub.textContent = favCount() ? 'Skip milestones for coins you have not starred.' : 'Star some coins first, or this sends nothing.';
   }
+  switchOn($('dg-switch'), Boolean(prefs.get('digestOn')));
+  hide('dg-row', !prefs.get('digestOn'));
+  switchOn($('qh-switch'), Boolean(prefs.get('quietOn')));
+  hide('qh-row', !prefs.get('quietOn'));
   document.querySelectorAll('#push-card [data-toggle]').forEach(b => switchOn(b, Boolean(prefs.get(b.dataset.toggle))));
 }
 
-/** After a new alert: explain why notifications help and ask, but only if it makes sense and not too often. */
-async function offerPush() {
-  if (document.querySelector('.push-offer') || !(await push.shouldOffer())) return;
-  $('al-error').after(push.offerCard());
+/** Turns a hidden <select> into the app's own picker and keeps it tied to one preference. */
+function bindSelect(id, key, { number = false, title = '' } = {}) {
+  const sel = $(id);
+  if (!sel || sel.dataset.bound) return;
+  sel.dataset.bound = '1';
+  sel.value = String(prefs.get(key));
+  selectPicker(sel, { title: title || sel.getAttribute('aria-label') || '', searchable: false });
+  sel.addEventListener('change', () => { prefs.set(key, number ? Number(sel.value) : sel.value); flashSaved(); });
+  prefs.onChange(() => { sel.value = String(prefs.get(key)); sel.dispatchEvent(new Event('input')); });
 }
 
 function initNotifCard() {
-  if (!$('notif-switch')) return;
   const sw = $('notif-switch');
+  if (!sw) return;
   sw.addEventListener('click', async () => {
     if (sw.disabled) return;
     const turningOn = sw.getAttribute('aria-checked') !== 'true';
@@ -367,8 +389,7 @@ function initNotifCard() {
     if (turningOn) {
       const r = await push.enable();
       await paintNotif();
-      if (!r.ok) $('notif-text').textContent = push.reasonText(r.reason);
-      else flashSaved('Notifications on');
+      if (!r.ok) ($('notif-text') || $('notif-switch-s')).textContent = push.reasonText(r.reason); else flashSaved('Notifications on');
     } else {
       await push.disable();
       await paintNotif();
@@ -377,60 +398,98 @@ function initNotifCard() {
     sw.disabled = false;
     paintNotif();
   });
-  $('notif-test').addEventListener('click', async () => {
+  $('notif-test')?.addEventListener('click', async () => {
     const b = $('notif-test');
     b.disabled = true;
     const r = await push.sendTest();
     b.disabled = false;
     if (r.ok) flashSaved('Test sent');
-    else if (r.reason === 'gone') { await paintNotif(); $('notif-text').textContent = 'This device was no longer registered. Switch notifications on again.'; }
-    else $('notif-text').textContent = r.reason === 'wait' ? 'Wait a few seconds before sending another test.' : push.reasonText(r.reason);
+    else if (r.reason === 'gone') { await paintNotif(); ($('notif-text') || $('notif-switch-s')).textContent = 'This device was no longer registered. Switch notifications on again.'; }
+    else ($('notif-text') || $('notif-switch-s')).textContent = r.reason === 'wait' ? 'Wait a few seconds before sending another test.' : push.reasonText(r.reason);
   });
   const savePrefs = async () => {
     const r = await push.setMilestones({ milestones: $('ms-switch').getAttribute('aria-checked') === 'true', scope: $('ms-starred').getAttribute('aria-checked') === 'true' ? 'starred' : 'all' });
-    if (!r.ok) $('notif-text').textContent = push.reasonText(r.reason);
+    if (!r.ok) ($('notif-text') || $('notif-switch-s')).textContent = push.reasonText(r.reason);
     await paintNotif();
   };
-  for (const id of ['ms-switch', 'ms-starred']) $(id).addEventListener('click', () => { switchOn($(id), $(id).getAttribute('aria-checked') !== 'true'); savePrefs(); });
-  document.querySelectorAll('#push-card [data-toggle]').forEach(b => b.addEventListener('click', () => {
-    prefs.set(b.dataset.toggle, !prefs.get(b.dataset.toggle));
-    if (b.dataset.toggle === 'sound' && prefs.get('sound')) chime();
-    if (b.dataset.toggle === 'haptics' && prefs.get('haptics')) { try { navigator.vibrate?.(30); } catch { /* not supported */ } }
-    paintNotif(); flashSaved();
-  }));
-  initNotifExtras();
+  for (const id of ['ms-switch', 'ms-starred']) $(id)?.addEventListener('click', () => { switchOn($(id), $(id).getAttribute('aria-checked') !== 'true'); savePrefs(); });
+  for (const [id, key] of [['dg-switch', 'digestOn'], ['qh-switch', 'quietOn']]) $(id)?.addEventListener('click', () => { prefs.set(key, !prefs.get(key)); paintNotif(); flashSaved(); });
+  bindSelect('dg-hour', 'digestHour', { number: true, title: 'Digest time' });
+  bindSelect('qh-from', 'quietFrom', { number: true, title: 'Quiet from' });
+  bindSelect('qh-to', 'quietTo', { number: true, title: 'Quiet until' });
+  bindSelect('chime-pick', 'chime', { title: 'Alert sound' });
+  $('test-sound')?.addEventListener('click', () => chime());
   document.addEventListener('cm:push', paintNotif);
+  prefs.onChange(() => paintNotif());
   paintNotif();
 }
 
-const clockLabel = m => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-function pickTime(btn, { title, value, step, onPick }) {
-  const items = [];
-  for (let m = 0; m < 1440; m += step) items.push({ value: String(m), title: clockLabel(m) });
-  openSheet({ title, trigger: btn, value: String(value), items, searchable: false, onPick: v => onPick(Number(v)) });
+/** After a new alert: explain why notifications help and ask, but only if it makes sense and not too often. */
+async function offerPush() {
+  if (document.querySelector('.push-offer') || !(await push.shouldOffer())) return;
+  $('al-error').after(push.offerCard());
 }
-// Grouped alerts, the daily recap and quiet hours (see push.js). Each one is saved the moment it is touched.
-function initNotifExtras() {
-  if (!$('grp-switch')) return;
-  const paint = () => {
-    const x = push.getExtras(), q = push.getQuiet();
-    switchOn($('grp-switch'), x.digest);
-    switchOn($('recap-switch'), x.recap);
-    $('recap-row').hidden = !x.recap;
-    $('recap-time').textContent = clockLabel(x.recapHour * 60);
-    switchOn($('quiet-switch'), q.on);
-    $('quiet-row').hidden = !q.on;
-    $('quiet-from').textContent = clockLabel(q.from);
-    $('quiet-to').textContent = 'to ' + clockLabel(q.to);
-  };
-  const extra = async patch => { const r = await push.setExtras(patch); if (!r.ok) $('notif-text').textContent = push.reasonText(r.reason); paint(); flashSaved(); };
-  $('grp-switch').addEventListener('click', () => extra({ digest: !push.getExtras().digest }));
-  $('recap-switch').addEventListener('click', () => extra({ recap: !push.getExtras().recap }));
-  $('recap-time').addEventListener('click', () => pickTime($('recap-time'), { title: 'Send recap at', value: push.getExtras().recapHour * 60, step: 60, onPick: m => extra({ recapHour: m / 60 }) }));
-  $('quiet-switch').addEventListener('click', async () => { await push.setQuiet({ on: !push.getQuiet().on }); paint(); flashSaved(); });
-  $('quiet-from').addEventListener('click', () => pickTime($('quiet-from'), { title: 'Quiet from', value: push.getQuiet().from, step: 30, onPick: async m => { await push.setQuiet({ from: m }); paint(); flashSaved(); } }));
-  $('quiet-to').addEventListener('click', () => pickTime($('quiet-to'), { title: 'Quiet until', value: push.getQuiet().to, step: 30, onPick: async m => { await push.setQuiet({ to: m }); paint(); flashSaved(); } }));
-  paint();
+
+// Region and format preview, and the data saver status line.
+function paintFormats() {
+  const n = $('fmt-preview');
+  if (n) n.textContent = `Example: ${money(1234.56)}  \u00b7  ${clockText(Date.now())}`;
+}
+function paintSaver() {
+  const n = $('saver-now');
+  if (!n) return;
+  const c = navigator.connection;
+  n.textContent = dataSaverOn()
+    ? 'Saving data now: prices refresh less often, and charts wait until you tap Load chart.'
+    : prefs.get('saver') === 'cellular' ? `Not saving right now (${c && c.type ? c.type : 'not on mobile data'}). It turns on by itself on mobile data.` : 'Not saving data.';
+}
+navigator.connection?.addEventListener?.('change', paintSaver);
+
+// Security and privacy: the app lock.
+async function paintLock() {
+  const st = lock.state();
+  const bio = await lock.bioAvailable();
+  switchOn($('lock-switch'), st.on);
+  hide('lock-opts', !st.on);
+  const sub = $('lock-switch-s'); if (sub) sub.textContent = st.on ? 'On' : 'Off. Choose a PIN, and optionally your fingerprint or face.';
+  for (const [id, v] of [['lock-after', String(st.after)], ['lock-scope', st.scope]]) { const sel = $(id); if (sel) { sel.value = v; sel.dispatchEvent(new Event('input')); } }
+  const b = $('lock-bio'), bs = $('lock-bio-s');
+  if (b && bs) { b.hidden = !bio; bs.textContent = !bio ? 'Not available here. The PIN is used.' : st.bio ? 'On: fingerprint, face or screen lock.' : 'Off. Tap Set up to use fingerprint, face or your screen lock.'; b.textContent = st.bio ? 'Turn off' : 'Set up'; }
+}
+function initSecurity() {
+  const msg = t => { const n = $('saved'); if (n) { n.textContent = t; clearTimeout(flashSaved.t); flashSaved.t = setTimeout(() => { n.textContent = ''; }, 2500); } };
+  $('lock-switch')?.addEventListener('click', async () => {
+    const st = lock.state();
+    if (!st.on) {
+      const pin = await lock.choosePin('Choose a PIN');
+      if (!pin) return;
+      await lock.setPin(pin); lock.set('on', true);
+      if (await lock.bioAvailable()) { try { await lock.enrollBio(); } catch { msg('Fingerprint or face was not set up. The PIN works.'); } }
+      lock.set('after', st.after); lock.set('scope', st.scope);
+      msg('App lock is on');
+    } else {
+      if (!(await lock.confirmIdentity('Unlock to turn the lock off'))) return;
+      lock.set('on', false); msg('App lock is off');
+    }
+    paintLock();
+  });
+  for (const [id, key, num] of [['lock-after', 'after', true], ['lock-scope', 'scope', false]]) {
+    const sel = $(id); if (!sel) continue;
+    selectPicker(sel, { title: sel.getAttribute('aria-label') || '', searchable: false });
+    sel.addEventListener('change', () => { lock.set(key, num ? Number(sel.value) : sel.value); msg('Saved'); });
+  }
+  $('lock-bio')?.addEventListener('click', async () => {
+    if (lock.state().bio) { if (await lock.confirmIdentity('Unlock to change this')) { lock.forgetBio(); } }
+    else { try { await lock.enrollBio(); msg('Fingerprint or face is on'); } catch { msg('Could not set it up on this device.'); } }
+    paintLock();
+  });
+  $('lock-pin')?.addEventListener('click', async () => {
+    if (!(await lock.confirmIdentity('Unlock to change your PIN'))) return;
+    const pin = await lock.choosePin('Choose a new PIN');
+    if (pin) { await lock.setPin(pin); msg('PIN changed'); }
+  });
+  $('lock-now')?.addEventListener('click', () => lock.lockNow());
+  paintLock();
 }
 
 function initAlerts() {
@@ -446,8 +505,9 @@ function initAlerts() {
     const k = $('al-dir').value;
     const noPrice = k === 'ath' || k === 'atl';
     $('al-price-fld').hidden = noPrice;
-    const code = document.createElement('b'); code.id = 'al-code'; code.textContent = currency.code; // keep the element paintAlertHint writes to
-    $('al-price-l').replaceChildren(...(k === 'move' ? ['Move in 24 hours'] : ['Price in ', code]));
+    const lab = $('al-price-l');
+    if (k === 'move') lab.textContent = 'Move in 24 hours';
+    else { lab.textContent = 'Price in '; const code = el('b', '', currency.code); code.id = 'al-code'; lab.append(code); }
     $('al-sym').textContent = k === 'move' ? '%' : currencySymbol(currency.code).slice(0, 4);
     $('al-price').placeholder = k === 'move' ? '5' : '0.00';
     document.querySelectorAll('#al-types [data-kind]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.kind === k)));
@@ -523,10 +583,11 @@ function renderStore() {
     return li;
   }));
 }
-function exportData() {
+async function exportData(share = false) {
   const payload = {
     app: 'cryptomium',
     version: 1,
+    appVersion: window.CRYPTOMIUM?.version || '',
     exportedAt: new Date().toISOString(),
     prefs: prefs.all(),
     currency: currency.code,
@@ -536,22 +597,44 @@ function exportData() {
     updateMode: updates.mode(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const stamp = new Date().toISOString().slice(0, 10);
+  if (share) {
+    try { await navigator.share({ files: [new File([blob], `cryptomium-backup-${stamp}.json`, { type: 'application/json' })], title: 'Cryptomium backup' }); flashSaved('Backup shared'); } catch { /* cancelled */ }
+    return;
+  }
   const a = el('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'cryptomium-settings.json';
+  a.download = `cryptomium-backup-${stamp}.json`;
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  try { store.set('cm-last-backup', String(Date.now())); } catch { /* ignore */ }
-  paintBackup();
-  flashSaved('Backup downloaded');
+  flashSaved('Backup saved');
 }
-async function importData(file) {
+/** Read a backup, show what is in it, and only replace this device's data when the person confirms. */
+async function previewImport(file) {
+  const box = $('import-preview');
   try {
     if (file.size > 3_000_000) throw new Error('size');
     const data = JSON.parse(await file.text());
     if (data?.app !== 'cryptomium') throw new Error('not ours');
+    const n = (v, one, many) => { const c = Array.isArray(v) ? v.length : 0; return `${c} ${c === 1 ? one : many}`; };
+    const holdings = data.portfolio2?.v === 2 ? (data.portfolio2.lots || data.portfolio2.holdings || []) : data.portfolio;
+    box.replaceChildren(
+      el('p', '', `Backup from ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'an unknown date'}${data.appVersion ? ' (version ' + data.appVersion + ')' : ''}: ${n(data.favs, 'starred coin', 'starred coins')}, ${n(data.targets, 'alert', 'alerts')}, ${data.prefs ? 'your settings' : 'no settings'}${holdings ? ', and a portfolio' : ''}.`),
+      el('p', 's-hint', 'Loading it replaces what is on this device now.'));
+    const row = el('div', 's-actions');
+    const go = el('button', 'btn btn-accent', 'Replace with this backup'); go.type = 'button';
+    const no = el('button', 'btn btn-ghost', 'Cancel'); no.type = 'button';
+    go.addEventListener('click', async () => { if (await lock.require('this')) { box.hidden = true; applyImport(data); } });
+    no.addEventListener('click', () => { box.hidden = true; });
+    row.append(go, no); box.append(row); box.hidden = false;
+  } catch {
+    flashSaved('That file is not a Cryptomium backup');
+  }
+}
+async function applyImport(data) {
+  try {
     const tickers = new Set(coins.map(c => c.ticker));
     const next = {};
     for (const key of Object.keys(PREF_DEFAULTS)) if (data.prefs && key in data.prefs && typeof data.prefs[key] === typeof PREF_DEFAULTS[key]) next[key] = data.prefs[key];
@@ -580,67 +663,23 @@ async function importData(file) {
     flashSaved('That file is not a Cryptomium backup');
   }
 }
-function paintBackup() {
-  const n = Number(store.get('cm-last-backup') || 0);
-  const t = $('backup-last');
-  if (t) t.textContent = n ? 'Last backup from this device: ' + new Date(n).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) + '.' : 'No backup made on this device yet.';
-}
-function initBackup() {
-  paintBackup();
-  $('export-btn').addEventListener('click', exportData);
-  $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) importData(f); e.target.value = ''; });
-}
-
-// App lock page: set up, change and remove the phone-unlock gate (see js/lock.js).
-async function initLock() {
-  const sw = $('lock-switch'), text = $('lock-text'), opts = $('lock-opts');
-  const supported = await lockSupported();
-  const paint = () => {
-    const on = Boolean(lockConfig());
-    switchOn(sw, on);
-    opts.hidden = !on;
-    sw.disabled = !supported && !on;
-    text.textContent = on ? 'On. Asks for your phone\u2019s unlock when you open the app.' : supported ? 'Off.' : 'This phone or browser has no screen lock, fingerprint or face unlock available for apps.';
-    const after = lockConfig()?.after ?? 60;
-    $('lock-after').querySelectorAll('[data-value]').forEach(b => b.setAttribute('aria-checked', String(Number(b.dataset.value) === after)));
-  };
-  paint();
-  sw.addEventListener('click', async () => {
-    if (sw.disabled) return;
-    try {
-      if (lockConfig()) { await verifyOwner(); disableLock(); flashSaved('App lock off'); }
-      else { await enableLock(60); flashSaved('App lock on'); }
-    } catch { text.textContent = 'Not changed. Your phone\u2019s unlock was cancelled or did not work.'; return; }
-    paint();
-  });
-  $('lock-after').querySelectorAll('[data-value]').forEach(b => b.addEventListener('click', () => { setLockAfter(Number(b.dataset.value)); paint(); flashSaved(); }));
-  $('lock-now').addEventListener('click', lockNow);
-
-  // Hide balances (the eye button itself lives in Portfolio)
-  const rev = $('reveal-lock'), hs = $('hide-start');
-  const paintBal = () => {
-    switchOn(hs, store.get('cm-hide-start') === '1');
-    const lockOn = Boolean(lockConfig());
-    switchOn(rev, lockOn && store.get('cm-reveal-lock') === '1');
-    rev.disabled = !lockOn;
-    $('reveal-text').textContent = lockOn ? 'Tapping the eye in Portfolio asks for your fingerprint, face or screen lock.' : 'Turn on App lock first.';
-  };
-  hs.addEventListener('click', () => { store.set('cm-hide-start', store.get('cm-hide-start') === '1' ? '0' : '1'); paintBal(); flashSaved(); });
-  rev.addEventListener('click', () => { if (rev.disabled) return; store.set('cm-reveal-lock', store.get('cm-reveal-lock') === '1' ? '0' : '1'); paintBal(); flashSaved(); });
-  sw.addEventListener('click', () => setTimeout(paintBal, 1500));
-  paintBal();
-}
-
 function initData() {
   renderStore();
   onCurrency(renderStore);
   document.addEventListener('cm:targets', renderStore);
   document.addEventListener('cm:holdings', renderStore);
   onFavs(renderStore);
+  $('export-btn').addEventListener('click', () => exportData(false));
+  if ($('share-btn') && navigator.canShare?.({ files: [new File(['{}'], 'x.json', { type: 'application/json' })] })) { $('share-btn').hidden = false; $('share-btn').addEventListener('click', () => exportData(true)); }
+  paintDisk(); paintNet(); net.onChange(paintNet);
+  $('net-clear')?.addEventListener('click', async () => { await net.clearGood(); flashSaved('Saved prices cleared'); paintNet(); paintDisk(); });
+  $('media-clear')?.addEventListener('click', async () => { for (const k of await caches.keys()) if (k.startsWith('cm3-media')) await caches.delete(k); flashSaved('Saved images cleared'); paintDisk(); });
+  $('import-file').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) previewImport(f); e.target.value = ''; });
   const reset = $('reset-all');
   let armed = null;
-  reset.addEventListener('click', () => {
+  reset.addEventListener('click', async () => {
     if (!armed) {
+      if (!(await lock.require('this'))) return;
       reset.textContent = 'Tap again to confirm';
       armed = setTimeout(() => { armed = null; reset.textContent = 'Reset everything'; }, 4000);
       return;
@@ -710,14 +749,31 @@ function initSources() {
 }
 
 // ---------------------------------------------------------------- advanced + experimental
+async function diagnostics() {
+  const st = await push.getState().catch(() => ({ status: '?' }));
+  const lines = [
+    `Cryptomium diagnostics`,
+    `Web version: ${window.CRYPTOMIUM?.version || '?'} (build ${window.CRYPTOMIUM?.build || '?'})`,
+    `Opened as: ${matchMedia('(display-mode: standalone)').matches ? 'installed app' : 'browser'}${document.referrer.startsWith('android-app://') ? ' (Android app)' : ''}`,
+    `Online: ${navigator.onLine}   Connection: ${navigator.connection ? (navigator.connection.effectiveType || '?') + (navigator.connection.saveData ? ', data saver' : '') : 'n/a'}`,
+    `Service worker: ${navigator.serviceWorker?.controller ? 'active' : 'not controlling'}   Update: ${updates.get().status}   Mode: ${updates.mode()}`,
+    `Notifications: ${st.status}   App lock: ${lock.state().on ? 'on' : 'off'}`,
+    `Screen: ${innerWidth}x${innerHeight} @${devicePixelRatio}   Language: ${navigator.language}`,
+    `Browser: ${navigator.userAgent}`,
+    `Recent errors:`,
+    ...(() => { try { const e = JSON.parse(localStorage.getItem('cm-errors') || '[]'); return e.length ? e.map(x => '  ' + x) : ['  none']; } catch { return ['  none']; } })(),
+  ];
+  return lines.join('\n');
+}
 function initAdvanced() {
+  $('diag-copy')?.addEventListener('click', async () => {
+    const text = await diagnostics();
+    try { await navigator.clipboard.writeText(text); flashSaved('Copied. Paste it in the channel.'); }
+    catch { try { await navigator.share({ text }); } catch { flashSaved('Could not copy here.'); } }
+  });
   initPreferences();
   $('clear-recent')?.addEventListener('click', () => { store.set('cm-recent', '[]'); flashSaved('Recent searches cleared'); });
   $('reload-now')?.addEventListener('click', () => location.reload());
-}
-function initExperimental() {
-  initPreferences();
-  $('test-sound')?.addEventListener('click', () => chime());
 }
 
 // ---------------------------------------------------------------- app updates
@@ -745,7 +801,7 @@ function paintUpdates() {
     case 'applying': title = 'Installing\u2026'; sub = 'The app restarts on this screen.'; label = 'Updating\u2026'; busy = true; bar = true; break;
     case 'ready':
       title = 'Update ready';
-      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs when you next open or leave the app.' : 'Tap Update now when you are ready.');
+      sub = (u.latest && u.latest.version ? `Version ${u.latest.version} is downloaded. ` : 'It is downloaded. ') + (u.mode === 'auto' ? 'It installs by itself when you are not busy, or when you leave the app.' : 'Tap Update now when you are ready.');
       label = 'Update now'; action = () => updates.apply(); break;
     case 'uptodate': title = "You're up to date"; sub = `Version ${u.version} is the latest.`; break;
     case 'failed': {
@@ -763,7 +819,18 @@ function paintUpdates() {
   main.onclick = action;
   document.querySelectorAll('#upd-mode [data-value]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.value === u.mode)));
 }
+const fmtBytes = n => n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+async function paintDisk() {
+  const t = $('disk-text'), f = $('disk-fill');
+  if (!t) return;
+  try {
+    const { usage = 0, quota = 0 } = (await navigator.storage?.estimate?.()) || {};
+    t.textContent = usage ? `${fmtBytes(usage)} used by Cryptomium on this device.` : 'Very little is stored on this device.';
+    if (f) f.style.width = Math.max(2, Math.min(100, (usage / Math.min(quota || 2e8, 2e8)) * 100)) + '%';
+  } catch { t.textContent = 'Storage details are not available in this browser.'; }
+}
 async function paintNet() {
+  if (!$('net-list')) return;
   const i = net.info();
   const prices = net.loadPrices();
   const when = net.lastUpdatedLabel();
@@ -780,16 +847,24 @@ async function paintNet() {
     return li;
   }));
 }
+async function paintWhatsNew() {
+  const box = $('whatsnew');
+  if (!box) return;
+  let list = [];
+  try { list = await (await fetch('/whatsnew.json')).json(); } catch { /* offline and not saved */ }
+  if (!list.length) { box.textContent = 'Nothing to show yet.'; return; }
+  const draw = all => box.replaceChildren(...list.slice(0, all ? list.length : 1).flatMap(r => [el('h3', '', 'Version ' + r.v), (() => { const ul = el('ul'); ul.append(...r.notes.map(t => el('li', '', t))); return ul; })()]));
+  draw(false);
+  const more = $('wn-more');
+  if (list.length > 1 && more) { more.hidden = false; more.addEventListener('click', () => { draw(true); more.hidden = true; }); }
+}
 function initUpdates() {
   paintUpdates();
   updates.on(paintUpdates);
   document.querySelectorAll('#upd-mode [data-value]').forEach(b => b.addEventListener('click', () => { updates.setMode(b.dataset.value); flashSaved(b.dataset.value === 'auto' ? 'Automatic updates on' : 'Manual updates on'); }));
   // Opening this screen from the menu's "Update app" looks for a new version at once.
   if (updates.get().status === 'idle' && updates.get().supported) updates.check();
-  paintNet();
-  net.onChange(paintNet);
-  setInterval(paintNet, 30000);
-  $('net-clear').addEventListener('click', async () => { await net.clearGood(); flashSaved('Saved market data cleared'); paintNet(); });
+  paintWhatsNew();
   const repair = $('upd-repair');
   let armed = 0;
   repair.addEventListener('click', () => {
@@ -815,17 +890,17 @@ async function boot() {
     here?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
   if (['appearance', 'preferences', 'home'].includes(page)) { initPreferences(); initPreview(); }
+  if (['notifications', 'security', 'datasaver', 'region', 'accessibility'].includes(page)) initPreferences();
+  if (page === 'notifications') initNotifCard();
+  if (page === 'security') initSecurity();
+  if (page === 'region') { onCurrency(paintFormats); }
   if (page === 'watchlist') initWatchlist();
   if (page === 'alerts') initAlerts();
   if (page === 'data') initData();
-  if (page === 'backup') initBackup();
-  if (page === 'lock') initLock();
-  if (page === 'notifications') initNotifCard();
   if (page === 'learn') initLearn();
   if (page === 'sources') initSources();
   if (page === 'advanced') initAdvanced();
   if (page === 'updates') initUpdates();
-  if (page === 'experimental') initExperimental();
 
   if (API && ['appearance', 'preferences', 'home', 'watchlist', 'alerts'].includes(page)) {
     pollPrices(data => {

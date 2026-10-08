@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Data saver | {{BRAND}}</title>
+  <meta name="description" content="Slower refresh and paused charts on mobile data.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/datasaver">
+</head>
+<body data-page="datasaver">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Data saver</h1><p class="lede">Use less data when it matters.</p></div>
+        <section class="s-card" aria-labelledby="h-saver">
+          <h2 id="h-saver">Data saver</h2>
+          <div class="s-row"><div class="s-label"><b>Save data</b><span>Slower price refresh, and charts wait until you ask.</span></div><div class="segs" role="radiogroup" aria-label="Save data" data-pref="saver"><button type="button" role="radio" class="seg" data-value="off" aria-checked="false">Off</button><button type="button" role="radio" class="seg" data-value="cellular" aria-checked="false">On mobile data</button><button type="button" role="radio" class="seg" data-value="always" aria-checked="false">Always</button></div></div>
+          <p class="s-hint" id="saver-now">&nbsp;</p>
+        </section>
+        <div class="s-actions"><button type="button" class="btn btn-ghost" data-reset="saver,liveMode">Reset this page</button></div>
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+[
+ {
+  "v": "3.11.0",
+  "notes": [
+   "New Settings: Notifications, Security and privacy (app lock, hide balances), Data saver, Region and format, Accessibility",
+   "App lock with fingerprint, face, screen lock or a PIN",
+   "Hide balances: an eye on your Portfolio",
+   "Daily digest and quiet hours for notifications",
+   "Back always passes through Home before the app closes",
+   "Icons follow your theme colour (plain white on the default theme)",
+   "Calmer, lighter candlestick charts"
+  ]
+ },
+ {
+  "v": "3.10.0",
+  "notes": [
+   "New Converter page for coins and currencies",
+   "Back no longer replays loops between tabs",
+   "Updates install by themselves when you are not busy",
+   "Cleaner menu and Settings"
+  ]
+ },
+ {
+  "v": "3.9.0",
+  "notes": [
+   "Price alerts reach you even when the app is closed",
+   "New price alert builder",
+   "Better offline page"
+  ]
+ }
+]

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Region and format | {{BRAND}}</title>
+  <meta name="description" content="Currency, number style and clock format.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/region">
+</head>
+<body data-page="region">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Region and format</h1><p class="lede">Currency, numbers and time the way you read them.</p></div>
+        <section class="s-card" aria-labelledby="h-cur">
+          <h2 id="h-cur">Currency</h2>
+          <div class="s-row"><div class="s-label"><b>Show prices in</b><span id="cur-preview">–</span></div><button type="button" class="cpk" id="cur-pick" aria-haspopup="dialog"><span class="cc-sym" id="cp-sym">$</span><span class="cpk-text"><b id="cp-code">USD</b><span id="cp-name"></span></span></button></div>
+        </section>
+        <section class="s-card" aria-labelledby="h-fmt">
+          <h2 id="h-fmt">Numbers and time</h2>
+          <div class="s-row"><div class="s-label"><b>Number style</b><span>How 1234.5 is written.</span></div><div class="segs" role="radiogroup" aria-label="Number style" data-pref="numFmt"><button type="button" role="radio" class="seg" data-value="auto" aria-checked="false">Auto</button><button type="button" role="radio" class="seg" data-value="us" aria-checked="false">1,234.56</button><button type="button" role="radio" class="seg" data-value="eu" aria-checked="false">1.234,56</button><button type="button" role="radio" class="seg" data-value="fr" aria-checked="false">1 234,56</button><button type="button" role="radio" class="seg" data-value="in" aria-checked="false">12,34,567</button></div></div>
+          <div class="s-row"><div class="s-label"><b>Clock</b><span>12 or 24 hour time.</span></div><div class="segs" role="radiogroup" aria-label="Clock" data-pref="timeFmt"><button type="button" role="radio" class="seg" data-value="auto" aria-checked="false">Auto</button><button type="button" role="radio" class="seg" data-value="12" aria-checked="false">12 hour</button><button type="button" role="radio" class="seg" data-value="24" aria-checked="false">24 hour</button></div></div>
+          <p class="s-hint" id="fmt-preview">&nbsp;</p>
+        </section>
+        <div class="s-actions"><button type="button" class="btn btn-ghost" data-reset="numFmt,timeFmt">Reset this page</button></div>
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

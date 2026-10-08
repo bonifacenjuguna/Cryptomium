@@ -29,22 +29,6 @@ const MAX_TAIL = 600;
 // The price scale always draws the same number of rows, evenly spaced. (Rows at "nice" round numbers came and
 // went as the range changed, so the grid jumped about while you dragged across the chart.)
 const GRID_ROWS = 5;
-// A phone only has a few hundred pixels across: drawing thousands of points per line (7 days of 5-minute prices, two lines when
-// comparing) buys nothing and overloads weak graphics chips. Keep the first and last point and the lowest and highest in each slice.
-function thin(pts, max) {
-  if (pts.length <= max) return pts;
-  const size = Math.ceil(pts.length / (max / 2));
-  const out = [pts[0]];
-  for (let i = 1; i < pts.length - 1; i += size) {
-    const end = Math.min(i + size, pts.length - 1);
-    let lo = pts[i], hi = pts[i];
-    for (let j = i; j < end; j++) { if (pts[j][1] < lo[1]) lo = pts[j]; if (pts[j][1] > hi[1]) hi = pts[j]; }
-    if (lo === hi) out.push(lo); else if (lo[0] < hi[0]) out.push(lo, hi); else out.push(hi, lo);
-  }
-  out.push(pts[pts.length - 1]);
-  return out;
-}
-
 function gridTicks(min, max, n = GRID_ROWS) {
   const out = [];
   for (let k = 1; k <= n; k++) out.push(min + ((max - min) * k) / (n + 1));
@@ -57,9 +41,12 @@ const PINCH_GAIN = 3.2; // 1 = fingers exactly; higher = zooms further for the s
 const WHEEL_ZOOM = 0.022; // per pixel of wheel / trackpad-pinch movement (2.8.0: 0.012, 2.7.0: 0.0075)
 const WHEEL_ZOOM_LINES = 0.2; // per line, for mice that scroll by lines (2.8.0: 0.1, 2.7.0: 0.06)
 const KEY_ZOOM = 2.2; // + and - keys and the on-chart + / - buttons (2.8.0: 1.8, 2.7.0: 1.6)
+function hour12Pref() {
+  try { const t = (JSON.parse(localStorage.getItem('cm-prefs') || '{}') || {}).timeFmt; return t === '12' ? true : t === '24' ? false : undefined; } catch { return undefined; }
+}
 function timeLabel(ms, range) {
   const d = new Date(ms);
-  if (range === '24h') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (range === '24h') return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: hour12Pref() });
   if (range === '1y') return d.toLocaleDateString([], { month: 'short', year: '2-digit' });
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
@@ -355,27 +342,33 @@ export function createChart(host, { stable = false, legend = null, onChange = ()
     if (isCmp) {
       const g = svg('g', { 'clip-path': 'url(#cclip)' });
       cmp.forEach((s, k) => {
-        const d = thin(s.pts, Math.max(120, Math.round(iw))).map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
+        const d = s.pts.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1]).toFixed(1)}`).join('');
         g.append(svg('path', { class: 'line', d, stroke: k ? color2 : color }));
       });
       root.append(g);
     } else if (isC) {
       const bodyW = Math.max(1.6, Math.min(16, band * 0.62));
+      // One path per colour for the wicks and one for the bodies (4 elements in total, however many candles). Hundreds of
+      // separate shapes redrawn on every touch and tick is what makes some phones' graphics corrupt the chart.
+      const parts = { up: { wick: '', body: '' }, down: { wick: '', body: '' } };
       data.forEach((c, i) => {
         const [, o, h, l, cl] = c;
-        const col = cl >= o ? upFill : downFill;
+        const side = cl >= o ? parts.up : parts.down;
         const cx = x(i);
-        root.append(svg('line', { class: 'wick', x1: cx, x2: cx, y1: y(h * rate), y2: y(l * rate), stroke: col }));
+        side.wick += `M${cx.toFixed(1)} ${y(h * rate).toFixed(1)}V${y(l * rate).toFixed(1)}`;
         const top = y(Math.max(o, cl) * rate), bot = y(Math.min(o, cl) * rate);
-        root.append(svg('rect', { class: 'candle', x: cx - bodyW / 2, y: top, width: bodyW, height: Math.max(1.5, bot - top), fill: col }));
+        side.body += `M${(cx - bodyW / 2).toFixed(1)} ${top.toFixed(1)}h${bodyW.toFixed(1)}v${Math.max(1.5, bot - top).toFixed(1)}h${(-bodyW).toFixed(1)}Z`;
       });
+      for (const [side, col] of [[parts.up, upFill], [parts.down, downFill]]) {
+        if (side.wick) root.append(svg('path', { class: 'wick', d: side.wick, stroke: col, fill: 'none' }));
+        if (side.body) root.append(svg('path', { class: 'candle', d: side.body, fill: col }));
+      }
       const ly = y(lastV * rate);
       root.append(svg('line', { class: 'last-line', x1: padL, x2: W - padR, y1: ly, y2: ly, stroke: color }));
     } else {
-      const lp = thin(data, Math.max(120, Math.round(iw)));
-      const d = lp.map((p, i) => `${i ? 'L' : 'M'}${xt(p[0]).toFixed(1)} ${y(p[1] * rate).toFixed(1)}`).join('');
+      const d = data.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p[1] * rate).toFixed(1)}`).join('');
       const g = svg('g', { 'clip-path': 'url(#cclip)' });
-      g.append(svg('path', { d: `${d}L${xt(lp.at(-1)[0]).toFixed(1)} ${padT + ih}L${xt(lp[0][0]).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }), svg('path', { class: 'line', d, stroke: color }));
+      g.append(svg('path', { d: `${d}L${x(n - 1).toFixed(1)} ${padT + ih}L${x(0).toFixed(1)} ${padT + ih}Z`, fill: 'url(#cg)' }), svg('path', { class: 'line', d, stroke: color }));
       root.append(g);
     }
 

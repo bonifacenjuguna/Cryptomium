@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2b01e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme-init.js"></script>
+  <title>Security and privacy | {{BRAND}}</title>
+  <meta name="description" content="App lock, hidden balances and privacy options.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="{{SITE_URL}}/settings/security">
+</head>
+<body data-page="security">
+<!--@header-->
+<main id="main">
+  <div class="wrap">
+    <a class="crumb" href="/settings">Settings</a>
+    <div class="settings-layout">
+      <!--@settings-nav-->
+      <div class="settings-body">
+        <div class="s-head"><h1>Security and privacy</h1><p class="lede">Keep your portfolio to yourself.</p></div>
+        <section class="s-card" aria-labelledby="h-lock">
+          <h2 id="h-lock">App lock</h2>
+          <p class="s-hint">This is a screen lock, like a banking app's. It keeps people who pick up your phone out of the app. It does not encrypt what is stored on the device.</p>
+          <div class="s-row"><div class="s-label"><b>Lock the app</b><span id="lock-switch-s">Ask for your fingerprint, face, screen lock or PIN.</span></div><button type="button" class="switch" role="switch" id="lock-switch" aria-checked="false" aria-label="Lock the app"><span></span></button></div>
+          <div id="lock-opts" hidden>
+          <div class="s-row"><div class="s-label"><b>Auto-lock</b><span>How long after you leave.</span></div><select id="lock-after" hidden aria-label="Auto-lock"><option value="0">Immediately</option><option value="30">After 30 seconds</option><option value="60">After 1 minute</option><option value="300">After 5 minutes</option><option value="900">After 15 minutes</option></select></div>
+          <div class="s-row"><div class="s-label"><b>What to lock</b><span>Everything, or only the sensitive parts.</span></div><select id="lock-scope" hidden aria-label="What to lock"><option value="app">The whole app</option><option value="sensitive">Only Portfolio and deleting data</option></select></div>
+          <div class="s-row"><div class="s-label"><b>Phone unlock</b><span id="lock-bio-s">Checking…</span></div><button type="button" class="btn btn-ghost btn-sm" id="lock-bio">Set up</button></div>
+          <div class="s-row"><div class="s-label"><b>PIN</b><span>A fallback that always works.</span></div><button type="button" class="btn btn-ghost btn-sm" id="lock-pin">Change</button></div>
+          <div class="s-actions"><button type="button" class="btn btn-ghost" id="lock-now">Lock now</button></div>
+          </div>
+        </section>
+        <section class="s-card" aria-labelledby="h-priv">
+          <h2 id="h-priv">Privacy</h2>
+          <div class="s-row"><div class="s-label"><b>Start with balances hidden</b><span>Your Portfolio opens blurred. Use the eye to show it.</span></div><button type="button" class="switch" role="switch" data-toggle="hideBalStart" aria-checked="false" aria-label="Start with balances hidden"><span></span></button></div>
+          <div class="s-row"><div class="s-label"><b>Cover the app in recent apps</b><span>Hides the app's contents in your phone's app switcher.</span></div><button type="button" class="switch" role="switch" data-toggle="blurRecents" aria-checked="false" aria-label="Cover the app in recent apps"><span></span></button></div>
+        </section>
+        <div class="s-actions"><span class="s-saved" id="saved" aria-live="polite"></span></div>
+      </div>
+    </div>
+  </div>
+</main>
+<!--@footer-->
+<script src="/config.js"></script>
+<script type="module" src="/js/settings.js"></script>
+</body>
+</html>

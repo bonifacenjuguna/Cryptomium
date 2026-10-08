@@ -32,12 +32,7 @@ self.addEventListener('install', event => {
       await caches.delete(SHELL); // never leave a half-saved version behind; the old version keeps running
       throw err;
     }
-    // Nice-to-have files (coin pages, icons) are saved on a short leash: a slow connection must never keep a finished
-    // update stuck in "downloading". Whatever did not arrive in time is simply fetched when first used.
-    await Promise.race([
-      Promise.all(OPTIONAL.map(url => fetch(new Request(url, { cache: 'reload' })).then(r => (r.ok ? cache.put(url, r) : null)).catch(() => {}))),
-      new Promise(resolve => setTimeout(resolve, 6000)),
-    ]);
+    await Promise.all(OPTIONAL.map(url => fetch(new Request(url, { cache: 'reload' })).then(r => (r.ok ? cache.put(url, r) : null)).catch(() => {})));
     // First install, or an upgrade from the old worker that had no update screen: take over at once.
     // Otherwise wait for the app to say when (see the 'message' handler).
     if (!self.registration.active || hadLegacy) await self.skipWaiting();
@@ -68,33 +63,37 @@ const fromShell = async request => {
   return (await (await caches.open(PAGES)).match(request, opts)) || (await (await caches.open(SHELL)).match(request, opts));
 };
 
-// Every page and script address carries ?v=<build> (see build.js). A file asked for with another build's stamp belongs to a
-// different version of the app than this worker: it is never answered from, or saved into, this version's caches.
-const foreignBuild = url => { const v = new URL(url).searchParams.get('v'); return Boolean(v) && v !== BUILD; };
+// Files and pages say which build they belong to with ?v=<build>. A response that belongs to another build must never
+// run against this build's saved files (that is how an old script ended up inside a new page while an update waited).
+const otherBuild = url => { const v = new URL(url, self.location.origin).searchParams.get('v'); return Boolean(v) && v !== BUILD; };
 
 async function page(event) {
   const { request } = event;
   const url = new URL(request.url);
-  const hit = await fromShell(url.pathname.replace(/\/+$/, '') || '/');
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+  const hit = await fromShell(path);
   if (hit) return hit;
+  // Every coin address is the same page (it reads the coin from the address). Use the saved copy of this build rather
+  // than whatever the network now serves, which may already be the next build.
+  if (/^\/coin\/[^/]+$/.test(path)) { const generic = await fromShell('/coin'); if (generic) return generic; }
   try {
     const res = await withTimeout(fetch(request), 5000);
     if (res && res.ok) {
-      // Only a page that belongs to THIS build may be kept; a page from a newer deploy would pull in new scripts next to old ones.
-      const copy = res.clone();
-      event.waitUntil(copy.text().then(html => (html.includes(`?v=${BUILD}`) ? caches.open(PAGES).then(c => c.put(url.pathname, new Response(html, { headers: res.headers }))) : null)).catch(() => {}));
+      const forText = res.clone();
+      const forCache = res.clone();
+      // Only keep a page that belongs to this build.
+      event.waitUntil(forText.text().then(html => { if (!/[?&]v=[0-9a-f]{8}/.test(html) || html.includes(`v=${BUILD}`)) return caches.open(PAGES).then(c => c.put(url.pathname, forCache)); }).catch(() => {}));
     }
     return res;
   } catch {
-    // Offline and never saved: any coin address still opens the generic coin page, which uses the saved prices.
-    if (/^\/coin\/[^/]+$/.test(url.pathname)) { const generic = await fromShell('/coin'); if (generic) return generic; }
     return (await fromShell('/offline')) || new Response(OFFLINE_HTML, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
 }
 
 async function asset(event) {
   const { request } = event;
-  if (foreignBuild(request.url)) { try { return await fetch(request); } catch { return Response.error(); } } // another build's file: straight from the network, never cached here
+  // A file asked for by a page of another build: straight from the network, never from or into this build's cache.
+  if (otherBuild(request.url)) { try { return await fetch(request); } catch { return Response.error(); } }
   const hit = await fromShell(request);
   if (hit) return hit;
   try {
@@ -150,7 +149,7 @@ const PUSH_AUTH = 'cmpush-v1';           // not named cm-/cm3-, so version clean
 const PUSH_AUTH_URL = '/__cm/push-auth';
 const ICON = '/icons/icon-192.png';
 const BADGE = '/icons/badge-96.png';     // white-on-transparent: Android draws only its shape in the status bar
-const KINDS = ['target', 'milestone', 'test', 'digest', 'recap'];
+const KINDS = ['target', 'milestone', 'digest', 'test'];
 
 const clip = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
 
@@ -176,33 +175,32 @@ function cleanMessage(raw) {
     id: /^[A-Za-z0-9_-]{1,40}$/.test(d.id || '') ? d.id : '',
     price: Number.isFinite(d.price) ? d.price : null,
     ts: Number.isFinite(d.ts) ? d.ts : Date.now(),
+    quiet: d.quiet === true,
   };
 }
 
 const ACTIONS = {
   target: [{ action: 'open', title: 'View chart' }, { action: 'manage', title: 'Manage alerts' }],
-  recap: [{ action: 'markets', title: 'Overview' }],
   milestone: [{ action: 'open', title: 'View chart' }, { action: 'markets', title: 'Overview' }],
+  digest: [{ action: 'markets', title: 'Overview' }],
 };
 
-// Quiet hours: the person's own setting, kept beside the push login so this worker can read it with the app closed.
-// During those hours a notification still appears, but without sound or vibration. A test is always loud.
-const QUIET_URL = '/__cm/quiet';
-async function isQuietNow() {
-  try {
-    const hit = await (await caches.open(PUSH_AUTH)).match(QUIET_URL);
-    const q = hit ? await hit.json() : null;
-    if (!q || !q.on || !Number.isInteger(q.from) || !Number.isInteger(q.to) || q.from === q.to) return false;
-    const d = new Date();
-    const m = d.getHours() * 60 + d.getMinutes();
-    return q.from < q.to ? m >= q.from && m < q.to : m >= q.from || m < q.to; // an overnight span wraps past midnight
-  } catch { return false; }
+// "Hide amounts" (Settings, Notifications): say that something happened, without the numbers.
+async function hideAmounts() {
+  try { const hit = await (await caches.open(PUSH_AUTH)).match(PUSH_AUTH_URL); return hit ? Boolean((await hit.json()).hide) : false; } catch { return false; }
+}
+function withoutAmounts(msg) {
+  if (msg.kind === 'target') return { ...msg, title: `${msg.ticker || 'A coin'} alert reached`, body: 'Open Cryptomium to see it.' };
+  if (msg.kind === 'milestone') return { ...msg, title: `${msg.ticker || 'A coin'} milestone`, body: 'Open Cryptomium to see it.' };
+  if (msg.kind === 'digest') return { ...msg, body: 'Open Cryptomium to see it.' };
+  return msg;
 }
 
 async function onPush(event) {
   let raw = null;
   try { raw = event.data ? event.data.json() : null; } catch { try { raw = { body: event.data.text() }; } catch { raw = null; } }
-  const msg = cleanMessage(raw);
+  let msg = cleanMessage(raw);
+  if (await hideAmounts()) msg = withoutAmounts(msg);
   const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   // Tell open windows (the app turns it into an in-app message and marks the alert as reached).
   wins.forEach(w => { try { w.postMessage({ cm: 'push', msg }); } catch { /* window going away */ } });
@@ -210,7 +208,6 @@ async function onPush(event) {
   // always for the "send a test" button, show a real notification.
   const looking = wins.some(w => w.focused && w.visibilityState === 'visible');
   if (looking && msg.kind !== 'test') return;
-  const quiet = msg.kind !== 'test' && (await isQuietNow());
   await self.registration.showNotification(msg.title, {
     body: msg.body,
     tag: msg.tag,
@@ -218,8 +215,8 @@ async function onPush(event) {
     icon: ICON,
     badge: BADGE,
     timestamp: msg.ts,
-    silent: quiet,
-    ...(quiet ? {} : { vibrate: [120, 60, 120] }),
+    silent: msg.quiet,                       // quiet hours: it still arrives, without sound or buzz
+    ...(msg.quiet ? {} : { vibrate: [120, 60, 120] }),
     actions: ACTIONS[msg.kind] || [],
     data: { url: msg.url, kind: msg.kind, ticker: msg.ticker, id: msg.id },
   });

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { open } from './harness.mjs';
+const h = await open({ standalone: true }); const { page, url, errs } = h;
+await page.addInitScript(() => localStorage.setItem('cm-prefs', JSON.stringify({ chartType: 'candles' })));
+await page.goto(url + '/app?go=/coin/BTC'); await page.waitForTimeout(4000);
+const f = page.frames().filter(x => x.url().includes('/coin/BTC')).pop();
+const info = await f.evaluate(() => { const svg = document.querySelector('#chart svg'); const q = s => svg.querySelectorAll(s).length; return { total: svg.querySelectorAll('*').length, wickPaths: q('path.wick'), bodyPaths: q('path.candle'), oldRects: q('rect.candle'), oldLines: q('line.wick'), dAttrLen: (svg.querySelector('path.candle') || { getAttribute: () => '' }).getAttribute('d').length }; });
+console.log(JSON.stringify(info));
+assert.ok(info.wickPaths >= 1 && info.wickPaths <= 2 && info.bodyPaths >= 1 && info.bodyPaths <= 2, 'one wick path and one body path per colour');
+assert.equal(info.oldRects + info.oldLines, 0);
+assert.ok(info.total < 80, 'whole chart under 80 elements, was 500+: ' + info.total);
+await page.mouse.move(150, 400);
+await page.screenshot({ path: '/home/claude/e2e/candles.png' });
+console.log('errors', errs);
+await h.close();

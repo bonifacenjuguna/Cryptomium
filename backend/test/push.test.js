@@ -135,11 +135,11 @@ test('alerts are validated: coin, type, price range, ids, duplicates and count',
 });
 
 test('preferences are validated', () => {
-  assert.deepEqual(validatePrefs({ milestones: true, coins: ['btc', 'ETH', 'BTC'] }, TICKERS), { milestones: true, coins: ['BTC', 'ETH'], digest: false, recap: false, recapHour: 8, tz: 0 });
-  assert.deepEqual(validatePrefs({ milestones: 'yes' }, TICKERS), { milestones: false, coins: [], digest: false, recap: false, recapHour: 8, tz: 0 });
-  assert.deepEqual(validatePrefs({ digest: true, recap: true, recapHour: 21, tz: 180 }, TICKERS), { milestones: false, coins: [], digest: true, recap: true, recapHour: 21, tz: 180 });
-  assert.equal(validatePrefs({ recapHour: 25, tz: 9999 }, TICKERS).recapHour, 8, 'an impossible hour falls back');
-  assert.equal(validatePrefs({ recapHour: 25, tz: 9999 }, TICKERS).tz, 0, 'an impossible offset falls back');
+  const off = { digest: { on: false, hour: 8, tz: 0, coins: [] }, quiet: { on: false, from: 22, to: 7, tz: 0 } };
+  assert.deepEqual(validatePrefs({ milestones: true, coins: ['btc', 'ETH', 'BTC'] }, TICKERS), { milestones: true, coins: ['BTC', 'ETH'], ...off });
+  assert.deepEqual(validatePrefs({ milestones: 'yes' }, TICKERS), { milestones: false, coins: [], ...off });
+  assert.deepEqual(validatePrefs({ digest: { on: true, hour: 9, tz: -180, coins: ['btc', 'zzz'] }, quiet: { on: true, from: 23, to: 6, tz: 60 } }, TICKERS).digest, { on: true, hour: 9, tz: -180, coins: ['BTC'] });
+  assert.equal(validatePrefs({ digest: { on: true, hour: 99 } }, TICKERS).digest.on, false, 'a bad hour never turns it on');
   assert.throws(() => validatePrefs({ milestones: true, coins: ['NOPE'] }, TICKERS), PushError);
   assert.throws(() => validatePrefs(null, TICKERS), PushError);
 });
@@ -354,43 +354,50 @@ test('the test notification reaches only the caller and is rate limited', async 
   await assert.rejects(() => service.test(device), e => e.status === 410);
 });
 
-test('devices that asked for it get alerts reached together as one notification', async () => {
-  const { service, state } = setup();
-  const grouped = browser(1); const single = browser(2);
-  await service.register({ subscription: grouped.subscription, prefs: { digest: true }, targets: [target({ id: 'a' }), target({ id: 'b', ticker: 'ETH', price: 2500 })] });
-  await service.register({ subscription: single.subscription, targets: [target({ id: 'a' }), target({ id: 'b', ticker: 'ETH', price: 2500 })] });
-  state.prices.BTC = 91_000;
-  const r = await service.tick();
-  assert.equal(r.sent, 4);
-  const toGrouped = state.calls.filter(c => c.url === grouped.subscription.endpoint);
-  const toSingle = state.calls.filter(c => c.url === single.subscription.endpoint);
-  assert.equal(toGrouped.length, 1, 'one notification for the device that asked for grouping');
-  const note = grouped.read(toGrouped[0].init.body);
-  assert.equal(note.kind, 'digest');
-  assert.equal(note.title, '2 alerts reached');
-  assert.equal(toSingle.length, 2, 'everyone else keeps one notification per alert');
-});
+// ---------------------------------------------------------------- daily digest and quiet hours
 
-test('the daily recap goes out once, at the hour the device chose in its own time zone', async () => {
-  const at = new Date('2026-10-07T05:10:00Z').getTime(); // 08:10 in UTC+3
-  const { service, state } = setup({ changes: { BTC: 1.2, ETH: 6.5 } });
-  state.clock = at;
+test('the daily digest goes out once a day, at the device\'s own local hour, with its starred coins', async () => {
+  const { service, state } = setup({ prices: { BTC: 90000, ETH: 3000, USDT: 1 }, changes: { BTC: 1.2, ETH: -4.5 } });
   const b = browser();
-  await service.register({ subscription: b.subscription, prefs: { recap: true, recapHour: 8, tz: 180 } });
-  let r = await service.recapTick();
-  assert.equal(r.sent, 1);
+  // a phone 3 hours ahead of UTC (offset is minutes BEHIND utc, so -180); wants the digest at 09:00 its time = 06:00 UTC
+  await service.register({ subscription: b.subscription, prefs: { milestones: false, coins: [], digest: { on: true, hour: 9, tz: -180, coins: ['BTC', 'ETH'] } } });
+  state.clock = Date.UTC(2026, 9, 8, 5, 59, 0);
+  assert.equal((await service.digestTick()).sent, 0, 'not yet');
+  state.clock = Date.UTC(2026, 9, 8, 6, 0, 30);
+  assert.equal((await service.digestTick()).sent, 1);
   const note = b.read(state.calls[0].init.body);
-  assert.equal(note.kind, 'recap');
-  assert.match(note.title, /^Market recap: BTC /);
-  assert.match(note.body, /Top gainer ETH \+6\.5%/);
-  r = await service.recapTick();
-  assert.equal(r.sent, 0, 'never twice on the same day');
+  assert.equal(note.kind, 'digest');
+  assert.equal(note.title, 'Your daily summary');
+  assert.match(note.body, /ETH \$3,000(\.00)? -4\.5%.*BTC \$90,000(\.00)? \+1\.2%/, 'biggest move first');
+  state.clock += 30_000;
+  assert.equal((await service.digestTick()).sent, 0, 'never twice the same day');
+  state.clock = Date.UTC(2026, 9, 9, 6, 0, 10);
+  assert.equal((await service.digestTick()).sent, 1, 'again the next day');
 });
 
-test('the recap waits for the chosen hour', async () => {
-  const at = new Date('2026-10-07T03:10:00Z').getTime(); // 06:10 in UTC+3
-  const { service, state } = setup({ changes: { BTC: 1, ETH: 2 } });
-  state.clock = at;
-  await service.register({ subscription: browser().subscription, prefs: { recap: true, recapHour: 8, tz: 180 } });
-  assert.equal((await service.recapTick()).sent, 0);
+test('no digest from stale prices, and devices with it off get nothing', async () => {
+  const { service, state } = setup();
+  await service.register({ subscription: browser(1).subscription, prefs: { digest: { on: false, hour: 8, tz: 0 } } });
+  await service.register({ subscription: browser(2).subscription, prefs: { digest: { on: true, hour: 8, tz: 0 } } });
+  state.clock = Date.UTC(2026, 9, 8, 8, 0, 5);
+  state.stale = true;
+  assert.equal((await service.digestTick()).stale, true);
+  state.stale = false;
+  assert.equal((await service.digestTick()).sent, 1);
+});
+
+test('quiet hours mark notifications silent (they still arrive), across midnight too, except the test button', async () => {
+  const { service, state } = setup({ prices: { BTC: 95000 } });
+  const b = browser();
+  const r = await service.register({ subscription: b.subscription, prefs: { quiet: { on: true, from: 22, to: 7, tz: 0 } }, targets: [target()] });
+  state.clock = Date.UTC(2026, 9, 8, 23, 30, 0);          // 23:30 local: quiet
+  await service.tick();
+  assert.equal(b.read(state.calls[0].init.body).quiet, true);
+  const device = await service.authenticate(`Bearer ${r.deviceId}.${r.token}`);
+  await service.test(device);
+  assert.equal(b.read(state.calls[1].init.body).quiet, undefined, 'a test is never silenced');
+  await service.sync(device, { targets: [target({ rev: 9 })] });   // re-arm, now at 12:00 local: not quiet
+  state.clock = Date.UTC(2026, 9, 9, 12, 0, 0);
+  await service.tick();
+  assert.equal(b.read(state.calls[2].init.body).quiet, undefined);
 });

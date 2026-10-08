@@ -48,21 +48,28 @@ export function markFired(id, price) {
   return t;
 }
 
+const CHIMES = {
+  soft: { wave: 'sine', notes: [[880, 0], [1320, 0.14]], gain: 0.12, len: 0.4 },
+  bell: { wave: 'triangle', notes: [[1175, 0], [1760, 0.1], [1175, 0.5]], gain: 0.14, len: 0.7 },
+  pulse: { wave: 'square', notes: [[740, 0], [740, 0.18], [740, 0.36]], gain: 0.05, len: 0.12 },
+};
 export function chime() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
-    [[880, 0], [1320, 0.14]].forEach(([f, at]) => {
+    let pick = 'soft'; try { pick = (JSON.parse(localStorage.getItem('cm-prefs') || '{}') || {}).chime || 'soft'; } catch { /* default */ }
+    const c = CHIMES[pick] || CHIMES.soft;
+    c.notes.forEach(([f, at]) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = f;
+      o.type = c.wave; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, ctx.currentTime + at);
-      g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + at + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + 0.4);
+      g.gain.exponentialRampToValueAtTime(c.gain, ctx.currentTime + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + c.len);
       o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + 0.45);
+      o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + c.len + 0.05);
     });
-    setTimeout(() => ctx.close(), 1200);
+    setTimeout(() => ctx.close(), 1600);
   } catch { /* sound is optional */ }
 }
 
