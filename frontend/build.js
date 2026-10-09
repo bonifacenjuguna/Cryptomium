@@ -92,6 +92,7 @@ const compose = html => withPwa(html.replace('<!--@header-->', header).replace('
 // allowed for pictures only: the last-resort source for a coin logo the backend cannot supply.
 const apiOrigin = new URL(apiUrl).origin;
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 const csp = [
   "default-src 'self'",
   "script-src 'self' 'inline-speculation-rules'",
@@ -328,3 +329,8 @@ write(
 );
 
 console.log(`[build] Done. API: ${apiUrl} | site: ${siteUrl || '(not set)'} | ${coins.length} coin pages | v${pkgVersion} build ${ver} | ${precache.length} files saved for offline`);
+
+// Fail the deployment if generated SEO metadata or sitemap output regresses.
+const seoCheck = spawnSync(process.execPath, [path.join(root, 'seo-check.js')], { cwd: root, stdio: 'inherit' });
+if (seoCheck.error) throw seoCheck.error;
+if (seoCheck.status !== 0) process.exit(seoCheck.status || 1);
