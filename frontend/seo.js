@@ -78,11 +78,9 @@ export function coinMeta({ brand, coin, about }) {
   const { name, ticker } = coin;
   const same = name.toUpperCase() === ticker;
   const label = same ? name : `${name} (${ticker})`;
-  const base = `Check the live ${label} price in USD, price chart, 24-hour change, market cap, trading volume, all-time high and recent milestone alerts on ${brand}.`;
+  const base = `Live ${label} price in USD, chart, 24-hour change, market cap, volume and alerts on ${brand}.`;
   const extra = about ? firstSentence(about) : '';
-  const description = extra
-    ? clip(`${base} Learn about ${name}: ${extra}`, 160)
-    : clip(base, 160);
+  const description = clip(extra ? `${base} ${extra}` : base, 160);
   return {
     path: `/coin/${ticker}`, kind: 'coin',
     title: `${label} Price, Chart & Market Cap`,
