@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Cryptomium website: live prices, coin pages and Telegram alerts feed (deploys on Vercel).",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "seo:check": "node seo-check.js"
   },
   "engines": {
     "node": ">=18"
