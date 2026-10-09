@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.cryptomium.app",
+      "sha256_cert_fingerprints": [
+        "56:9B:E5:2D:2C:DF:21:DE:F8:C0:E9:E9:ED:3A:FC:7C:C9:E3:EF:01:EB:7C:97:7D:72:7B:59:03:F9:EC:B2:59"
+      ]
+    }
+  }
+]
