@@ -31,24 +31,27 @@ for (const file of htmlFiles) {
   const robots = (html.match(/<meta\\s+name="robots"\\s+content="([^"]*)"/i) || [])[1] || '';
   const canonical = (html.match(/<link\\s+rel="canonical"\\s+href="([^"]*)"/i) || [])[1];
   const noindex = /noindex/i.test(robots);
+  // Lowercase coin URLs are deliberate aliases of the uppercase canonical URL.
+  const lowercaseCoinAlias = /^coin\/[a-z0-9]+\.html$/.test(rel);
+  const canonicalPage = !noindex && !lowercaseCoinAlias;
 
   if (!title) fail(`${rel}: missing title`);
   else {
     if (title.length > 70) warn(`${rel}: title is ${title.length} characters; review whether it can be more concise`);
-    if (!noindex && seenTitles.has(title)) fail(`${rel}: duplicate indexable title also used by ${seenTitles.get(title)}`);
-    if (!noindex) seenTitles.set(title, rel);
+    if (canonicalPage && seenTitles.has(title)) fail(`${rel}: duplicate indexable title also used by ${seenTitles.get(title)}`);
+    if (canonicalPage) seenTitles.set(title, rel);
   }
 
-  if (!noindex && !description) fail(`${rel}: indexable page is missing meta description`);
+  if (canonicalPage && !description) fail(`${rel}: indexable page is missing meta description`);
   if (description && description.length > 170) warn(`${rel}: description is ${description.length} characters`);
-  if (!noindex && !canonical) fail(`${rel}: indexable page is missing canonical URL`);
+  if (canonicalPage && !canonical) fail(`${rel}: indexable page is missing canonical URL`);
   if (canonical && !/^https:\\/\\//i.test(canonical)) fail(`${rel}: canonical URL is not absolute HTTPS: ${canonical}`);
-  if (canonical && !noindex) {
+  if (canonical && canonicalPage) {
     if (seenCanonicals.has(canonical)) fail(`${rel}: duplicate canonical also used by ${seenCanonicals.get(canonical)}`);
     seenCanonicals.set(canonical, rel);
     indexable.push({ rel, canonical, html });
   }
-  if (!noindex && !/<meta\\s+property="og:image"\\s+content="https:\\/\\//i.test(html)) {
+  if (canonicalPage && !/<meta\\s+property="og:image"\\s+content="https:\\/\\//i.test(html)) {
     fail(`${rel}: indexable page is missing an absolute Open Graph image`);
   }
 
@@ -56,7 +59,7 @@ for (const file of htmlFiles) {
     try { JSON.parse(match[1]); }
     catch { fail(`${rel}: invalid JSON-LD block`); }
   }
-  if (!noindex && !/<h1(?:\\s|>)/i.test(html)) warn(`${rel}: no H1 found in server-rendered HTML`);
+  if (canonicalPage && !/<h1(?:\\s|>)/i.test(html)) warn(`${rel}: no H1 found in server-rendered HTML`);
 }
 
 const sitemapPath = path.join(root, 'sitemap.xml');
