@@ -45,7 +45,7 @@ After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site addres
 - `build.js` builds `dist/`: fills in the brand, writes `dist/coin/BTC.html` and the other
   coin pages, the sitemap, `config.js` and a Content-Security-Policy that allows only
   this site, Google Fonts and your backend
-- `seo.js` search and sharing metadata for every page (titles, descriptions, canonical, Open Graph, Twitter cards, JSON-LD), sitemap, robots.txt and llms.txt. To change a page's title or description, edit its entry in `pageRegistry()`.
+- `seo.js` search and sharing metadata for every page (titles, descriptions, canonical, Open Graph, Twitter cards, JSON-LD), sitemap, robots.txt and llms.txt. To change a page's title or description, edit its entry in `pageRegistry()`. `seo-check.js` validates the built output for critical SEO regressions.
 - `vercel.json` build settings, rewrites and security headers
 
 Visitors' choices (theme, currency, starred coins) are saved in their own browser only.
@@ -61,9 +61,8 @@ here (and to `POPULAR` in `src/js/home.js` to choose where it sits in the list) 
 `/api/logos/<TICKER>.png`. If one is missing the page still works and quietly leaves
 that part out.
 
-## SEO checklist after deploying
+## SEO checks and launch
 
-1. Set `SITE_URL` to the final domain and redeploy.
-2. Add the site to Google Search Console and Bing Webmaster Tools, verify it, and submit `https://your-domain/sitemap.xml`.
-3. Check a coin page with the Rich Results Test and the URL Inspection tool, and paste a link into a chat to see the preview card.
-4. Pages that are not in search on purpose: Settings, Portfolio, the app shell, offline and 404.
+Run `npm run seo:check` after `npm run build` (with `API_URL` and `SITE_URL` set) to catch missing or duplicate metadata, canonical and sitemap regressions, and invalid JSON-LD. See [SEO.md](SEO.md) for the full implementation notes, content strategy, build commands, Search Console / Bing launch steps, performance checks and maintenance plan.
+
+After deploying, verify the preferred domain in Google Search Console and Bing Webmaster Tools, submit `https://your-domain/sitemap.xml`, inspect the home page, a coin page and a tool page, and check the live social preview. Settings, Portfolio, the app shell, offline, 404 and unknown-coin fallback pages are intentionally excluded from indexing.
