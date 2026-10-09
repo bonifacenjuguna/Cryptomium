@@ -1,5 +1,14 @@
 [
  {
+  "v": "3.13.0",
+  "notes": [
+   "Better search results and link previews: new titles and descriptions, full social cards and structured data on every public page",
+   "Every coin page now carries its own About text, so search engines and AI assistants can read it",
+   "Settings, Portfolio and app screens are kept out of search",
+   "Sitemap now lists the Converter and the date of the latest update; new llms.txt for AI assistants"
+  ]
+ },
+ {
   "v": "3.12.0",
   "notes": [
    "Charts: fixed the glitched bottom of charts on every period, candles and lines",

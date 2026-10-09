@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.13.0
+
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself. Set `SITE_URL` in Vercel for the full effect.**
+
+### Search engines (SEO)
+- One registry (`frontend/seo.js`) now writes the search and sharing tags of every page at build time: title (about 60 characters), description (120 to 160), `robots` with `max-image-preview:large, max-snippet:-1, max-video-preview:-1`, canonical, `hreflang` (en and x-default), author, `format-detection`.
+- Open Graph (site name, locale, url, title, description, image with type, size and alt text) and Twitter/X cards (large image, title, description, image alt, site and creator).
+- Structured data (JSON-LD `@graph`): Organization (logo, social profiles), WebSite, a page type for each page (WebPage, CollectionPage, AboutPage), BreadcrumbList, WebApplication for the home page, Screener, Compare and Converter (free), FAQPage for the visible FAQ on About, and a Thing about each coin. No fake ratings or prices are marked up.
+- Each coin page now has a real About paragraph in the HTML (before any script runs), plus plain links to all other coins for crawlers that do not run scripts. Lower-case addresses such as `/coin/btc` serve the page and point their canonical at `/coin/BTC`.
+- Settings, Portfolio, the app shell, offline page, 404 and the fallback coin page are `noindex, nofollow` (tag and `X-Robots-Tag` header, without conflicting canonicals). Their old canonical tags are removed.
+- `sitemap.xml` now includes the Converter and a `lastmod` date; `robots.txt` names the AI search and assistant crawlers (OAI-SearchBot, ChatGPT-User, GPTBot, Claude-SearchBot, Claude-User, ClaudeBot, PerplexityBot, Perplexity-User, Google-Extended, Applebot-Extended, CCBot) explicitly; new `llms.txt`.
+- Optional IndexNow: set `INDEXNOW_KEY` and the key file is written to the site root.
+- Without `SITE_URL` the build now warns and leaves out canonical, share image and structured data (instead of writing broken relative addresses).
+- Headers: correct content types and caching for robots.txt, sitemap.xml and llms.txt; icons and share image cached for a day.
+- The build id now also changes when `seo.js` changes, so offline caches refresh.
+
 ## 3.12.0
 
 **Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**

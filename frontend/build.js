@@ -4,12 +4,13 @@
 //  - inserts the shared header and footer into every page
 //  - writes one real page per coin (dist/coin/BTC.html ...) so search engines and
 //    link previews see the right title, plus a fallback coin page
-//  - writes config.js (the backend address from API_URL, public by nature), sitemap.xml and a
+//  - writes config.js (the backend address from API_URL, public by nature), sitemap.xml, robots.txt, llms.txt and a
 //    Content-Security-Policy that only allows this site and your backend
 //
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pageRegistry, coinMeta, applySeo, faqFrom, coinLinksNoscript, sitemapXml, robotsTxt, llmsTxt } from './seo.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const src = path.join(root, 'src');
@@ -106,7 +107,7 @@ const csp = [
 const sha = text => `'sha256-${crypto.createHash('sha256').update(text).digest('base64')}'`;
 const withCsp = html => {
   const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => sha(m[1]));
-  const scripts = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => sha(m[1]));
+  const scripts = [...html.matchAll(/<script(?![^>]*\ssrc=)(?![^>]*application\/ld\+json)[^>]*>([\s\S]*?)<\/script>/g)].map(m => sha(m[1]));
   let policy = csp;
   if (styles.length) policy = policy.replace("style-src 'self'", `style-src 'self' ${styles.join(' ')}`);
   if (scripts.length) policy = policy.replace("script-src 'self'", `script-src 'self' ${scripts.join(' ')}`);
@@ -172,6 +173,7 @@ const stamp = crypto.createHash('sha1');
     else { stamp.update(path.relative(src, full)); stamp.update(fs.readFileSync(full)); }
   }
 })(src);
+stamp.update(fs.readFileSync(path.join(root, 'seo.js')));
 stamp.update(JSON.stringify([coins, site, apiUrl, siteUrl, pkgVersion]));
 const ver = stamp.digest('hex').slice(0, 8);
 const bust = html => html.replace(/(href|src)="\/(style\.css|theme-init\.js|config\.js|js\/[a-z]+\.js)"/g, `$1="/$2?v=${ver}"`);
@@ -182,9 +184,30 @@ const write = (rel, text) => {
   fs.writeFileSync(file, rel.endsWith('.html') ? bust(text) : text);
 };
 
+// ---- SEO ------------------------------------------------------------------------------------------------------
+// Search, link-preview and AI-assistant metadata for every page comes from seo.js (one registry), not from each file.
+const { ABOUT: aboutMap } = await import(pathToFileURL(path.join(src, 'js/about-coins.js')).href);
+const registry = pageRegistry({ brand: tokens.BRAND, coinCount: coins.length });
+const lastSeg = u => String(u || '').replace(/\/+$/, '').split('/').pop().replace(/^@/, '');
+const seoCtx = {
+  brand: tokens.BRAND,
+  siteUrl,
+  twitterHandle: lastSeg(tokens.X_URL) ? `@${lastSeg(tokens.X_URL)}` : '',
+  social: { telegram: tokens.CHANNEL_URL, x: tokens.X_URL, instagram: tokens.INSTAGRAM_URL, youtube: tokens.YOUTUBE_URL, tiktok: tokens.TIKTOK_URL },
+};
+if (!siteUrl) console.warn('[build] SITE_URL is not set: canonical links, link-preview images, structured data and the sitemap are skipped. Set SITE_URL (https://your-domain) in Vercel.');
+const seoDone = (html, meta) => applySeo(html, meta, seoCtx);
+
 for (const name of pageFiles) {
-  write(name, withCsp(fill(compose(fs.readFileSync(path.join(src, name), 'utf8')))));
+  let html = fill(compose(fs.readFileSync(path.join(src, name), 'utf8')));
+  const meta = registry[name.split(path.sep).join('/')] || null;
+  if (meta) {
+    seoCtx.faq = meta.kind === 'about' ? faqFrom(html) : null;
+    if (name === 'index.html' || name === 'markets.html') html = html.replace('</main>', `${coinLinksNoscript(coins)}\n</main>`);
+  }
+  write(name, withCsp(seoDone(html, meta)));
 }
+seoCtx.faq = null;
 
 write('coins.json', JSON.stringify(coins));
 write('version.json', JSON.stringify({ version: pkgVersion, build: ver }));
@@ -201,7 +224,7 @@ const manifest = {
   id: '/',
   name: tokens.BRAND,
   short_name: tokens.BRAND,
-  description: 'Live crypto prices, charts, market overview and price alerts.',
+  description: 'Live crypto prices, charts, market overview, screener, news, converter and milestone price alerts. Free, no account.',
   lang: 'en',
   start_url: '/app?source=app',
   scope: '/',
@@ -228,18 +251,36 @@ const manifest = {
 if (siteUrl) { manifest.related_applications = [{ platform: 'webapp', url: `${siteUrl}/manifest.webmanifest` }]; manifest.prefer_related_applications = false; }
 write('manifest.webmanifest', JSON.stringify(manifest, null, 2));
 
-// Coin pages: one per coin, plus a generic fallback used for any other /coin/<x> address.
-const coinTemplate = withCsp(compose(fs.readFileSync(path.join(src, 'coin.html'), 'utf8')));
-write('coin.html', fill(coinTemplate, { COIN_NAME: 'Coin', COIN_TICKER: 'price' }).replace(`${siteUrl}/coin/price`, `${siteUrl}/`).replace(/ \(price\)/g, ''));
+// Coin pages: one per coin (real text in the HTML: title, description, About paragraph), plus a generic fallback used
+// for any other /coin/<x> address. The fallback is kept out of the index. Lower-case addresses (/coin/btc) serve the
+// same page and point their canonical at the upper-case one, so there is one version in search.
+const coinBase = compose(fs.readFileSync(path.join(src, 'coin.html'), 'utf8'));
+write('coin.html', withCsp(seoDone(fill(coinBase, { COIN_NAME: 'Coin', COIN_TICKER: 'price' }).replace(/ \(price\)/g, ''), null)));
 for (const c of coins) {
-  write(`coin/${c.ticker}.html`, fill(coinTemplate, { COIN_NAME: c.name, COIN_TICKER: c.ticker }));
+  const about = aboutMap[c.ticker] || '';
+  let html = fill(coinBase, { COIN_NAME: c.name, COIN_TICKER: c.ticker });
+  if (about) html = html.replace('<p id="about-text">&nbsp;</p>', `<p id="about-text">${about.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>`);
+  html = html.replace('<ul class="others" id="others"></ul>', `<ul class="others" id="others"></ul>\n      ${coinLinksNoscript(coins, c.ticker)}`);
+  const page = withCsp(seoDone(html, coinMeta({ brand: tokens.BRAND, coin: c, about })));
+  write(`coin/${c.ticker}.html`, page);
+  const lower = c.ticker.toLowerCase();
+  if (lower !== c.ticker) write(`coin/${lower}.html`, page);
 }
 
 // Everything non-HTML that carries tokens.
-write('robots.txt', fill(fs.readFileSync(path.join(src, 'robots.txt'), 'utf8')).replace(/^Sitemap:.*\n?/m, siteUrl ? `Sitemap: ${siteUrl}/sitemap.xml\n` : ''));
+write('robots.txt', robotsTxt({ brand: tokens.BRAND, siteUrl }));
 if (siteUrl) {
-  const urls = ['/', '/markets', '/screener', '/news', '/compare', '/about', '/privacy', ...coins.map(c => `/coin/${c.ticker}`)]; // /portfolio is noindex, so it is not listed
-  write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
+  const urls = [...Object.values(registry).map(m => m.path), ...coins.map(c => `/coin/${c.ticker}`)]; // noindex pages (portfolio, settings, app) are not listed
+  write('sitemap.xml', sitemapXml({ siteUrl, urls, lastmod: new Date().toISOString().slice(0, 10) }));
+  write('llms.txt', llmsTxt({ brand: tokens.BRAND, siteUrl, coins, aboutMap, registry, channelUrl: tokens.CHANNEL_URL }));
+}
+// Optional IndexNow (Bing, Yandex and others learn about new pages at once). Set INDEXNOW_KEY in Vercel (8 to 128 letters,
+// digits or dashes); the key file is written to the site root. Tell the search engines with a request to
+// https://api.indexnow.org/indexnow?url=<page>&key=<key> after a deploy.
+const indexNowKey = String(process.env.INDEXNOW_KEY || '').trim();
+if (indexNowKey) {
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(indexNowKey)) { console.error('[build] INDEXNOW_KEY must be 8 to 128 letters, digits or dashes.'); process.exit(1); }
+  write(`${indexNowKey}.txt`, indexNowKey);
 }
 
 write(

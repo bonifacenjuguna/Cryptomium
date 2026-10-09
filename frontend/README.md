@@ -21,7 +21,8 @@ After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site addres
 | Variable | Needed | Meaning |
 |---|---|---|
 | `API_URL` | yes | Your backend address (https://...). The only place it is set. The build stops without it. |
-| `SITE_URL` | no | Public address of the site, for the sitemap and link previews. |
+| `SITE_URL` | strongly recommended | Public address of the site (https://your-domain). Needed for canonical links, link previews, structured data, the sitemap and llms.txt. Without it those are skipped and the build warns. |
+| `INDEXNOW_KEY` | no | 8 to 128 letters, digits or dashes. Writes the IndexNow key file so Bing and others can be told about changes. |
 
 ## Settings
 
@@ -44,6 +45,7 @@ After deploying, set `ALLOWED_ORIGIN` on the Railway backend to your site addres
 - `build.js` builds `dist/`: fills in the brand, writes `dist/coin/BTC.html` and the other
   coin pages, the sitemap, `config.js` and a Content-Security-Policy that allows only
   this site, Google Fonts and your backend
+- `seo.js` search and sharing metadata for every page (titles, descriptions, canonical, Open Graph, Twitter cards, JSON-LD), sitemap, robots.txt and llms.txt. To change a page's title or description, edit its entry in `pageRegistry()`.
 - `vercel.json` build settings, rewrites and security headers
 
 Visitors' choices (theme, currency, starred coins) are saved in their own browser only.
@@ -58,3 +60,10 @@ here (and to `POPULAR` in `src/js/home.js` to choose where it sits in the list) 
 `/api/prices`, `/api/market`, `/api/history/<TICKER>`, `/api/alerts`, `/api/rates` and
 `/api/logos/<TICKER>.png`. If one is missing the page still works and quietly leaves
 that part out.
+
+## SEO checklist after deploying
+
+1. Set `SITE_URL` to the final domain and redeploy.
+2. Add the site to Google Search Console and Bing Webmaster Tools, verify it, and submit `https://your-domain/sitemap.xml`.
+3. Check a coin page with the Rich Results Test and the URL Inspection tool, and paste a link into a chat to see the preview card.
+4. Pages that are not in search on purpose: Settings, Portfolio, the app shell, offline and 404.
