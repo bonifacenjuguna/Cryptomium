@@ -27,34 +27,34 @@ export function pageRegistry({ brand, coinCount }) {
     },
     'markets.html': {
       path: '/markets', kind: 'collection',
-      title: 'Crypto Market Overview: Gainers, Losers and Dominance',
-      description: 'See what is moving across crypto right now: total market cap, 24 hour volume, Bitcoin dominance, Fear and Greed, top gainers and losers, and distance from all-time highs.',
+      title: 'Live Crypto Market Overview: Prices, Gainers and Losers',
+      description: 'Explore live cryptocurrency market prices, total market cap, 24-hour trading volume, Bitcoin dominance, market sentiment, top gainers and losers, and distance from all-time highs.',
       crumb: 'Market overview',
     },
     'screener.html': {
       path: '/screener', kind: 'app',
       title: 'Crypto Screener: Filter by Market Cap, Volume and ATH',
-      description: 'Filter coins by market cap, price, 24 hour and 7 day change, volume, volume to market cap, distance from all-time high and low, and supply. Free, no account.',
+      description: 'Screen cryptocurrencies by live price, market cap, trading volume, 24-hour and 7-day performance, supply, and distance from all-time highs and lows. Free to use, no account required.',
       crumb: 'Screener',
       appName: `${brand} Crypto Screener`,
     },
     'news.html': {
       path: '/news', kind: 'collection',
       title: 'Crypto News Headlines from Leading Publishers',
-      description: 'Latest crypto headlines from CoinDesk, Cointelegraph, Decrypt and Bitcoin Magazine, sorted by coin and topic, with links to the original articles.',
+      description: 'Browse cryptocurrency news headlines by coin and topic, with publisher attribution and links to original reporting from established crypto news outlets.',
       crumb: 'News',
     },
     'compare.html': {
       path: '/compare', kind: 'app',
       title: 'Compare Cryptocurrencies Side by Side',
-      description: 'Compare two or three coins side by side: price, performance, market cap, volume, supply, all-time high and low, with a plain-language momentum and volatility summary.',
+      description: 'Compare cryptocurrencies side by side using live prices, 24-hour and 7-day performance, market cap, trading volume, circulating supply, and all-time highs and lows.',
       crumb: 'Compare',
       appName: `${brand} Crypto Comparison Tool`,
     },
     'converter.html': {
       path: '/converter', kind: 'app',
       title: 'Crypto Converter: Coins to Currencies at Live Prices',
-      description: 'Convert any coin to another coin or to a currency at live prices. Bitcoin, Ethereum, Solana and more, in dollars, euros, shillings and other currencies.',
+      description: 'Convert cryptocurrency amounts using live prices. Check Bitcoin, Ethereum, Solana and other coins against USD, Kenyan shillings, euros, and supported currencies.',
       crumb: 'Converter',
       appName: `${brand} Crypto Converter`,
     },
@@ -78,12 +78,15 @@ export function coinMeta({ brand, coin, about }) {
   const { name, ticker } = coin;
   const same = name.toUpperCase() === ticker;
   const label = same ? name : `${name} (${ticker})`;
-  const base = `Live ${label} price in US dollars, 24 hour change, chart, market cap, volume, all-time high and milestone alerts on ${brand}.`;
+  const base = `Check the live ${label} price in USD, price chart, 24-hour change, market cap, trading volume, all-time high and recent milestone alerts on ${brand}.`;
   const extra = about ? firstSentence(about) : '';
+  const description = extra
+    ? clip(`${base} Learn about ${name}: ${extra}`, 160)
+    : clip(base, 160);
   return {
     path: `/coin/${ticker}`, kind: 'coin',
-    title: `${label} Price, Chart and Market Cap`,
-    description: extra && base.length + 1 + extra.length <= 160 ? `${base} ${extra}` : base,
+    title: `${label} Price, Chart & Market Cap`,
+    description,
     crumb: name,
     coin, about,
   };
