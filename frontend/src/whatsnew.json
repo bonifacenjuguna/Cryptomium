@@ -1,5 +1,12 @@
 [
  {
+  "v": "3.14.0",
+  "notes": [
+   "Search results: cleaner page titles and complete descriptions (no cut-off text)",
+   "Automatic SEO check on every website build"
+  ]
+ },
+ {
   "v": "3.13.0",
   "notes": [
    "Better search results and link previews: new titles and descriptions, full social cards and structured data on every public page",

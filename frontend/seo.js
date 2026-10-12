@@ -28,13 +28,13 @@ export function pageRegistry({ brand, coinCount }) {
     'markets.html': {
       path: '/markets', kind: 'collection',
       title: 'Live Crypto Market Overview: Prices, Gainers and Losers',
-      description: 'Explore live cryptocurrency market prices, total market cap, 24-hour trading volume, Bitcoin dominance, market sentiment, top gainers and losers, and distance from all-time highs.',
+      description: 'Live crypto market overview: total market cap, 24-hour volume, Bitcoin dominance, sentiment, top gainers and losers, and distance from all-time highs.',
       crumb: 'Market overview',
     },
     'screener.html': {
       path: '/screener', kind: 'app',
       title: 'Crypto Screener: Filter by Market Cap, Volume and ATH',
-      description: 'Screen cryptocurrencies by live price, market cap, trading volume, 24-hour and 7-day performance, supply, and distance from all-time highs and lows. Free to use, no account required.',
+      description: 'Screen cryptocurrencies by live price, market cap, volume, 24-hour and 7-day performance, supply and distance from all-time highs. Free, no account.',
       crumb: 'Screener',
       appName: `${brand} Crypto Screener`,
     },
@@ -47,14 +47,14 @@ export function pageRegistry({ brand, coinCount }) {
     'compare.html': {
       path: '/compare', kind: 'app',
       title: 'Compare Cryptocurrencies Side by Side',
-      description: 'Compare cryptocurrencies side by side using live prices, 24-hour and 7-day performance, market cap, trading volume, circulating supply, and all-time highs and lows.',
+      description: 'Compare cryptocurrencies side by side: live prices, 24-hour and 7-day performance, market cap, volume, circulating supply, and all-time highs and lows.',
       crumb: 'Compare',
       appName: `${brand} Crypto Comparison Tool`,
     },
     'converter.html': {
       path: '/converter', kind: 'app',
       title: 'Crypto Converter: Coins to Currencies at Live Prices',
-      description: 'Convert cryptocurrency amounts using live prices. Check Bitcoin, Ethereum, Solana and other coins against USD, Kenyan shillings, euros, and supported currencies.',
+      description: 'Convert crypto amounts at live prices. Check Bitcoin, Ethereum, Solana and other coins against USD, Kenyan shillings, euros and more.',
       crumb: 'Converter',
       appName: `${brand} Crypto Converter`,
     },
@@ -80,7 +80,8 @@ export function coinMeta({ brand, coin, about }) {
   const label = same ? name : `${name} (${ticker})`;
   const base = `Live ${label} price in USD, chart, 24-hour change, market cap, volume and alerts on ${brand}.`;
   const extra = about ? firstSentence(about) : '';
-  const description = clip(extra ? `${base} ${extra}` : base, 160);
+  // The coin's own sentence is added only when the whole description fits; a cut-off snippet reads worse than a short one.
+  const description = extra && base.length + 1 + extra.length <= 160 ? `${base} ${extra}` : base;
   return {
     path: `/coin/${ticker}`, kind: 'coin',
     title: `${label} Price, Chart & Market Cap`,

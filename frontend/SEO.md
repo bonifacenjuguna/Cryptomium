@@ -45,7 +45,7 @@ npm run seo:check
 
 Use the actual production backend URL and the exact canonical domain selected for Cryptomium. If a custom domain becomes primary, set `SITE_URL` to that domain in Vercel and redeploy. Do not publish separate canonical identities for the custom domain and the Vercel alias.
 
-The SEO checker examines built HTML for missing/duplicate titles, descriptions and canonicals, absolute HTTPS URLs, Open Graph images, parseable JSON-LD, sitemap coverage and the robots.txt sitemap declaration. Warnings need human review; a passing checker is not a substitute for testing the live website.
+The SEO checker examines built HTML for missing/duplicate titles, descriptions and canonicals, absolute HTTPS URLs, Open Graph images, parseable JSON-LD, sitemap coverage and the robots.txt sitemap declaration. The checker also fails when a description is over 160 characters or cut off with an ellipsis. It runs automatically at the end of `npm run build` whenever a site address is known. Warnings need human review; a passing checker is not a substitute for testing the live website.
 
 ## Search Console launch checklist
 

@@ -1,2 +1,0 @@
-Harmless deployment trigger check.
-No application behavior is changed by this file.

@@ -26,7 +26,7 @@ const seenTitles = new Map();
 for (const file of htmlFiles) {
   const html = fs.readFileSync(file, 'utf8');
   const rel = path.relative(root, file).split(path.sep).join('/');
-  const title = (html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1]?.trim();
+  const title = (html.match(/<title>([\s\S]*?)<\/title>/i) || [])[1]?.trim().replace(/&amp;/g, '&');
   const description = (html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || [])[1];
   const robots = (html.match(/<meta\s+name="robots"\s+content="([^"]*)"/i) || [])[1] || '';
   const canonical = (html.match(/<link\s+rel="canonical"\s+href="([^"]*)"/i) || [])[1];
@@ -37,13 +37,15 @@ for (const file of htmlFiles) {
 
   if (!title) fail(`${rel}: missing title`);
   else {
-    if (title.length > 70) warn(`${rel}: title is ${title.length} characters; review whether it can be more concise`);
+    if (title.length > 65) warn(`${rel}: title is ${title.length} characters; review whether it can be more concise`);
     if (canonicalPage && seenTitles.has(title)) fail(`${rel}: duplicate indexable title also used by ${seenTitles.get(title)}`);
     if (canonicalPage) seenTitles.set(title, rel);
   }
 
   if (canonicalPage && !description) fail(`${rel}: indexable page is missing meta description`);
-  if (description && description.length > 170) warn(`${rel}: description is ${description.length} characters`);
+  if (description && description.length > 160) fail(`${rel}: description is ${description.length} characters; Google cuts snippets near 155-160`);
+  if (description && /…|\.\.\.$/.test(description)) fail(`${rel}: description is cut off with an ellipsis`);
+  if (canonicalPage && description && description.length < 70) warn(`${rel}: description is short (${description.length} characters)`);
   if (canonicalPage && !canonical) fail(`${rel}: indexable page is missing canonical URL`);
   if (canonical && !/^https:\/\//i.test(canonical)) fail(`${rel}: canonical URL is not absolute HTTPS: ${canonical}`);
   if (canonical && canonicalPage) {

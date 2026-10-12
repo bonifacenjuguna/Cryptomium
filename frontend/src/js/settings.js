@@ -757,7 +757,7 @@ async function diagnostics() {
   const lines = [
     `Cryptomium diagnostics`,
     `Web version: ${window.CRYPTOMIUM?.version || '?'} (build ${window.CRYPTOMIUM?.build || '?'})`,
-    `Opened as: ${matchMedia('(display-mode: standalone)').matches ? 'installed app' : 'browser'}${document.referrer.startsWith('android-app://') ? ' (Android app)' : ''}`,
+    `Opened as: ${matchMedia('(display-mode: standalone)').matches ? 'installed app' : 'browser'}`,
     `Online: ${navigator.onLine}   Connection: ${navigator.connection ? (navigator.connection.effectiveType || '?') + (navigator.connection.saveData ? ', data saver' : '') : 'n/a'}`,
     `Service worker: ${navigator.serviceWorker?.controller ? 'active' : 'not controlling'}   Update: ${updates.get().status}   Mode: ${updates.mode()}`,
     `Notifications: ${st.status}   App lock: ${lock.state().on ? 'on' : 'off'}`,

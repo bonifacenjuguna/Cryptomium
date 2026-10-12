@@ -296,19 +296,6 @@ write(
   })};\n`
 );
 
-// Android app (Trusted Web Activity): the website must vouch for the app, or Chrome shows an address bar.
-// Set ANDROID_PACKAGE (for example com.cryptomium.app) and ANDROID_SHA256_CERTS (the signing certificate fingerprint(s)
-// from Play Console > App integrity, comma separated) in Vercel. With neither set, nothing is written.
-const androidPackage = String(process.env.ANDROID_PACKAGE || '').trim();
-const androidCerts = String(process.env.ANDROID_SHA256_CERTS || '').split(',').map(x => x.trim().toUpperCase()).filter(Boolean);
-if (androidPackage && androidCerts.length) {
-  if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/i.test(androidPackage) || androidCerts.some(c => !/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(c))) {
-    console.error('[build] ANDROID_PACKAGE or ANDROID_SHA256_CERTS is malformed (fingerprints look like AA:BB:...:FF, 32 pairs).');
-    process.exit(1);
-  }
-  write('.well-known/assetlinks.json', JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: androidPackage, sha256_cert_fingerprints: androidCerts } }], null, 2));
-}
-
 // Service worker: knows exactly which files make one complete version of the app.
 const cleanUrl = rel => '/' + rel.replace(/\.html$/, '').replace(/(^|\/)index$/, '$1').replace(/\/$/, '');
 const walkFiles = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walkFiles(path.join(dir, e.name)) : [path.relative(dist, path.join(dir, e.name))]));
@@ -330,7 +317,10 @@ write(
 
 console.log(`[build] Done. API: ${apiUrl} | site: ${siteUrl || '(not set)'} | ${coins.length} coin pages | v${pkgVersion} build ${ver} | ${precache.length} files saved for offline`);
 
-// Fail the deployment if generated SEO metadata or sitemap output regresses.
-const seoCheck = spawnSync(process.execPath, [path.join(root, 'seo-check.js')], { cwd: root, stdio: 'inherit' });
-if (seoCheck.error) throw seoCheck.error;
-if (seoCheck.status !== 0) process.exit(seoCheck.status || 1);
+// Fail the deployment if generated SEO metadata or sitemap output regresses. Skipped (the build already warned) when no
+// site address is known, because canonical links and the sitemap cannot exist without one.
+if (siteUrl) {
+  const seoCheck = spawnSync(process.execPath, [path.join(root, 'seo-check.js')], { cwd: root, stdio: 'inherit' });
+  if (seoCheck.error) throw seoCheck.error;
+  if (seoCheck.status !== 0) process.exit(seoCheck.status || 1);
+}
