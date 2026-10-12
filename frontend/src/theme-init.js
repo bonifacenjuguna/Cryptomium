@@ -25,9 +25,12 @@
   root.setAttribute('data-theme', resolved);
   var tc = document.querySelector('meta[name="theme-color"]');
   var app = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
-  if (tc) tc.setAttribute('content', resolved === 'dark' ? '#090f15' : app ? '#f1f3f6' : '#e8ecef');
+  if (tc) tc.setAttribute('content', resolved === 'dark' ? '#090f15' : '#f1f3f6');
+  // One look everywhere: the app design is the website's design too (is-app). Only the installed app (is-installed)
+  // hides the install card and footer and shows the launch splash.
+  root.classList.add('is-app');
   if (app) {
-    root.classList.add('is-app');
+    root.classList.add('is-installed');
     // Launch splash: once per app launch (per session), pure CSS
     try { if (!framed && !sessionStorage.getItem('cm-splashed')) { sessionStorage.setItem('cm-splashed', '1'); root.classList.add('splash'); } } catch (e) {}
   }

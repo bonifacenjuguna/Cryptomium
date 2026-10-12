@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.15.0
+
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
+
+### One look for the website and the app
+- The app design is now the website's design. `html.is-app` (flat surfaces, large titles, system fonts, bottom tab bar and side-drawer menu on phones) is set for every visit, not only inside the installed app.
+- A new `html.is-installed` class marks the real installed app. Only it hides the install card and the footer, hides the web-only Settings shortcuts, shows the end-of-page dot and the launch splash. The app shell (`/app`), the Back-key history handling and long-press behaviour are unchanged and still belong to the installed app.
+- Browsers now get the header hairline, the large title that collapses into the bar, and the phone menu drawer.
+- The home page headline and intro are visually hidden in the app look instead of removed (`display: none`), so screen readers and search engines still read them.
+- The footer (About, Privacy and tool links) stays in the browser, which keeps those links crawlable.
+- The browser tab colour now follows the app colour.
+- No change to titles, descriptions, canonicals, structured data or the sitemap; `seo:check` passes.
+
 ## 3.14.0
 
 **Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**

@@ -66,3 +66,7 @@ that part out.
 Run `npm run seo:check` after `npm run build` (with `API_URL` and `SITE_URL` set) to catch missing or duplicate metadata, canonical and sitemap regressions, and invalid JSON-LD. See [SEO.md](SEO.md) for the full implementation notes, content strategy, build commands, Search Console / Bing launch steps, performance checks and maintenance plan.
 
 After deploying, verify the preferred domain in Google Search Console and Bing Webmaster Tools, submit `https://your-domain/sitemap.xml`, inspect the home page, a coin page and a tool page, and check the live social preview. Settings, Portfolio, the app shell, offline, 404 and unknown-coin fallback pages are intentionally excluded from indexing.
+
+## One look
+
+The website and the installed app share one design (`html.is-app`, set in `src/theme-init.js`). `html.is-installed` marks the real installed app and is used only for things that make no sense in a browser tab: hiding the install card and footer, the launch splash, and the Back-key history handling.

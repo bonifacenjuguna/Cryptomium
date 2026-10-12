@@ -735,7 +735,7 @@ function initMenu() {
   if (!btn || !menu) return;
   const root = document.documentElement;
   const phone = matchMedia('(max-width: 820px)');
-  const drawer = () => isApp() && phone.matches;
+  const drawer = () => phone.matches; // the phone menu is a side drawer in the browser too
   const behind = () => document.querySelectorAll('main, .app-tabbar, .tape, .site-header .bar > :not(.menu):not(.menu-scrim)');
   let release = null;
   let liveTimer = 0;

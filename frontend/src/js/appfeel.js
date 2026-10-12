@@ -1,9 +1,6 @@
-// Native-app feel for the installed app only (does nothing in a browser tab):
+// Native-app feel on every visit (the website and the installed app share one look):
 // header hairline on scroll, large title that collapses into the bar, light haptics.
-import { isApp } from './pwa.js';
-
 export function initAppFeel() {
-  if (!isApp()) return;
   const root = document.documentElement;
   const motionOff = () => root.getAttribute('data-motion') === 'off';
 
