@@ -1757,6 +1757,8 @@ html[data-motion="off"].is-app .menu, html[data-motion="off"].is-app .menu-scrim
    ===================================================================== */
 html:not(.is-app) .if-app { display: none !important; }
 html.is-installed .web-only { display: none !important; }
+/* Phone menu already lists these shortcuts (Watchlist, Price alerts, Learn, Data sources, Data and privacy): not repeated in Settings. */
+@media (max-width: 820px) { html.is-app .web-only { display: none !important; } }
 
 /* Brand: an app name, not a link that reloads the page (phones; wide windows keep it as Home) */
 @media (max-width: 820px) {
@@ -2677,3 +2679,9 @@ html:not(.is-installed) .installed-only { display: none !important; }
 }
 /* Wide screens have no Back arrow, so the logo stays on every page in a browser tab. */
 @media (min-width: 821px) { html:not(.is-installed)[data-depth="sub"] .site-header .brand { display: inline-flex; } }
+
+/* The collapsed page title must not run under the Search and Menu buttons (main screens) or the Back arrow (sub screens). */
+@media (max-width: 820px) {
+  html.is-app .ab-title { display: flex; align-items: center; justify-content: flex-start; left: 16px; right: 112px; padding: 0; text-align: left; }
+  html.is-app[data-depth="sub"] .ab-title { justify-content: center; left: 64px; right: 64px; text-align: center; }
+}

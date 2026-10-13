@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.17.0
+
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
+
+### Each feature in one place
+- **Portfolio**: bottom tab bar (phone) and top menu (wide screens). Removed from Settings and from the Settings side list.
+- **Help and about**: the menu (phone) and the top menu "About" (wide screens). Removed from Settings and the Settings side list.
+- **Telegram channel and Questions and answers**: the menu. Removed from "About this app" in Settings (the social icons and the not-financial-advice note stay there).
+- **Watchlist, Price alerts, Learn crypto, Data sources, Data and privacy**: the menu on phones; Settings on wide screens (which have no menu drawer). Phones no longer show them a second time in Settings.
+- Unique to Settings and unchanged: Appearance, Preferences, Home and coin pages, Region and format, Accessibility, Notifications, Security and privacy, Data saver, Advanced.
+- Not duplicates, left as they are: the Starred filter on Home (a filter of the list, not the Watchlist page), Compare and Converter in the menu (wide screens have Compare in the top menu and no menu drawer).
+
+## 3.16.1
+
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
+
+- **Blank 24h changes:** when the price feed arrived without 24h changes (the provider that answered did not report them), every change pill on Home, Overview, coin pages and heatmap showed a dash. The website now fills the gaps from the market data (`/api/market`, which carries the same 24h number), loaded once and refreshed every 5 minutes. If the market data is also unavailable the dash stays, as before. Backend note: the cause is the backend's price source (a source without 24h changes plus a failed fallback); check its logs if the dashes keep appearing in the market data too.
+- **Title under the buttons:** on main screens the page title that slides into the top bar (for example "The crypto market, live") is now left-aligned in the space before the Search and Menu buttons instead of centred across the whole bar, so it can no longer overlap them. Sub screens keep it centred between Back and the screen edge.
+
 ## 3.16.0
 
 **Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**

@@ -1,5 +1,19 @@
 [
  {
+  "v": "3.17.0",
+  "notes": [
+   "No more repeats: Portfolio, Help and about, Telegram and Questions and answers are no longer listed a second time in Settings",
+   "On phones Settings shows settings only; Watchlist, Price alerts, Learn crypto, Data sources and Data and privacy stay in the menu"
+  ]
+ },
+ {
+  "v": "3.16.1",
+  "notes": [
+   "The 24h change column no longer stays blank when the price feed has no change numbers: they are filled from the market data",
+   "The page title in the top bar no longer runs under the Search and Menu buttons"
+  ]
+ },
+ {
   "v": "3.16.0",
   "notes": [
    "New link-preview picture for WhatsApp, Telegram, X and other apps",

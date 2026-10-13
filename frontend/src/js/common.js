@@ -95,8 +95,37 @@ function ensureFeed() {
   };
   net.onChange(syncState);
 
-  const deliver = (data, saved = 0) => {
-    if (!data || !Array.isArray(data.coins)) return;
+  // The price feed can arrive without 24h changes (its source did not report them), which leaves every change pill blank.
+  // The market data carries the same number, so the gaps are filled from it (loaded once, refreshed every 5 minutes).
+  let marketChanges = null, marketAt = 0, marketBusy = false, lastRaw = null;
+  const fillChanges = data => {
+    if (!marketChanges) return data;
+    let patched = false;
+    const coins = data.coins.map(c => {
+      if (typeof c.change24h === 'number' || !c.price) return c;
+      const m = marketChanges[c.ticker];
+      if (typeof m !== 'number') return c;
+      patched = true;
+      return { ...c, change24h: m };
+    });
+    return patched ? { ...data, coins } : data;
+  };
+  const needsChanges = data => data.coins.some(c => c.price && typeof c.change24h !== 'number');
+  async function loadMarketChanges() {
+    if (marketBusy || (marketChanges && Date.now() - marketAt < 5 * 60 * 1000)) return;
+    marketBusy = true;
+    try {
+      const coins = (await getJSON('/api/market')).coins || {};
+      marketChanges = Object.fromEntries(Object.entries(coins).map(([t, v]) => [t, v && v.change24h]));
+      marketAt = Date.now();
+      if (lastRaw) deliver(lastRaw.data, lastRaw.saved);
+    } catch { /* the pills stay blank until the next try */ } finally { marketBusy = false; }
+  }
+  const deliver = (raw, saved = 0) => {
+    if (!raw || !Array.isArray(raw.coins)) return;
+    lastRaw = { data: raw, saved };
+    const data = fillChanges(raw);
+    if (needsChanges(data)) loadMarketChanges();
     if (!saved) {
       lastMsg = Date.now();
       net.feedOk(data);
