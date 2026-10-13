@@ -51,6 +51,10 @@
   root.setAttribute('data-tab', tab);
   root.setAttribute('data-tab-at', tab);
   root.setAttribute('data-depth', path === '/' || (main && path === '/' + first) ? 'root' : 'sub');
+  // Pages that are neither a main tab nor a coin (Settings, About, Compare, Converter...): no tab bar on a phone, like the app.
+  if (!main && first !== 'coin') root.setAttribute('data-away', '');
+  // "App updates" only exists in the installed app; a browser always gets the newest version.
+  if (!app && !framed && path === '/settings/updates') { location.replace('/settings'); return; }
   root.setAttribute('data-accent', p.accent || 'citrine');
   var d = p.density;
   var migrated = false;

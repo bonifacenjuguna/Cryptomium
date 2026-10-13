@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.16.0
+
+**Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
+
+### Link previews
+- New share picture `og-v2.png` (1200 x 630, current design, no coin count or handle that can go out of date) replaces the old v1 `og.png`, which showed "21 coins" and a retired handle. The new file name makes WhatsApp, Telegram, Facebook and X fetch it fresh instead of showing a cached copy. To change the picture later, save it under a new name and update `OG_IMAGE` in `seo.js`.
+
+### Phone browser screens
+- Screens that are not a main tab or a coin (Settings and its pages, About, Compare, Converter, Privacy) have no bottom tab bar and no space reserved for it; coin pages keep the tab bar.
+- Screens opened from another screen show Back and the title only: no Search, no Menu, no price strip (as in the installed app). Wide screens keep the full header, and the logo now stays on every page.
+
+### Installed-app-only items
+- "Update app" in the menu, the brand and version line at the foot of the menu, and the App updates page (with its Settings link) show only in the installed app. Opening `/settings/updates` in a browser goes to Settings.
+- A browser tab always updates itself automatically (the manual-update choice applies only to the installed app).
+- Kept in both: App lock, Touch feedback, Notifications, Data saver, and Advanced > Maintenance (report a problem, clear recent searches, refresh the page).
+
+### No dead space
+- Measured the gap under the last item of every page on a phone and a desktop window; no page leaves empty space under its content or above the tab bar.
+- About links to Privacy (the Privacy page was linked only from the hidden footer).
+
 ## 3.15.0
 
 **Frontend release (the backend only changes its version number). Redeploy the website; the installed app updates itself.**
@@ -9,7 +29,7 @@
 - A new `html.is-installed` class marks the real installed app. Only it hides the install card and the footer, hides the web-only Settings shortcuts, shows the end-of-page dot and the launch splash. The app shell (`/app`), the Back-key history handling and long-press behaviour are unchanged and still belong to the installed app.
 - Browsers now get the header hairline, the large title that collapses into the bar, and the phone menu drawer.
 - The home page headline and intro are visually hidden in the app look instead of removed (`display: none`), so screen readers and search engines still read them.
-- The footer (About, Privacy and tool links) stays in the browser, which keeps those links crawlable.
+- The footer stays hidden everywhere, as in the app (an older v3.12 rule hides it). 3.15.0 wrongly said it stayed visible in the browser; 3.16.0 links Privacy from the About page instead.
 - The browser tab colour now follows the app colour.
 - No change to titles, descriptions, canonicals, structured data or the sitemap; `seo:check` passes.
 

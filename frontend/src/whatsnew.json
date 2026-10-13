@@ -1,11 +1,20 @@
 [
  {
+  "v": "3.16.0",
+  "notes": [
+   "New link-preview picture for WhatsApp, Telegram, X and other apps",
+   "Phone browser: Settings, About, Compare and Converter now show only Back and the title, with no bottom bar, like the app",
+   "Update app, the version line and the App updates page are only in the installed app; the website always updates itself",
+   "The logo stays in the top bar on wide screens"
+  ]
+ },
+ {
   "v": "3.15.0",
   "notes": [
    "One look everywhere: the website in your browser now has the same design as the installed app",
    "On phones the browser gets the bottom tab bar and side menu too",
    "The home headline stays in the page for screen readers and search engines",
-   "The install card and footer still show in the browser, and are hidden only in the installed app"
+   "The install card still shows in the browser"
   ]
  },
  {

@@ -157,7 +157,7 @@ if (sw) {
 export const updates = {
   get: snap,
   on(fn) { updateListeners.add(fn); return () => updateListeners.delete(fn); },
-  mode() { return flagGet(MODE_KEY) === 'manual' ? 'manual' : 'auto'; },
+  mode() { return isStandalone() && flagGet(MODE_KEY) === 'manual' ? 'manual' : 'auto'; }, // a browser tab has no update setting: it always updates itself
   setMode(m) { flagSet(MODE_KEY, m === 'manual' ? 'manual' : 'auto'); updateListeners.forEach(fn => fn(snap())); },
   /** Look for a new version. silent: background check, shows nothing unless an update is found. */
   async check({ silent = false } = {}) {

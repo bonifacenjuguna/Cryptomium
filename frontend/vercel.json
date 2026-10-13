@@ -187,7 +187,7 @@
       ]
     },
     {
-      "source": "/(icons/.*|og\\.png|favicon\\.svg)",
+      "source": "/(icons/.*|og-v2\\.png|favicon\\.svg)",
       "headers": [
         {
           "key": "Cache-Control",

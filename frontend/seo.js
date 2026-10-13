@@ -13,7 +13,7 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replac
 const stripTags = s => String(s).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
 const jsonLd = obj => `<script type="application/ld+json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`;
 
-export const OG_IMAGE = { path: '/og.png', width: 1200, height: 630, type: 'image/png' };
+export const OG_IMAGE = { path: '/og-v2.png', width: 1200, height: 630, type: 'image/png' };
 
 // Pages that should be found in search. Key = file name inside src/. Anything not listed here (settings, portfolio,
 // app shell, offline, 404, the fallback coin page) is kept OUT of the index.
